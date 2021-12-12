@@ -82,7 +82,7 @@ class BufferImpl private (initStore :Store) extends RBuffer {
   //
   // from Buffer and RBuffer API
 
-  override def nameV = _name
+  override def nameV :Value[String] = _name
   override def storeV = _store
   override def stale = _stale
   override def killed = _killed

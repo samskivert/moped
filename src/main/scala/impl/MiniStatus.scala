@@ -1,0 +1,89 @@
+//
+// Moped - my own private IDE-aho
+// https://github.com/samskivert/moped/blob/master/LICENSE
+
+package moped.impl
+
+import collection.{Seq => SeqV}
+
+import com.sun.javafx.tk.Toolkit
+import javafx.geometry.Insets
+import javafx.scene.control.{Label, Tooltip}
+import javafx.scene.layout.BorderPane
+
+import moped._
+import moped.major.{MiniUI, MinibufferMode}
+import moped.util.Errors
+
+abstract class MiniStatus (window :WindowImpl) extends BorderPane with Minibuffer {
+
+  getStyleClass.addAll("status")
+  setVisible(false)
+
+  val plabel = new Label()
+  plabel.maxWidthProperty.bind(widthProperty)
+  plabel.setWrapText(true)
+  plabel.getStyleClass.add("prompt")
+  BorderPane.setMargin(plabel, new Insets(0, 5, 0, 0))
+  setLeft(plabel)
+
+  val ui = new MiniUI() {
+    override def setPrompt (prompt :String) = plabel.setText(prompt)
+    override def getPrompt = plabel.getText
+    override def showCompletions (comps :SeqV[String]) :Unit = {} // not supported presently
+  }
+
+  private var curDisp :DispatcherImpl = null
+
+  /** Called to check whether we can show this minibuffer.
+    * Should throw a feedback exception (with explanation) if showing is not currently allowed. */
+  def willShow () :Unit
+
+  /** Called when this minibuffer is made visible. */
+  def onShow () :Unit
+
+  /** Called when this minibuffer is cleared. */
+  def onClear () :Unit
+
+  /** Aborts any active mini-mode. */
+  def abort () :Unit = {
+    if (curDisp != null) curDisp.invoke("abort")
+  }
+
+  override def apply[R] (mode :String, args :Any*) :Future[R] = {
+    val result = window.exec.uiPromise[R]
+    try {
+      willShow() // make sure it's OK to activate ourselves
+
+      val buffer = BufferImpl.scratch("*minibuffer*")
+      val view = new BufferViewImpl(window, buffer, 40, 1)
+      val modeArgs = ui :: result :: args.toList
+      val disp = new DispatcherImpl(window, window.resolver(null, buffer), view, ModeLine.Noop,
+                                    s"mini-$mode", modeArgs, Nil) {
+        override protected def fallbackToText = false
+      }
+      setCenter(disp.area)
+      setVisible(true)
+      toFront()
+      onShow()
+      disp.area.requestFocus()
+      curDisp = disp
+      result onComplete { _ =>
+        ui.setPrompt("")
+        ui.showCompletions(Seq())
+        view.popup.clear() // clear any active popup
+        disp.dispose(true)
+        curDisp = null
+        setCenter(null)
+        setVisible(false)
+        onClear()
+      }
+
+    } catch {
+      case e :Exception =>
+        result.fail(e)
+        window.emitError(e)
+    }
+    result
+  }
+}

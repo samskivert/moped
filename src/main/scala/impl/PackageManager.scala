@@ -14,6 +14,8 @@ import java.util.HashMap
 import java.util.regex.Pattern
 
 import moped._
+import moped.major._
+import moped.minor._
 // import moped.pacman._
 import moped.util.BufferBuilder
 
@@ -28,21 +30,20 @@ class PackageManager (log :Logger) extends AbstractService /* with PackageServic
 
   // private val pkgRepo = Pacman.repo
 
-  /** Returns the top-level metadata directory. */
-  def metaDir :Path = ??? // pkgRepo.metaDir
+  /** The top-level metadata directory. */
+  val metaDir :Path = locateMetaDir
 
   // /** Returns info on all known modules. */
   // def modules :Iterable[ModuleMeta] = metas.values
 
   /** Resolves the class for the mode named `name`. */
-  def mode (major :Boolean, name :String) :Option[Class[_]] =
-    Option(modeMap(major).get(name)).map(_.apply(name))
+  def mode (major :Boolean, name :String) :Option[Class[_]] = Option(modeMap(major).get(name))
 
   /** Resolves the implementation class for the service with fq classname `name`. */
-  def service (name :String) :Option[Class[_]] = Option(serviceMap.get(name)).map(_.apply(name))
+  def service (name :String) :Option[Class[_]] = Option(serviceMap.get(name))
 
   /** Returns the name of all modes provided by all packages. */
-  def modes (major :Boolean) :Iterable[String] = ??? // modeMap(major).keySet
+  def modes (major :Boolean) :Iterable[String] = modeMap(major).keySet.asScala
 
   /** Detects the major mode that should be used to edit a buffer named `name` and with `line0` as
     * its first line of text. */
@@ -146,17 +147,76 @@ class PackageManager (log :Logger) extends AbstractService /* with PackageServic
   //   // TODO
   // }
 
+  private def locateMetaDir :Path = {
+    // if our metadir has been overridden, use the specified value
+    val mopedHome = System.getenv("SCALED_HOME")
+    if (mopedHome != null) return Paths.get(mopedHome)
+
+    val homeDir = Paths.get(System.getProperty("user.home"))
+    // if we're on a Mac, put things in ~/Library/Application Support/Moped
+    val appSup = homeDir.resolve("Library").resolve("Application Support")
+    if (Files.exists(appSup)) return appSup.resolve("Moped")
+    // if we're on (newish) Windows, use AppData/Local
+    val apploc = homeDir.resolve("AppData").resolve("Local")
+    if (Files.exists(apploc)) return apploc.resolve("Moped")
+    // otherwise use ~/.moped (where ~ is user.home)
+    else return homeDir.resolve(".moped")
+  }
+
   // private val metas = new HashMap[Source,ModuleMeta]()
 
-  private type Finder = String => Class[_]
-  private val serviceMap = new HashMap[String,Finder]()
-  private val majorMap = new HashMap[String,Finder]()
-  private val minorMap = new HashMap[String,Finder]()
+  private val serviceMap = new HashMap[String,Class[_]]()
+  private val majorMap = new HashMap[String,Class[_]]()
+  private val minorMap = new HashMap[String,Class[_]]()
   private def modeMap (major :Boolean) = if (major) majorMap else minorMap
 
   private val patterns   = ArrayBuffer[(Pattern,String)]()
   private val interps    = HashMultimap.create[String,String]()
   private val minorTags  = HashMultimap.create[String,String]()
+
+  private def registerService (clazz :Class[_]) :Unit = {
+    var meta = clazz.getAnnotation(classOf[Service])
+    if (meta == null) throw new Exception("Missing @Service annotation " + clazz)
+    var impl = clazz.getClassLoader.loadClass("moped." + meta.impl)
+    serviceMap.put(clazz.getName, impl)
+  }
+
+  registerService(classOf[WatchService])
+  registerService(classOf[ConfigService])
+  registerService(classOf[WorkspaceService])
+
+  private def registerMajor (clazz :Class[_]) :Unit = {
+    var meta = clazz.getAnnotation(classOf[Major])
+    if (meta == null) throw new Exception("Missing @Major annotation " + clazz)
+    majorMap.put(meta.name, clazz)
+    meta.pats foreach { p =>
+      try patterns += (Pattern.compile(p) -> meta.name)
+      catch {
+        case e :Exception => log.log(s"Mode ${meta.name} specified invalid pattern: $p: $e")
+      }
+    }
+    meta.ints foreach { interps.put(_, meta.name) }
+  }
+
+  registerMajor(classOf[TextMode])
+  registerMajor(classOf[MiniReadMode[_]])
+  registerMajor(classOf[MiniReadOptMode])
+  registerMajor(classOf[MiniYesNoMode])
+  registerMajor(classOf[ISearchMode])
+  registerMajor(classOf[HelpMode])
+  registerMajor(classOf[LogMode])
+
+  private def registerMinor (clazz :Class[_]) :Unit = {
+    var meta = clazz.getAnnotation(classOf[Minor])
+    if (meta == null) throw new Exception("Missing @Minor annotation " + clazz)
+    minorMap.put(meta.name, clazz)
+    meta.tags foreach { minorTags.put(_, meta.name) }
+  }
+
+  registerMinor(classOf[MetaMode])
+  registerMinor(classOf[WhitespaceMode])
+  registerMinor(classOf[SubProcessMode])
+  registerMinor(classOf[WorkspaceMode])
 
   // private val MopedAPI = Source.parse("git:https://github.com/moped/moped.git#api")
   // private val MopedEditor = Source.parse("git:https://github.com/moped/moped.git#editor")

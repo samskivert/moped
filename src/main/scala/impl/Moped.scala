@@ -82,8 +82,7 @@ class Moped extends Application with Editor {
   val svcMgr = new ServiceManager(this)
   val cfgMgr = svcMgr.injectInstance(classOf[ConfigManager], Nil)
 
-  val metaDir = locateMetaDir
-  val configScope = Config.Scope("global", metaDir, None)
+  val configScope = Config.Scope("global", pkgMgr.metaDir, None)
   state[Config.Scope]() = configScope
 
   /** If debug logging is enabled, writes `msg` to console, otherwise noops. */
@@ -93,9 +92,6 @@ class Moped extends Application with Editor {
   override def start (stage :Stage) :Unit = {
     // round up exceptions thrown from runnables sent to Platform.runLater
     Thread.currentThread.setUncaughtExceptionHandler((thread, err) => handleError(err))
-    // we have to defer resolution of auto-load services until the above constructors have
-    // completed; always there are a twisty maze of initialization dependencies
-    // svcMgr.resolveAutoLoads()
     // create the starting editor and visit therein the starting files
     val argvFiles = getParameters.getRaw.asScala map wspMgr.resolve
     wspMgr.visit(stage, argvFiles ++ Moped.openFiles())
@@ -120,28 +116,12 @@ class Moped extends Application with Editor {
     if (System.getProperty("os.name") != "Mac OS X") getHostServices.showDocument(url)
     else Runtime.getRuntime.exec(Array("open", url))
   }
-
-  private def locateMetaDir :Path = {
-    // if our metadir has been overridden, use the specified value
-    val mopedHome = System.getenv("SCALED_HOME")
-    if (mopedHome != null) return Paths.get(mopedHome)
-
-    val homeDir = Paths.get(System.getProperty("user.home"))
-    // if we're on a Mac, put things in ~/Library/Application Support/Moped
-    val appSup = homeDir.resolve("Library").resolve("Application Support")
-    if (Files.exists(appSup)) return appSup.resolve("Moped")
-    // if we're on (newish) Windows, use AppData/Local
-    val apploc = homeDir.resolve("AppData").resolve("Local")
-    if (Files.exists(apploc)) return apploc.resolve("Moped")
-    // otherwise use ~/.moped (where ~ is user.home)
-    else return homeDir.resolve(".moped")
-  }
 }
 
 object Moped {
 
   /** The port on which [Server] listens for commands. */
-  final val Port = (Option(System.getenv("SCALED_PORT")) getOrElse "32323").toInt
+  final val Port = (Option(System.getenv("MOPED_PORT")) getOrElse "32324").toInt
 
   /** Files received via 'open files' events. These may arrive long before JavaFX is ready to run,
     * so we register a handler immediately in main() and buffer files in this reactive value. This

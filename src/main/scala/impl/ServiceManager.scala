@@ -33,7 +33,9 @@ class ServiceInjector (val log :Logger, val exec :Executor, editor :Editor)
       // match the args to the ctor parameters; the first arg of the desired type is used and then
       // removed from the arg list, so we can request multiple args of the same type as long as
       // they're in the correct order
-      var remargs = ArrayBuffer[Any]().append(args).append(stockArgs)
+      var remargs = ArrayBuffer[Any]()
+      remargs ++= args
+      remargs ++= stockArgs
       val params = ctor.getParameterTypes.map { p => remargs.find(p.isInstance) match {
         case Some(arg) => remargs -= arg ; arg
         case None =>
@@ -71,18 +73,6 @@ class ServiceManager (app :Moped) extends ServiceInjector(app.logger, app.exec, 
   // services.put(app.pkgMgr.getClass, app.pkgMgr)
   services.put(app.wspMgr.getClass, app.wspMgr)
 
-  // create our plugin manager and manually register it in the cache
-  // private var pluginMgr = new PluginManager(app)
-  // services.put(pluginMgr.getClass, pluginMgr)
-
-  // iterates over all known services and resolves any that are marked `autoLoad`; this is called
-  // after the editor is fully initialized but before it loads its starting buffers; we can't do
-  // this during our constructor because of initialization inter-depends with plugin manager
-  // def resolveAutoLoads () :Unit = app.pkgMgr.modules foreach autoLoadSvcs
-  // private def autoLoadSvcs (mm :ModuleMeta) = mm.autoSvcs.map(mm.loadClass).foreach(resolveService)
-  // // also auto-load services in packages added after startup
-  // app.pkgMgr.moduleAdded.onValue(autoLoadSvcs)
-
   def shutdown () :Unit = {
     services.asMap.values.forEach { svc =>
       try svc.willShutdown()
@@ -92,7 +82,7 @@ class ServiceManager (app :Moped) extends ServiceInjector(app.logger, app.exec, 
     }
   }
 
-  override def metaFile (name :String) = app.metaDir.resolve(name)
+  override def metaFile (name :String) = app.pkgMgr.metaDir.resolve(name)
 
   override def resolveService (sclass :Class[_]) = {
     if (!sclass.getName.endsWith("Service")) throw new InstantiationException(

@@ -332,7 +332,7 @@ class DispatcherImpl (window :WindowImpl, resolver :ModeResolver, view :BufferVi
       val mb = Map.newBuilder[Seq[KeyPress],FnBinding]
       for (kb <- mode.keymap.bindings) KeyPress.toKeyPresses(kb.trigger) match {
         case Left(kerrs) => window.emitStatus(
-          s"Invalid key(s) in '$name-mode' keymap: '${kerrs.mkString(", ")}'")
+          s"Invalid key(s) in '$name-mode' keymap (${kb.trigger}): '${kerrs.mkString(", ")}'")
         case Right (kps) => binding(kb.fn) match {
           case Left(err) => window.emitStatus(err)
           case Right(fb) => mb += (kps -> fb)

@@ -81,7 +81,7 @@ object KeyPress {
       case None     => errs += (if (str == seq) str else s"$str in $seq")
       case Some(kp) => kps  += kp
     }}
-    if (errs.knownSize == 0) Left(errs.result()) else Right(kps.result())
+    if (errs.knownSize > 0) Left(errs.result()) else Right(kps.result())
   }
 
   /** Converts a single key press description (e.g. 'a', 'C-c', 'M-S-F2', etc.) into a `KeyPress`

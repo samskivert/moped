@@ -1,0 +1,70 @@
+/**
+ * Styles for code-mode.
+ */
+
+.codeBuiltinFace {
+  -fx-fill: #AACCFF;
+}
+
+.codePreprocessorFace {
+  -fx-fill: #AAFFFF;
+}
+
+.codeCommentFace {
+  -fx-fill: #AA44DD;
+  -fx-font-style: italic;
+}
+
+.codeConstantFace {
+  -fx-fill: LightSteelBlue;
+}
+
+.codeDocFace {
+  -fx-fill: LightSalmon;
+}
+
+.codeKeywordFace {
+  -fx-fill: #FFCC00;
+}
+
+.codeStringFace {
+  -fx-fill: #62FA00;
+}
+
+.codeModuleFace {
+  -fx-fill: LightSteelBlue;
+}
+
+.codeTypeFace {
+  -fx-fill: #ED4600;
+}
+
+.codeVariableFace {
+  -fx-fill: #F2E294;
+}
+
+.codeFunctionFace {
+  -fx-fill: #309797;
+}
+
+.codeInvalidFace {
+  -fx-fill: DarkOrange;
+  -fx-font-weight: bold;
+}
+
+.blockDelimFace {
+  -fx-underline: true;
+}
+
+.blockErrorFace {
+  -fx-fill: Red;
+}
+
+.activeChoiceFace {
+  -fx-bg-fill: DarkSlateBlue;
+}
+
+/** TODO: from emacs
+ '(show-paren-match ((t (:background "#330"))))
+ '(show-paren-mismatch ((t (:background "red"))))
+*/

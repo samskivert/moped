@@ -6,6 +6,10 @@ lazy val root = project.in(file(".")).settings(
 
   scalaVersion := scala3Version,
 
+  fork := true,
+
+  Compile / run / mainClass := Some("moped.impl.MopedLauncher"),
+
   libraryDependencies += "com.google.guava" % "guava" % "27.0.1-jre",
   libraryDependencies += "org.ow2.asm" % "asm" % "6.0",
   // libraryDependencies += "org.openjfx" % "javafx-controls" % "18-ea+7",

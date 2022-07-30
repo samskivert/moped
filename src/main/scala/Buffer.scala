@@ -4,7 +4,7 @@
 
 package moped
 
-import scala.collection.{Seq => SeqV}
+import scala.collection.Seq
 
 import moped.impl.BufferImpl
 import moped.util.Chars
@@ -24,7 +24,7 @@ import moped.util.Chars
   * idea. Don't do it. Consider yourself warned.
   *
   * @define RNLNOTE Note: the last line does not conceptually include a trailing newline, and
-  * [[insert(Loc,Seq[LineV])]] takes this into account.
+  * [[insert(Loc,Iterable[LineV])]] takes this into account.
   */
 abstract class BufferV extends Region {
 
@@ -93,7 +93,7 @@ abstract class BufferV extends Region {
   }
 
   /** A read-only view of the lines in this buffer. */
-  def lines :SeqV[LineV]
+  def lines :Seq[LineV]
 
   /** Returns the `idx`th line. Indices are zero based.
     * @throws IndexOutOfBoundsException if `idx` is not a valid line index. */
@@ -159,7 +159,7 @@ abstract class BufferV extends Region {
   }
 
   /** Returns a copy of the data between `[start, until)`. $RNLNOTE */
-  def region (start :Loc, until :Loc) :SeqV[Line] =
+  def region (start :Loc, until :Loc) :Seq[Line] =
     if (until < start) region(until, start)
     else if (start.row == until.row) Seq(line(start).slice(start.col, until.col))
     else {
@@ -171,11 +171,11 @@ abstract class BufferV extends Region {
     }
 
   /** Returns a copy of the data in region `r`. $RNLNOTE */
-  def region (r :Region) :SeqV[Line] = region(r.start, r.end)
+  def region (r :Region) :Seq[Line] = region(r.start, r.end)
 
   /** Returns the largest region around `loc` which matches the supplied `category`.
     * For example, supply [[Chars.Word]] to obtain the "word" at `loc`. */
-  def regionAt (loc :Loc, category :Chars.Category) :SeqV[Line] = {
+  def regionAt (loc :Loc, category :Chars.Category) :Seq[Line] = {
     val lstart = scanBackward(category.isNot, loc)
     val start = if (category.is(charAt(lstart))) lstart else forward(lstart, 1)
     val end = if (!category.is(charAt(start))) start
@@ -433,9 +433,9 @@ abstract class Buffer extends BufferV {
   def delete (loc :Loc, count :Int) :Line
   /** Deletes the data between `[start, until)` from the buffer. Returns a copy of the deleted data.
     * $RNLNOTE */
-  def delete (start :Loc, until :Loc) :SeqV[Line]
+  def delete (start :Loc, until :Loc) :Seq[Line]
   /** Deletes the data in region `r` from the buffer. Returns a copy of the deleted data. $RNLNOTE */
-  def delete (r :Region) :SeqV[Line] = delete(r.start, r.end)
+  def delete (r :Region) :Seq[Line] = delete(r.start, r.end)
 
   /** Replaces `count` characters in the line at `loc` with the `line`.
     * @return the replaced characters as a line. */
@@ -529,7 +529,7 @@ object Buffer {
   }
 
   /** An event emitted when text is deleted from a buffer. */
-  class Delete (val start :Loc, val deletedRegion :SeqV[Line], buffer :Buffer) extends Edit {
+  class Delete (val start :Loc, val deletedRegion :Seq[Line], buffer :Buffer) extends Edit {
     val end :Loc = start + deletedRegion
     def undo () = buffer.insert(start, deletedRegion)
     override def toString = s"Edit[-${Region.toString(this)}]"

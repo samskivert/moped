@@ -1,0 +1,17 @@
+name: Nested Dictionary Format
+scopeName: source.ndf
+repository:
+patterns:
+ single:
+  # comments must be the only thing on the line
+  name: comment.line.ndf
+  pattern: [ ]*([#])(.+)?$
+  caps: 1=punctuation.definition.comment.ndf
+ # everything else should be 'key: value' or 'key:' followed by nested dictionary
+ single:
+  pattern: ^ *([a-zA-Z][^:]+)([:])(.*?)(\\)?$
+  caps: 1=keyword.other.ndf 2=punctuation.separator.key-value.ndf 4=punctuation.line-cont.ndf
+ # highlight the trailing \ on continued lines
+ single:
+  pattern: (.*)(\\)
+  caps: 2=punctuation.line-cont.ndf

@@ -54,15 +54,15 @@ abstract class GrammarCodeMode (env :Env) extends CodeMode(env) {
     */
   protected def isModeStyle (style :String) = style startsWith "code"
 
-  private def mkProcs (plugin :GrammarPlugin) = {
+  private def mkProcs (info :GrammarInfo) = {
     val procs = List.newBuilder[Selector.Processor]
-    if (!plugin.effacers.isEmpty) procs += new Selector.Processor(plugin.effacers) {
+    if (!info.effacers.isEmpty) procs += new Selector.Processor(info.effacers) {
       override def onBeforeLine (buf :Buffer, row :Int) :Unit = { // clear any code styles
         val start = buf.lineStart(row) ; val end = buf.lineEnd(row)
         if (start != end) buf.removeTags(classOf[String], isModeStyle, start, end)
       }
     }
-    if (!plugin.syntaxers.isEmpty) procs += new Selector.Processor(plugin.syntaxers) {
+    if (!info.syntaxers.isEmpty) procs += new Selector.Processor(info.syntaxers) {
       override protected def onUnmatched (buf :Buffer, start :Loc, end :Loc) :Unit = {
         buf.setSyntax(Syntax.Default, start, end) // reset syntax
       }

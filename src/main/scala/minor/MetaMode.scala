@@ -235,7 +235,7 @@ class MetaMode (env :Env) extends MinorMode(env) {
     bb.addHeader("Editor")
     editor.state.describeSelf(bb)
 
-    env.msvc.service[PackageService].describePackages(bb)
+    // env.msvc.service[PackageService].describePackages(bb)
 
     def defang (text :String) = text.replace("\n", "\\n")
     bb.addHeader("System Properties")

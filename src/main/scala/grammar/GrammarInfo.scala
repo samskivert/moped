@@ -7,13 +7,15 @@ package moped.grammar
 import java.io.FileNotFoundException
 import java.net.URL
 import moped._
+import moped.code._
 
-/** A plugin that provides a particular TextMate grammar for use by [[GrammarCodeMode]] and
-  * anything else that wants to style text. Should be tagged as `textmate-grammar`. */
-abstract class GrammarPlugin extends AbstractPlugin {
+/** Data for a particular TextMate grammar for use by [[GrammarCodeMode]] and anything else that
+  * wants to style text. */
+abstract class GrammarInfo {
 
-  /** The grammars provided by this plugin: scope name -> grammar resource path. */
-  def grammars :Map[String,String]
+  /** The name of NDF resource that contains the grammar. For example `Scala.ndf`.
+    * This will be resolved relative to the `grammars/` resource directory. */
+  def resource :String
 
   /** Used to map grammar scopes to Moped effacers (styles). */
   def effacers :List[Selector.Fn] = Nil
@@ -21,11 +23,10 @@ abstract class GrammarPlugin extends AbstractPlugin {
   /** Used to map grammar scopes to Moped syntaxes. */
   def syntaxers :List[Selector.Fn] = Nil
 
-  /** Parses and returns the grammar for `scopeName`, which must be a key in [[grammars]]. */
-  def grammar (scopeName :String) :Grammar = Grammar.parseNDF({
-    val path = grammars(scopeName)
-    val url = getClass.getClassLoader.getResource(path)
-    if (url == null) throw new FileNotFoundException(path) else url
+  /** Parses and returns the grammar. */
+  def grammar :Grammar = Grammar.parseNDF({
+    val url = getClass.getClassLoader.getResource(s"grammar/$resource")
+    if (url == null) throw new FileNotFoundException(s"grammar/$resource") else url
   })
 
   /** Compiles `selector` into a TextMate grammar selector and pairs it with a function that

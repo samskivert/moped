@@ -87,6 +87,7 @@ class ServiceManager (app :Moped) extends ServiceInjector(app.logger, app.exec, 
   override def resolveService (sclass :Class[_]) = {
     if (!sclass.getName.endsWith("Service")) throw new InstantiationException(
       s"Service classes must be named FooService: $sclass")
+    else if (sclass.getName == "moped.MetaService") return this
     else app.pkgMgr.service(sclass.getName) match {
       case None       => super.resolveService(sclass)
       case Some(impl) => services.get(impl)

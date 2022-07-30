@@ -110,7 +110,7 @@ class PackageManager (log :Logger) extends AbstractService /* with PackageServic
   // }
 
   // private def fmt (iter :JIterable[_]) :String = iter.asScala.mkString(", ")
-  private def fmt (iter :scala.Iterable[_]) :String = (iter.map {
+  private def fmt (iter :Iterable[_]) :String = (iter.map {
     case (k, v) => s"$k=$v"
     case v      => v
   }).mkString(", ")
@@ -184,6 +184,7 @@ class PackageManager (log :Logger) extends AbstractService /* with PackageServic
   registerService(classOf[WatchService])
   registerService(classOf[ConfigService])
   registerService(classOf[WorkspaceService])
+  registerService(classOf[grammar.GrammarService])
 
   private def registerMajor (clazz :Class[_]) :Unit = {
     var meta = clazz.getAnnotation(classOf[Major])
@@ -205,6 +206,8 @@ class PackageManager (log :Logger) extends AbstractService /* with PackageServic
   registerMajor(classOf[ISearchMode])
   registerMajor(classOf[HelpMode])
   registerMajor(classOf[LogMode])
+
+  registerMajor(classOf[scala.ScalaMode])
 
   private def registerMinor (clazz :Class[_]) :Unit = {
     var meta = clazz.getAnnotation(classOf[Minor])

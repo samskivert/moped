@@ -6,7 +6,7 @@ package moped.grammar
 
 import moped._
 
-@Service(name="textmate-grammar", impl="GrammarManager",
+@Service(name="textmate-grammar", impl="grammar.GrammarManager",
          desc="Provides a database of TextMate grammars for syntax highlighting.")
 trait GrammarService {
 
@@ -20,12 +20,12 @@ trait GrammarService {
   /** Creates a [[Scoper]] for `buffer` using `langScope` to identify the main grammar.
     * @return the scoper or `None` if no grammar is available for `langScope`. */
   def scoper (buffer :Buffer, langScope :String) :Option[Scoper] =
-    scoper(buffer, langScope, plugin => List(plugin.effacers, plugin.syntaxers).
+    scoper(buffer, langScope, info => List(info.effacers, info.syntaxers).
       flatMap(sels => if (sels.isEmpty) None else Some(new Selector.Processor(sels))))
 
   /** Creates a [[Scoper]] for `buffer` using `langScope` to identify the main grammar.
     * @param mkProcs a function to create custom line processors given the plugin metadata.
     * @return the scoper or `None` if no grammar is available for `langScope`. */
   def scoper (buffer :Buffer, langScope :String,
-              mkProcs :GrammarPlugin => List[Selector.Processor]) :Option[Scoper]
+              mkProcs :GrammarInfo => List[Selector.Processor]) :Option[Scoper]
 }

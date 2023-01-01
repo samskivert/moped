@@ -1,0 +1,19 @@
+/**
+ * Styles for project-mode.
+ */
+
+.noteHintFace {
+  -fx-underline: true;
+}
+
+.noteInfoFace {
+  -fx-underline: true;
+}
+
+.noteWarningFace {
+  -fx-underline: true;
+}
+
+.noteErrorFace {
+  -fx-bg-stroke: #ED4600 !important;
+}

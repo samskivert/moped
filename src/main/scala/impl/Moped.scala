@@ -92,6 +92,9 @@ class Moped extends Application with Editor {
   override def start (stage :Stage) :Unit = {
     // round up exceptions thrown from runnables sent to Platform.runLater
     Thread.currentThread.setUncaughtExceptionHandler((thread, err) => handleError(err))
+    // we have to defer resolution of auto-load services until the above constructors have
+    // completed; always there are a twisty maze of initialization dependencies
+    svcMgr.resolveAutoLoads()
     // create the starting editor and visit therein the starting files
     val argvFiles = getParameters.getRaw.asScala map wspMgr.resolve
     wspMgr.visit(stage, argvFiles ++ Moped.openFiles())

@@ -7,6 +7,10 @@ package moped
 import java.nio.file.Path
 import scala.reflect.ClassTag
 
+/** Moped plugins must extend this class and have a name of the form `FooPlugin`.
+  * They must also be annotated with the `Plugin` annotation. */
+abstract class AbstractPlugin {}
+
 /** Provides services relating to services. */
 @Service(name="service", impl="impl.ServiceManager",
          desc="Provides meta-services. Mainly logging and dependency injection.")
@@ -23,11 +27,11 @@ trait MetaService {
 
   /** Resolves and returns the Moped service identified by `clazz`. `clazz` is a [[Service]]
     * annotated class, which will be created and initialized if it has not yet been so.
-    * @throws InstantiationException if there is an error creating the service.  */
+    * @throws InstantiationException if there is an error creating the service. */
   def service[T] (clazz :Class[T]) :T
 
   /** A `service` variant that uses class tags to allow usage like: `service[Foo]`.
-    * @throws InstantiationException if there is an error creating the service.  */
+    * @throws InstantiationException if there is an error creating the service. */
   def service[T] (implicit tag :ClassTag[T]) :T = service(tag.runtimeClass.asInstanceOf[Class[T]])
 
   /** Creates a process whose object is created by `thunk`. The creation of the process object takes
@@ -54,4 +58,11 @@ trait MetaService {
     * that might merely box a string or integer.
     */
   def injectInstance[T] (clazz :Class[T], args :List[Any]) :T
+
+  /** Resolves `clazz` plugins. Injects and returns instances of all classes on the classpath that
+    * are subtypes of `T`.
+    * @param args an optional list of arguments to supply when injecting instances of the requested
+    * plugins.
+    */
+  def resolvePlugins[T <: AbstractPlugin] (clazz :Class[T], args :List[Any] = Nil) :Seq[T]
 }

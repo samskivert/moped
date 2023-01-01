@@ -6,7 +6,6 @@ package moped.util
 
 import annotation.varargs
 import collection.mutable.ArrayBuffer
-import collection.{Seq => SeqV}
 
 import moped._
 import moped.major.TextConfig
@@ -29,7 +28,7 @@ class BufferBuilder (val fillWidth :Int) {
   private val _lines = ArrayBuffer[LineV]()
 
   /** Returns the lines accumulated to this builder. */
-  def lines :SeqV[LineV] = _lines
+  def lines :Iterable[LineV] = _lines
 
   /** Replaces the contents of `buffer` buffer with the contents of this builder.
     * @return `buffer`, for easy chaining to a call to `visitBuffer`.

@@ -11,19 +11,9 @@ import java.lang.annotation.Target;
 
 /**
  * Marks a class as implementing a Moped service plugin. Service plugins are arbitrary classes
- * (presumably implementing a common interface) that allow a service to be extended by other
- * packages. Plugins are tagged with a unique tag and a service can then request a list of all
- * plugins with a particular tag, and do what it will with them.
- *
- * <p>Note: plugins <em>must</em> be implemented by classes named {@code FooPlugin}. The @Plugin
- * annotation is only sought on classes matching that name pattern.</p>
+ * (implementing a common interface) that allow a service to be extended by other packages.
+ * Concrete service implementations must have this annotation.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Plugin {
-
-    /**
-     * The tag that identifies the plugin being implemented by this class.
-     */
-    String tag ();
-}
+public @interface Plugin {}

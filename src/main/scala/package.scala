@@ -42,6 +42,6 @@ package object moped {
   }
 
   extension [A] (opt: Option[A])
-    def || (v :A): A = opt getOrElse v
+    def || (v : => A): A = opt getOrElse v
 
 }

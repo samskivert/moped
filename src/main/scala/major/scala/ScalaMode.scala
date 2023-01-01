@@ -8,7 +8,7 @@ package moped.major.scala
 import moped._
 import moped.code._
 import moped.grammar.GrammarCodeMode
-// import moped.project.Intel
+import moped.project.Intel
 import moped.util.{Chars, Paragrapher}
 
 @Major(name="scala",
@@ -59,14 +59,14 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     }
   }
 
-  // @Fn("Queries for a type (completed by the analyzer) and adds an import for it.")
-  // def importType () :Unit = {
-  //   val intel = Intel(buffer)
-  //   window.mini.read("Type:", wordAt(view.point()), wspace.historyRing("lang-type"),
-  //                    intel.symbolCompleter(Some(Kind.TYPE))).onSuccess(sym => {
-  //     ScalaCode.insertImport(buffer, intel.fqName(sym))
-  //   });
-  // }
+  @Fn("Queries for a type (completed by the analyzer) and adds an import for it.")
+  def importType () :Unit = {
+    val intel = Intel(buffer)
+    window.mini.read("Type:", wordAt(view.point()), wspace.historyRing("lang-type"),
+                     intel.symbolCompleter(Some(Intel.Kind.Type))).onSuccess(sym => {
+      // ScalaCode.insertImport(buffer, intel.fqName(sym))
+    });
+  }
 
   /** Returns the "word" at the specified location in the buffer. */
   private def wordAt (loc :Loc) = buffer.regionAt(loc, Chars.Word).map(_.asString).mkString

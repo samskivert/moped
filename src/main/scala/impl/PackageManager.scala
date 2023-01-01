@@ -4,7 +4,7 @@
 
 package moped.impl
 
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import collection.mutable.ArrayBuffer
 
 import com.google.common.collect.HashMultimap

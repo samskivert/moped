@@ -4,8 +4,7 @@
 
 package moped.util
 
-import collection.JavaConverters._
-
+import scala.jdk.CollectionConverters._
 import java.nio.file.{Files, Path}
 import moped._
 

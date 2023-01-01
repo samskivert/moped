@@ -84,7 +84,7 @@ class UndoStack (buffer :BufferImpl) extends Undoer {
   }
 
   private def pop (actions :ArrayBuffer[Action]) = {
-    val action = actions.last ; actions.trimEnd(1) ; action
+    val action = actions.last ; actions.dropRightInPlace(1) ; action
   }
 
   // returns the buffer onto which to accumulate buffer edits; normally we accumulate to the edits

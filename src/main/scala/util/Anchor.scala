@@ -6,7 +6,7 @@ package moped.util
 
 import java.util.{ArrayList, Collections}
 import collection.{Seq => SeqV}
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import moped._
 

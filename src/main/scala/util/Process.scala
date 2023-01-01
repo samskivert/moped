@@ -7,7 +7,7 @@ package moped.util
 import java.io._
 import java.nio.file.Path
 
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import collection.mutable.ArrayBuffer
 
 import moped._
@@ -91,7 +91,7 @@ object Process {
       if (lineCount < maxLines/2) header += line
       else {
         if (footers.isEmpty || footers.last.size == BlockSize) {
-          if (BlockSize * (footers.size-1) >= maxLines/2) footers.trimStart(1)
+          if (BlockSize * (footers.size-1) >= maxLines/2) footers.dropInPlace(1)
           footers += ArrayBuffer[String]()
         }
         footers.last += line

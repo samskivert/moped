@@ -6,7 +6,7 @@ package moped.minor
 
 import java.nio.file.Paths
 import java.util.regex.Pattern
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import moped._
 import moped.major.TextConfig

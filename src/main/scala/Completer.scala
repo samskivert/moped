@@ -6,7 +6,7 @@ package moped
 
 import java.nio.file.{FileSystems, Files, Path, Paths}
 import java.util.stream.Stream
-import collection.JavaConverters.asScalaIteratorConverter
+import scala.jdk.CollectionConverters._
 import collection.{Seq => SeqV}
 
 import moped.util.{FuzzyMatch, IFuzzyMatch}

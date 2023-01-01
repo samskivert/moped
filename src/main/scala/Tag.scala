@@ -123,7 +123,7 @@ class Tags {
           start = maxex
           // TODO: do this fold and filter at the same time...
           vts = vts.filter(_.end > start)
-          maxex = (Int.MaxValue /: vts)((mx, vt) => math.min(vt.end, mx))
+          maxex = vts.foldLeft(Int.MaxValue)((mx, vt) => math.min(vt.end, mx))
           // next time through the loop, we'll revisit this tag with a new start
         }
       }
@@ -135,7 +135,7 @@ class Tags {
       start = maxex
       // TODO: do this fold and filter at the same time...
       vts = vts.filter(_.end > start)
-      maxex = (Int.MaxValue /: vts)((mx, vt) => math.min(vt.end, mx))
+      maxex = vts.foldLeft(Int.MaxValue)((mx, vt) => math.min(vt.end, mx))
     }
   } catch {
     case t :Throwable =>

@@ -6,7 +6,7 @@ package moped.code
 
 import com.google.common.collect.TreeMultimap
 import java.util.{HashMap, LinkedHashSet}
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import moped._
 import moped.util.Chars

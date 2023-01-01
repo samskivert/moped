@@ -6,7 +6,7 @@ package moped.impl
 
 import java.lang.reflect.Method
 import collection.mutable.{Map => MMap}
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import moped._
 
@@ -68,6 +68,6 @@ class FnBindings (mode :Mode, errFn :(String => Unit)) {
     val bs = clazz.getDeclaredMethods.filter(_.getAnnotation(classOf[Fn]) != null).flatMap(
       FnBindings.toFnBinding(mode, errFn))
     if (clazz.getSuperclass != null) extractBindings(clazz.getSuperclass) ++ bs
-    else bs
+    else bs.toSeq
   }
 }

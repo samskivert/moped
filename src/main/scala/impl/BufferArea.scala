@@ -25,7 +25,7 @@ import javafx.scene.paint.{Color, Paint}
 import javafx.scene.shape.Rectangle
 import javafx.scene.text.{Font, Text, TextBoundsType}
 
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import collection.{Seq => SeqV}
 
 import moped._
@@ -482,12 +482,9 @@ object BufferArea {
   def resetStyleHelper (area :BufferArea) :Unit = StyleHelperField.set(area, null)
   private val StyleHelperField = find(classOf[BufferArea], "styleHelper")
   private def find (cl :Class[_], nm :String) :java.lang.reflect.Field = {
-    for (field <- cl.getDeclaredFields) {
-      if (field.getName == nm) {
-        field.setAccessible(true)
-        return field
-      }
+    cl.getDeclaredFields.find(_.getName == nm) match {
+      case Some(field) => field.setAccessible(true) ; field
+      case None => find(cl.getSuperclass, nm)
     }
-    find(cl.getSuperclass, nm)
   }
 }

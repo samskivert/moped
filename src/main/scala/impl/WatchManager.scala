@@ -7,7 +7,7 @@ package moped.impl
 import com.sun.nio.file.SensitivityWatchEventModifier
 import java.nio.file.{FileSystems, Path, WatchKey, WatchEvent}
 import java.util.concurrent.ConcurrentHashMap
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import moped._
 

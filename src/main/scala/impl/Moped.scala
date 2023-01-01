@@ -4,7 +4,7 @@
 
 package moped.impl
 
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import java.awt.Desktop
 import java.io.File
@@ -59,7 +59,7 @@ class Moped extends Application with Editor {
     override def execute (op :Runnable) = Platform.runLater(op)
     override def schedule (delay :Long, op :Runnable) = {
       var canceled = false
-      new Timeline(new KeyFrame(Duration.millis(delay), new EventHandler[ActionEvent]() {
+      new Timeline(new KeyFrame(Duration.millis(delay.toDouble), new EventHandler[ActionEvent]() {
         override def handle (event :ActionEvent) = if (!canceled) op.run()
       })).play()
       Closeable({ canceled = true })

@@ -5,7 +5,7 @@
 package moped
 
 import scala.reflect.ClassTag
-import collection.JavaConverters.iterableAsScalaIterableConverter
+import scala.jdk.CollectionConverters._
 import moped.util.{BufferBuilder, Describable, Errors}
 
 /** Provides a read-only view of buffer state. See [[State]]. */

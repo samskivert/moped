@@ -10,7 +10,7 @@ import java.nio.file.{Files, Path, Paths}
 import java.util.stream.Collectors
 import java.util.{List => JList, HashMap}
 
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import collection.mutable.ArrayBuffer
 import collection.{Seq => SeqV}
 import io.Source
@@ -37,7 +37,7 @@ class WorkspaceManager (app :Moped) extends AbstractService with WorkspaceServic
   private val wshints = Filer.fileDB[HashMultimap[String,String]](
     wsdir.resolve(".hintpaths"),
     _.foldLeft(HashMultimap.create[String,String]()) { (m, s) =>
-      val (w :: ps) = List.from(s.split("\t")) ; ps foreach { m.put(w, _) } ; m
+      val (w :: ps) = List.from(s.split("\t")) : @unchecked ; ps foreach { m.put(w, _) } ; m
     },
     _.asMap.entrySet.asScala.foldLeft(Seq[String]())(
       (b, e) => b :+ (e.getKey+"\t" + e.getValue.asScala.mkString("\t"))))

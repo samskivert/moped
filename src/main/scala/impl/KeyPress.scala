@@ -5,7 +5,7 @@
 package moped.impl
 
 import javafx.scene.input.{KeyCode, KeyEvent}
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import moped._
 

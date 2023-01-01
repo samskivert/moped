@@ -4,7 +4,7 @@
 
 package moped.impl
 
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import java.nio.file.Path
 import java.util.HashMap

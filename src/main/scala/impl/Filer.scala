@@ -9,7 +9,7 @@ import java.nio.file.{Files, Path}
 import java.util.function.Consumer
 
 import collection.mutable.{Set => MSet}
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import moped._
 

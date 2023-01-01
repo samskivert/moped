@@ -21,7 +21,7 @@ lazy val root = project.in(file(".")).settings(
   libraryDependencies += "com.eclipsesource.minimal-json" % "minimal-json" % "0.9.4",
 
   libraryDependencies ++= Seq("base", "controls").map(
-    m => "org.openjfx" % s"javafx-$m" % "18.0.2" classifier osName),
+    m => "org.openjfx" % s"javafx-$m" % "19" classifier osName),
   libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test",
 
   Compile / mainClass := Some("moped.impl.MopedLauncher"),

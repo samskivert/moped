@@ -7,40 +7,36 @@ package moped.impl
 import scala.jdk.CollectionConverters._
 import collection.mutable.ArrayBuffer
 
-import com.google.common.collect.HashMultimap
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.{Files, FileVisitResult, Path, Paths, SimpleFileVisitor}
 import java.util.HashMap
 import java.util.regex.Pattern
+import com.google.common.collect.HashMultimap
+import org.reflections.Reflections
 
 import moped._
 import moped.major._
 import moped.minor._
-// import moped.pacman._
 import moped.util.BufferBuilder
 
 /** Extends the base package manager with extra info needed by Moped. */
 class PackageManager (log :Logger) extends AbstractService /* with PackageService */ {
 
-  // /** A signal emitted when a package module is installed. */
-  // val moduleAdded = Signal[ModuleMeta]()
-
-  // /** A signal emitted when a package module is uninstalled. */
-  // val moduleRemoved = Signal[ModuleMeta]()
-
-  // private val pkgRepo = Pacman.repo
-
   /** The top-level metadata directory. */
   val metaDir :Path = locateMetaDir
 
-  // /** Returns info on all known modules. */
-  // def modules :Iterable[ModuleMeta] = metas.values
+  /** Used to search for classes. */
+  val reflections = new Reflections("moped")
 
   /** Resolves the class for the mode named `name`. */
   def mode (major :Boolean, name :String) :Option[Class[_]] = Option(modeMap(major).get(name))
 
   /** Resolves the implementation class for the service with fq classname `name`. */
   def service (name :String) :Option[Class[_]] = Option(serviceMap.get(name))
+
+  /** The services that are marked for auto-loading at startup. */
+  def autoLoadServices :Seq[Class[_]] = _autoloads
+  private var _autoloads = Seq[Class[_]]()
 
   /** Returns the name of all modes provided by all packages. */
   def modes (major :Boolean) :Iterable[String] = modeMap(major).keySet.asScala
@@ -174,19 +170,17 @@ class PackageManager (log :Logger) extends AbstractService /* with PackageServic
   private val interps    = HashMultimap.create[String,String]()
   private val minorTags  = HashMultimap.create[String,String]()
 
-  private def registerService (clazz :Class[_]) :Unit = {
+  private def registerService (clazz :Class[_]) :Unit = try {
     var meta = clazz.getAnnotation(classOf[Service])
     if (meta == null) throw new Exception("Missing @Service annotation " + clazz)
+    if (meta.autoLoad) _autoloads :+= clazz
     var impl = clazz.getClassLoader.loadClass("moped." + meta.impl)
     serviceMap.put(clazz.getName, impl)
+  } catch {
+    case e :Throwable => log.log(s"Failed to register service $clazz: $e")
   }
 
-  registerService(classOf[WatchService])
-  registerService(classOf[ConfigService])
-  registerService(classOf[WorkspaceService])
-  registerService(classOf[grammar.GrammarService])
-
-  private def registerMajor (clazz :Class[_]) :Unit = {
+  private def registerMajor (clazz :Class[_]) :Unit = try {
     var meta = clazz.getAnnotation(classOf[Major])
     if (meta == null) throw new Exception("Missing @Major annotation " + clazz)
     majorMap.put(meta.name, clazz)
@@ -197,29 +191,26 @@ class PackageManager (log :Logger) extends AbstractService /* with PackageServic
       }
     }
     meta.ints foreach { interps.put(_, meta.name) }
+  } catch {
+    case e :Throwable => log.log(s"Failed to register major mode $clazz: $e")
   }
 
-  registerMajor(classOf[TextMode])
-  registerMajor(classOf[MiniReadMode[_]])
-  registerMajor(classOf[MiniReadOptMode])
-  registerMajor(classOf[MiniYesNoMode])
-  registerMajor(classOf[ISearchMode])
-  registerMajor(classOf[HelpMode])
-  registerMajor(classOf[LogMode])
-
-  registerMajor(classOf[scala.ScalaMode])
-
-  private def registerMinor (clazz :Class[_]) :Unit = {
+  private def registerMinor (clazz :Class[_]) :Unit = try {
     var meta = clazz.getAnnotation(classOf[Minor])
     if (meta == null) throw new Exception("Missing @Minor annotation " + clazz)
     minorMap.put(meta.name, clazz)
     meta.tags foreach { minorTags.put(_, meta.name) }
+  } catch {
+    case e :Throwable => log.log(s"Failed to register minor mode $clazz: $e")
   }
 
-  registerMinor(classOf[MetaMode])
-  registerMinor(classOf[WhitespaceMode])
-  registerMinor(classOf[SubProcessMode])
-  registerMinor(classOf[WorkspaceMode])
+  // scan the classpath for annotated classes and register them
+  {
+    import org.reflections.scanners.Scanners._
+    reflections.get(TypesAnnotated.`with`(classOf[Service]).asClass()).forEach(registerService)
+    reflections.get(TypesAnnotated.`with`(classOf[Major]).asClass()).forEach(registerMajor)
+    reflections.get(TypesAnnotated.`with`(classOf[Minor]).asClass()).forEach(registerMinor)
+  }
 
   // private val MopedAPI = Source.parse("git:https://github.com/moped/moped.git#api")
   // private val MopedEditor = Source.parse("git:https://github.com/moped/moped.git#editor")

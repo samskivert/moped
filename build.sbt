@@ -16,9 +16,10 @@ lazy val root = project.in(file(".")).settings(
   fork := true,
 
   libraryDependencies += "com.google.guava" % "guava" % "27.0.1-jre",
-  libraryDependencies += "org.ow2.asm" % "asm" % "6.0",
   libraryDependencies += "com.googlecode.plist" % "dd-plist" % "1.8",
   libraryDependencies += "com.eclipsesource.minimal-json" % "minimal-json" % "0.9.4",
+  libraryDependencies += "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.15.0",
+  libraryDependencies += "org.reflections" % "reflections" % "0.10.2",
 
   libraryDependencies ++= Seq("base", "controls").map(
     m => "org.openjfx" % s"javafx-$m" % "19" classifier osName),

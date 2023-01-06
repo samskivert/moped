@@ -97,22 +97,25 @@ class MiniReadMode[T] (
     historyAge = age
   }
 
-  private def setCompletion (compF :Future[Completion[T]]) = compF.onSuccess(comp => {
-    _comp = comp
-    // don't display completions if we're not completing
-    // (TODO: have this be a member on Completer; comparing against a global is pretty hacky)
-    if (completer != Completer.none) {
-      val comps = comp.comps
-      if (comps.isEmpty) miniui.showCompletions(Seq("No match."))
-      else {
-        // if we have a path separator, strip off the path prefix shared by the current completion;
-        // this results in substantially smaller and more readable completions when we're
-        // completing things like long file system paths
-        val pre = comp.glob
-        val preLen = completer.pathSeparator map(sep => pre.lastIndexOf(sep)+1) getOrElse 0
-        val stripped = if (preLen > 0) comps.map(_.substring(preLen)) else comps
-        miniui.showCompletions(stripped)
+  private def setCompletion (compF :Future[Completion[T]]) = {
+    miniui.showCompletions(Seq("..."))
+    compF.onSuccess(comp => {
+      _comp = comp
+      // don't display completions if we're not completing
+      // (TODO: have this be a member on Completer; comparing against a global is pretty hacky)
+      if (completer != Completer.none) {
+        val comps = comp.comps
+        if (comps.isEmpty) miniui.showCompletions(Seq("No match."))
+        else {
+          // if we have a path separator, strip off the path prefix shared by the current completion;
+          // this results in substantially smaller and more readable completions when we're
+          // completing things like long file system paths
+          val pre = comp.glob
+          val preLen = completer.pathSeparator map(sep => pre.lastIndexOf(sep)+1) getOrElse 0
+          val stripped = if (preLen > 0) comps.map(_.substring(preLen)) else comps
+          miniui.showCompletions(stripped)
+        }
       }
-    }
-  })
+    })
+  }
 }

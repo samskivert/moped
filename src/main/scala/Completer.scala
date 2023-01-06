@@ -121,7 +121,7 @@ abstract class Completer[T] {
     if (prefix.length < minPrefix) Future.success(Completion.empty(prefix))
     // if the previous completion is empty, we need to generate a proper completion now that we
     // have a sufficiently long prefix
-    else if (oglob.length < minPrefix) apply(prefix)
+    else if (oglob.length < minPrefix || comp.comps.isEmpty) apply(prefix)
     // normal case: extending an existing match
     else if (refines(prefix, oglob)) Future.success(comp.refine(prefix))
     // backspace case: new glob is prefix of old glob
@@ -163,7 +163,8 @@ abstract class Completer[T] {
   protected def minPrefix :Int = 0
 
   /** Returns true if `nglob` refines `oglob`. False if it's an unrelated query. */
-  protected def refines (nglob :String, oglob :String) :Boolean = nglob startsWith oglob
+  protected def refines (nglob :String, oglob :String) :Boolean =
+    Completer.startsWithI(oglob)(nglob)
 
   /** Generates a list of completions which start with `prefix`. `prefix` will be exactly
     * [[minPrefix]] characters long. */

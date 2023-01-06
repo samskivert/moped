@@ -8,7 +8,7 @@ package moped.major.scala
 import moped._
 import moped.code._
 import moped.grammar.GrammarCodeMode
-import moped.project.Intel
+import moped.project._
 import moped.util.{Chars, Paragrapher}
 
 @Major(name="scala",
@@ -61,10 +61,10 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
 
   @Fn("Queries for a type (completed by the analyzer) and adds an import for it.")
   def importType () :Unit = {
-    val intel = Intel(buffer)
+    val client = LangClient(buffer)
     window.mini.read("Type:", wordAt(view.point()), wspace.historyRing("lang-type"),
-                     intel.symbolCompleter(Some(Intel.Kind.Type))).onSuccess(sym => {
-      // ScalaCode.insertImport(buffer, intel.fqName(sym))
+                     Lang.symbolCompleter(client, Some(Lang.Kind.Type))).onSuccess(sym => {
+      // ScalaCode.insertImport(buffer, sym.fqName)
     });
   }
 

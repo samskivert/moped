@@ -113,9 +113,10 @@ abstract class LangClient (
     if (ecp != null) execCmds = ecp.getCommands.asScala.toSet
   }
 
+  def exec = metaSvc.exec
+
   override def toString = s"$name langserver"
 
-  private def exec = metaSvc.exec
   private val grammarSvc = metaSvc.service[GrammarService]
   private val textSvc = server.getTextDocumentService
   private val wspaceSvc = server.getWorkspaceService
@@ -346,7 +347,6 @@ abstract class LangClient (
     * code smarts. */
   def addToBuffer (project :Project, buffer :RBuffer) :Unit = {
     buffer.state[LangClient]() = this
-    buffer.state[Intel]() = new LangIntel(this, project)
 
     buffer.state[CodeCompleter]() = new CodeCompleter() {
       import CodeCompleter._
@@ -503,7 +503,7 @@ abstract class LangClient (
    * validation runs.
    */
   def publishDiagnostics (pdp :PublishDiagnosticsParams) :Unit = {
-    import Intel._
+    import Lang._
     def sevToNote (sev :DiagnosticSeverity) = sev match {
       case DiagnosticSeverity.Hint => Severity.Hint
       case DiagnosticSeverity.Information => Severity.Info

@@ -4,11 +4,12 @@
 
 package moped.project
 
+import org.eclipse.lsp4j._
+
 import moped._
 import moped.major.ReadingMode
-import Intel._
 
-object CodexFindUsesConfig extends Config.Defs {
+object LangFindUsesConfig extends Config.Defs {
 
   /** The CSS style applied to file paths. */
   val pathStyle = "usePathStyle"
@@ -18,17 +19,19 @@ object CodexFindUsesConfig extends Config.Defs {
 
   /** The CSS style applied to uses. */
   val matchStyle = EditorConfig.matchStyle // standard matchStyle
+
+  case class Context (name :String, req :ReferenceParams)
 }
 
-@Major(name="codex-find-uses", tags=Array("project"),
-       desc="""A major mode that displays all known uses of a def.""")
-class IntelFindUsesMode (env :Env, df :Defn) extends ReadingMode(env) {
-  import CodexFindUsesConfig._
+@Major(name="intel-find-uses", tags=Array("project"),
+       desc="""A major mode that displays all known uses of a symbol.""")
+class LangFindUsesMode (env :Env, ctx :Context) extends ReadingMode(env) {
+  import LangFindUsesConfig._
 
   val project = Project(buffer)
   import project.pspace
 
-  override def configDefs = CodexFindUsesConfig :: super.configDefs
+  override def configDefs = LangFindUsesConfig :: super.configDefs
   override def stylesheets = stylesheetURL("/codex.css") :: super.stylesheets
   override def keymap = super.keymap.
     bind("visit-use", "ENTER");
@@ -46,7 +49,7 @@ class IntelFindUsesMode (env :Env, df :Defn) extends ReadingMode(env) {
 
   // look up our uses in the background and append them to the buffer
   if (buffer.start == buffer.end) window.exec.runInBG {
-    println(s"Finding uses of $df")
+    println(s"Finding uses of ${ctx.name}")
     val visits = Seq.newBuilder[Visit]
     // codex.store(project).usesOf(df).toMapV foreach { (src, offsets) =>
     //   println(s"$src -> ${offsets.length}")

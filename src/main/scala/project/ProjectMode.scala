@@ -11,10 +11,10 @@ import moped.util.{BufferBuilder, Chars, Errors}
 
 /** Provides configuration for [[ProjectMode]]. */
 object ProjectConfig extends Config.Defs {
-  import Intel._
+  import Lang._
 
   /** Provides the CSS style for `note`. */
-  def noteStyle (note :Intel.Note) = note.sev match {
+  def noteStyle (note :Lang.Note) = note.sev match {
     case Severity.Hint    => "noteHintFace"
     case Severity.Info    => "noteInfoFace"
     case Severity.Warning => "noteWarningFace"
@@ -33,7 +33,7 @@ object ProjectConfig extends Config.Defs {
   * Any major mode that includes the `project` tag will trigger the activation of this minor mode.
   */
 @Minor(name="project", tags=Array("project"), stateTypes=Array(classOf[Project]),
-       desc="""A minor mode that provides project-centric fns.""")
+       desc="""A minor mode that provides project-related fns.""")
 class ProjectMode (env :Env) extends MinorMode(env) {
   val project = Project(buffer)
   import project.pspace
@@ -47,15 +47,6 @@ class ProjectMode (env :Env) extends MinorMode(env) {
     // file fns
     bind("find-file-in-project",      "C-x C-p").
     bind("find-file-other-project",   "C-x C-o").
-
-    // intel fns
-    bind("describe-element", "C-c C-d").
-    bind("visit-element",    "M-.").
-    bind("visit-symbol",     "C-c C-v").
-    bind("visit-type",       "C-c C-k").
-    bind("visit-func",       "C-c C-j").
-    bind("visit-value",      "C-c C-h").
-    bind("rename-element",   "C-c C-r").
 
     // warning navigation fns
     // bind("visit-next-warning", "C-S-]").
@@ -86,7 +77,7 @@ class ProjectMode (env :Env) extends MinorMode(env) {
 
   // provides a custom Visit.List that cycles through the notes in the current buffer and only
   // advances to the next buffer if we have no notes in this buffer
-  private def notesVisitList (notes :Seq[Intel.Note]) :Visit.List =
+  private def notesVisitList (notes :Seq[Lang.Note]) :Visit.List =
     new Visit.List("buffer note", notes) {
       override def next (win :Window) :Unit = if (isEmpty) skip(win,  1) else super.next(win)
       override def prev (win :Window) :Unit = if (isEmpty) skip(win, -1) else super.prev(win)
@@ -141,80 +132,6 @@ class ProjectMode (env :Env) extends MinorMode(env) {
     window.mini.read(s"Project:", "", projectHistory, pcomp) onSuccess { case pt =>
       findFileIn(pspace.projectFor(pt._1))
     }
-  }
-
-  //
-  // Intel FNs
-
-  @Fn("Describes the element at the point.")
-  def describeElement () :Unit = Intel(buffer).describeElement(view)
-
-  @Fn("Navigates to the referent of the element at the point.")
-  def visitElement () :Unit = {
-    val loc = view.point()
-    Intel(buffer).visitElement(view, window).onSuccess { visited =>
-      if (visited) window.visitStack.push(buffer, loc)
-    }
-  }
-
-  @Fn("Queries for a project-wide symbol and visits it.")
-  def visitSymbol () :Unit = visitSymbol(None)
-  @Fn("Queries for a project-wide type symbol and visits it.")
-  def visitType () :Unit = visitSymbol(Some(Intel.Kind.Type))
-  @Fn("Queries for a project-wide function symbol and visits it.")
-  def visitFunc () :Unit = visitSymbol(Some(Intel.Kind.Func))
-  @Fn("Queries for a project-wide value (field, property, variable) symbol and visits it.")
-  def visitValue () :Unit = visitSymbol(Some(Intel.Kind.Value))
-
-  private def visitSymbol (kind :Option[Intel.Kind]) = {
-    val intel = Intel(buffer)
-    window.mini.read("Type:", wordAt(view.point()), symbolHistory,
-                     intel.symbolCompleter(kind)).onSuccess(sym => {
-      window.visitStack.push(view) // push current loc to the visit stack
-      intel.visitSymbol(sym, window)
-    })
-  }
-
-  @Fn("Renames all occurrences of the element at the point.")
-  def renameElement () :Unit = {
-    val loc = view.point()
-    val intel = Intel(buffer)
-    window.mini.read("New name:", wordAt(loc), renameHistory, Completer.none).
-      flatMap(name => intel.renameElementAt(view, loc, name)).
-      onSuccess(renamers => {
-        println(s"Renames $renamers")
-        if (renamers.isEmpty) abort(
-          "No renames returned for refactor. Is there an element at the point?")
-
-        def doit (save :Boolean) = try {
-          renamers.foreach { renamer =>
-            val buffer = project.pspace.wspace.openBuffer(renamer.store)
-            renamer.validate(buffer)
-          }
-          renamers.foreach { renamer =>
-            val buffer = project.pspace.wspace.openBuffer(renamer.store)
-            renamer.apply(buffer)
-            if (save) buffer.save()
-          }
-        } catch {
-          case err :Throwable => window.exec.handleError(err)
-        }
-
-        // if there are occurrences outside the current buffer, confirm the rename
-        if (renamers.size == 1 && renamers(0).store == view.buffer.store) doit(false)
-        else window.mini.readYN(
-          s"'Element occurs in ${renamers.size-1} source file(s) not including this one. " +
-            "Undoing the rename will not be trivial, continue?").onSuccess { yes =>
-          if (yes) doit(true)
-        }
-      }).
-      onFailure(window.exec.handleError)
-  }
-
-  @Fn("Restarts the language server client for the active project.")
-  def restartLangClient () :Unit = {
-    project.emitStatus("Restaring langserver client...")
-    project.lang.restartClient(buffer);
   }
 
   //
@@ -294,8 +211,6 @@ class ProjectMode (env :Env) extends MinorMode(env) {
   // Implementation details
 
   private def projectHistory = wspace.historyRing("project-name")
-  private def symbolHistory = wspace.historyRing("project-symbol")
-  private def renameHistory = wspace.historyRing("project-rename")
 
   private def bufferFile :Path = buffer.store.file getOrElse { abort(
       "This buffer has no associated file. A file is needed to detect tests.") }

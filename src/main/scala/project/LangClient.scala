@@ -165,7 +165,8 @@ abstract class LangClient (
     val initParams = new InitializeParams()
     initParams.setTrace("verbose")
     initParams.setCapabilities(createClientCaps)
-    initParams.setWorkspaceFolders(List(WorkspaceFolder(root.toUri.toString)).asJava)
+    val name = root.getName.toString // TODO: get project name?
+    initParams.setWorkspaceFolders(List(WorkspaceFolder(root.toUri.toString, name)).asJava)
     // TEMP: metals does not support workspace folders (yet?)
     initParams.setRootUri(root.toUri.toString) : @nowarn
     // TODO: can we get our real PID via a Java API? Ensime fails if we don't send something, sigh

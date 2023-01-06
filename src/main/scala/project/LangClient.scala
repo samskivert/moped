@@ -9,6 +9,7 @@ import java.net.URI
 import java.nio.file.Path
 import java.util.concurrent.{CompletableFuture, ExecutorService}
 import java.util.{Arrays, Collections, List => JList, HashMap, HashSet}
+import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
 
 import org.eclipse.lsp4j._
@@ -163,9 +164,9 @@ abstract class LangClient (
     val initParams = new InitializeParams()
     initParams.setTrace("verbose")
     initParams.setCapabilities(createClientCaps)
-    initParams.setRootUri(root.toUri.toString)
-    // TEMP: for Ensime/Scala which doesn't yet support rootUri, sigh
-    initParams.setRootPath(root.toString)
+    initParams.setWorkspaceFolders(List(WorkspaceFolder(root.toUri.toString)).asJava)
+    // TEMP: metals does not support workspace folders (yet?)
+    initParams.setRootUri(root.toUri.toString) : @nowarn
     // TODO: can we get our real PID via a Java API? Ensime fails if we don't send something, sigh
     initParams.setProcessId(0)
     trace(s"Initializing at root: $root")
@@ -213,7 +214,7 @@ abstract class LangClient (
   }
 
   /** Formats a marked `code` block, appending it to `buffer`. */
-  def format (buffer :Buffer, code :MarkedString) :Buffer =
+  @nowarn def format (buffer :Buffer, code :MarkedString) :Buffer =
     formatCode(buffer, code.getValue, "source." + code.getLanguage)
 
   /** Formats `markup`, appending it to `buffer`. */
@@ -224,11 +225,12 @@ abstract class LangClient (
     }
 
   /** Formats `either` a text or code block, appending it to `buffer`. */
-  def format (buffer :Buffer, wrapWidth :Int, either :Either[String, MarkedString]) :Buffer =
-    LSP.toScala(either) match {
-      case Left(text) => format(buffer, wrapWidth, text)
-      case Right(mark) => format(buffer, mark)
-    }
+  @nowarn def format (
+    buffer :Buffer, wrapWidth :Int, either :Either[String, MarkedString]
+  ) :Buffer = LSP.toScala(either) match {
+    case Left(text) => format(buffer, wrapWidth, text)
+    case Right(mark) => format(buffer, mark)
+  }
 
   /** Formats a markdown `text` block, appending it to `buffer`. */
   def formatMarkdown (buffer :Buffer, wrapWidth :Int, text :String) :Buffer = {
@@ -430,17 +432,16 @@ abstract class LangClient (
 
   protected def toChangeEvent (buffer :RBuffer, edit :Buffer.Edit) = {
     def mkRange (start :Loc, end :Loc) = new Range(LSP.toPos(start), LSP.toPos(end))
-    def mkChange (start :Loc, end :Loc, deleteLen :Int, text :String) =
-      new TextDocumentContentChangeEvent(mkRange(start, end), deleteLen, text)
+    def mkChange (start :Loc, end :Loc, text :String) =
+      new TextDocumentContentChangeEvent(mkRange(start, end), text)
     import Buffer._
     edit match {
       case Insert(start, end) =>
-        mkChange(start, start, 0, Line.toText(buffer.region(start, end)))
+        mkChange(start, start, Line.toText(buffer.region(start, end)))
       case Delete(start, end, deleted) =>
-        mkChange(start, end, Line.toText(deleted).length, "")
+        mkChange(start, end, "")
       case Transform(start, end, orig) =>
-        val newText = Line.toText(buffer.region(start, end))
-        mkChange(start, end, newText.length, newText)
+        mkChange(start, end, Line.toText(buffer.region(start, end)))
     }
   }
 

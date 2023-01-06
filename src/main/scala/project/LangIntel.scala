@@ -5,6 +5,7 @@
 package moped.project
 
 import java.util.Collections
+import scala.annotation.nowarn
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
 import org.eclipse.lsp4j._
@@ -18,7 +19,7 @@ case class LangSymbol (
 }
 
 object LangSymbol {
-  def apply (sym :SymbolInformation) :LangSymbol = LangSymbol(
+  @nowarn def apply (sym :SymbolInformation) :LangSymbol = LangSymbol(
     sym.getKind, sym.getName,
     sym.getContainerName match {
       case null => s"${fileForLoc(sym.getLocation)}:${sym.getName}"
@@ -40,7 +41,7 @@ object LangSymbol {
     LSP.URILoc(sym.getLocation))
 
   /** Formats a symbol name for use during completion. Moped convention is `name:qualifier`. */
-  private def formatSym (sym :SymbolInformation) = sym.getContainerName match {
+  @nowarn private def formatSym (sym :SymbolInformation) = sym.getContainerName match {
     case null => s"${sym.getName}:${fileForLoc(sym.getLocation)} [${sym.getKind}]"
     case cont => s"${sym.getName}:${cont} [${sym.getKind}]"
   }
@@ -102,11 +103,13 @@ class LangIntel (client :LangClient, project :Project) extends Intel {
 
   override def symbolCompleter (kind :Option[Kind]) = new Completer[LangSymbol] {
     override def minPrefix = 2
-    def complete (glob :String) = LSP.adapt(
-      wspaceSvc.symbol(new WorkspaceSymbolParams(glob)), project.exec).map(LSP.toScala).map(_ match {
-      case Left(res) => process(glob, res.asScala.map(LangSymbol.apply).toSeq)
-      case Right(res) => process(glob, res.asScala.map(LangSymbol.apply).toSeq)
-    })
+    def complete (glob :String) = {
+      @nowarn val res = wspaceSvc.symbol(new WorkspaceSymbolParams(glob))
+      LSP.adapt(res, project.exec).map(LSP.toScala).map(_ match {
+        case Left(res) => process(glob, res.asScala.map(LangSymbol.apply).toSeq)
+        case Right(res) => process(glob, res.asScala.map(LangSymbol.apply).toSeq)
+      })
+    }
     private def process (glob :String, syms :Seq[LangSymbol]) = Completion(
       glob, syms.filter(checkKind).sortBy(_.sortKey), false)(_.sig)
     private def checkKind (sym :LangSymbol) :Boolean =
@@ -141,7 +144,7 @@ class LangIntel (client :LangClient, project :Project) extends Intel {
       case syms =>
         // convert from wonky "list of eithers" to two separate lists; we'll only have one kind of
         // symbol or the other but lsp4j's "translation" of LSP's "type" is a minor disaster
-        val sis = ArrayBuffer[SymbolInformation]()
+        @nowarn val sis = ArrayBuffer[SymbolInformation]()
         val dss = ArrayBuffer[DocumentSymbol]()
         syms.asScala map(LSP.toScala) foreach {
           case Left(si) => sis += si

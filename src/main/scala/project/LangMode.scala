@@ -25,6 +25,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   private def textSvc = client.server.getTextDocumentService
   private def wspaceSvc = client.server.getWorkspaceService
 
+  private val commandRing = new Ring(8)
   private def renameHistory = wspace.historyRing("lang-rename")
   private def symbolHistory = wspace.historyRing("lang-symbol")
   private def wordAt (loc :Loc) :String =
@@ -45,8 +46,6 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   // }
 
   override def keymap = super.keymap.
-  //   bind("describe-codex", "C-h c").
-
     bind("describe-element", "C-c C-d").
     bind("visit-element",    "M-.").
     bind("visit-symbol",     "C-c C-v").
@@ -54,6 +53,10 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     bind("visit-func",       "C-c C-j").
     bind("visit-value",      "C-c C-h").
     bind("rename-element",   "C-c C-r").
+    bind("find-uses",        "C-c C-f").
+    bind("lang-exec-command", "C-c C-l x")
+
+  //   bind("describe-codex", "C-h c").
 
   //   bind("codex-visit-module", "C-c C-v C-m").
   //   bind("codex-visit-type",   "C-c C-v C-t").
@@ -72,7 +75,6 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   //   bind("codex-summarize-element", "S-C-c S-C-d").
   //   bind("codex-debug-element",     "C-c S-C-d").
 
-  bind("find-uses",         "C-c C-f")
   //   // bind("codex-visit-element",     "M-.").
   //   bind("codex-highlight-element", "C-c C-h");
 
@@ -207,6 +209,20 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     project.lang.restartClient(buffer);
   }
 
+  @Fn("""Queries for the name of an 'execute command' supported by this buffer's language
+         server and instructs the server to execute it.""")
+  def langExecCommand () :Unit = {
+    if (client.execCommands.isEmpty) window.popStatus(s"Lang server exposes no commands.")
+    else {
+      val comp = Completer.from(client.execCommands)
+      window.mini.read("Command:", "", commandRing, comp).onSuccess { cmd =>
+        client.execCommand(cmd)
+              .onSuccess(obj => window.emitStatus(s"Executed: $cmd"))
+              .onFailure(window.exec.handleError)
+      }
+    }
+  }
+
   // @Fn("Describes the internals of the Codex indices.")
   // def describeCodex () :Unit = {
   //   val bb = new BufferBuilder(view.width()-1)
@@ -338,17 +354,14 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   //   }
   // }
 
-  @Fn("Displays all uses of the element at the point in a separate buffer.")
-  def intelFindUses () :Unit = {
+  @Fn("Displays all uses of the symbol at the point in a separate buffer.")
+  def findUses () :Unit = {
     val doc = LSP.docId(view.buffer)
     val pos = LSP.toPos(view.point())
-    val ctx = ReferenceContext()
-    LSP.adapt(textSvc.references(new ReferenceParams(doc, pos, ctx)), project.exec).
-      map(_.asScala.map(LSP.URILoc.apply).toSeq)
-    // onElemAt(view.point()) { (elem, loc, df) =>
-    //   val initState = project.codexBufferState("codex-find-uses", df)
-    //   window.focus.visit(project.createBuffer(s"*codex: ${df.name}*", initState))
-    // }
+    var name = wordAt(view.point())
+    var req = new ReferenceParams(doc, pos, ReferenceContext());
+    val initState = project.bufferState("lang-find-uses", LangFindUsesConfig.Context(name, req), client)
+    window.focus.visit(project.createBuffer(s"*find-uses: ${name}*", initState))
   }
 
   // @Fn("""Navigates to the referent of the elmeent at the point, if it is known to this project's

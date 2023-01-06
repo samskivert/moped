@@ -4,6 +4,7 @@
 
 package moped.project
 
+import scala.jdk.CollectionConverters._
 import org.eclipse.lsp4j._
 
 import moped._
@@ -23,16 +24,16 @@ object LangFindUsesConfig extends Config.Defs {
   case class Context (name :String, req :ReferenceParams)
 }
 
-@Major(name="intel-find-uses", tags=Array("project"),
+@Major(name="lang-find-uses", tags=Array("project"),
        desc="""A major mode that displays all known uses of a symbol.""")
-class LangFindUsesMode (env :Env, ctx :Context) extends ReadingMode(env) {
+class LangFindUsesMode (env :Env, ctx :LangFindUsesConfig.Context, client :LangClient) extends ReadingMode(env) {
   import LangFindUsesConfig._
 
-  val project = Project(buffer)
-  import project.pspace
+  def project = Project(buffer)
+  // import project.pspace
 
   override def configDefs = LangFindUsesConfig :: super.configDefs
-  override def stylesheets = stylesheetURL("/codex.css") :: super.stylesheets
+  override def stylesheets = stylesheetURL("/lang.css") :: super.stylesheets
   override def keymap = super.keymap.
     bind("visit-use", "ENTER");
 
@@ -48,41 +49,40 @@ class LangFindUsesMode (env :Env, ctx :Context) extends ReadingMode(env) {
   var visitList :Visit.List = _
 
   // look up our uses in the background and append them to the buffer
-  if (buffer.start == buffer.end) window.exec.runInBG {
+  if (buffer.start == buffer.end) {
     println(s"Finding uses of ${ctx.name}")
+    LSP.adapt(client.server.getTextDocumentService.references(ctx.req), project.exec).onSuccess {
+      res => showLocations(res.asScala) }
+  }
+  // reinstate our visit list if our buffer is already generated
+  else if (visitList != null) window.visits() = visitList
+
+  private def showLocations (locs :Iterable[Location]) :Unit = {
     val visits = Seq.newBuilder[Visit]
-    // codex.store(project).usesOf(df).toMapV foreach { (src, offsets) =>
-    //   println(s"$src -> ${offsets.length}")
-    //   val lines = Seq.builder[Line]()
-    //   val srcstr = src.toString
-    //   lines += Line.builder(srcstr).withStyle(pathStyle, 0, srcstr.length).build()
-    //   val srcdef = (df.source == src)
-    //   val store = Codex.toStore(src)
-    //   def offat (oo :Int) = if (oo < offsets.length) offsets(oo) else -1
-    //   var oo = 0
-    //   store.read(Store.reader { (data, start, end, offset) =>
-    //     def add (fileoff :Int) :Boolean = {
-    //       val length = end-start
-    //       val lineoff = fileoff - offset
-    //       if (lineoff < 0 || lineoff >= length) false
-    //       else {
-    //         val visit = Visit(store, fileoff)
-    //         lines += Line.builder(data, start, end).
-    //           withStyle(matchStyle, lineoff, lineoff+df.name.length).
-    //           withLineTag(Visit.Tag(visit)).
-    //           build()
-    //         visits += visit
-    //         true
-    //       }
-    //     }
-    //     while (add(offat(oo))) oo += 1
-    //     if (srcdef) add(df.offset)
-    //   })
-    //   window.exec.runOnUI {
-    //     buffer append lines
-    //     buffer split buffer.end
-    //   }
-    // }
+    val lines = Seq.newBuilder[Line]
+
+    for ((uri, uriLocs) <- locs.groupBy(_.getUri)) {
+      lines += Line.builder(uri).withStyle(pathStyle, 0, uri.length).build()
+      var store = LSP.toStore(uri)
+      var line = 0
+      store.read(Store.reader { (data, start, end, offset) =>
+        for (uriLoc <- uriLocs ; locStart = uriLoc.getRange.getStart
+             if (locStart.getLine == line)) {
+          val fileoff = offset + locStart.getCharacter
+          val visit = Visit(store, fileoff)
+          val locEnd = uriLoc.getRange.getEnd // TODO: multiline?
+          lines += Line.builder(data, start, end).
+            withStyle(matchStyle, locStart.getCharacter, locEnd.getCharacter).
+            withLineTag(Visit.Tag(visit)).
+            build()
+          visits += visit
+        }
+        line += 1
+      })
+    }
+
+    buffer append lines.result
+    buffer split buffer.end
 
     window.exec.runOnUI {
       visitList = new Visit.List("use", visits.result)
@@ -90,6 +90,8 @@ class LangFindUsesMode (env :Env, ctx :Context) extends ReadingMode(env) {
       view.point() = Loc.Zero
     }
   }
-  // reinstate our visit list if our buffer is already generated
-  else if (visitList != null) window.visits() = visitList
+
+  private def addLocation (loc :Location) :Unit = {
+
+  }
 }

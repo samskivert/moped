@@ -1,0 +1,91 @@
+# Default Scala snippets ; reformat to taste
+
+%name: class Foo {}
+%keys: cls class
+class ${1:Name} {
+$0
+}
+
+%name: Scaladoc block
+%keys: /** doc
+/** $0
+  */
+
+%name: Single-line Scaladoc block
+%keys: /* sdoc
+/** $0 */
+
+%name: equals() method
+%keys: eq
+%syns: default
+override def equals (other: Any) = $0
+
+%name: hashCode() method
+%keys: hc hash
+%syns: default
+override def hashCode = $0
+
+%name: equals() and hashCode() methods
+%keys: eqhc eqhash
+%syns: default
+override def equals (other: Any) = $1
+
+override def hashCode = $0
+
+%name: if/else expression
+%keys: ife
+%syns: default
+if (${1:condition}) $2 else $0
+
+%name: if statement
+%keys: ifs
+%syns: default
+if (${1:condition}) {
+$0
+}
+
+%name: if/else statement
+%keys: ifse ifel
+%syns: default
+if (${1:condition}) {
+$2
+} else {
+$0
+}
+
+%name: "for" (while) loop
+%keys: wfor
+%syns: default
+val ${1:ll} = ${2:MAX} ; var ${3:ii} = ${4:0} ; while ($3 < $1) {
+$0
+$3 += 1
+}
+
+%name: for/yield expression
+%keys: fory
+%syns: default
+for ($1 <- ${2:elems}) yield $0
+
+%name: for statement
+%keys: for
+%syns: default
+for ($1 <- ${2:elems}) {
+$0
+}
+
+%name: method def (return)
+%keys: defe
+%syns: default
+def ${1:name} ($2)${3:: R} = $0
+
+%name: method def (unit)
+%keys: defu
+%syns: default
+def ${1:name} ($2) {
+$0
+}
+
+%name: method def (unit =)
+%keys: defue
+%syns: default
+def ${1:name} ($2) :Unit = $0

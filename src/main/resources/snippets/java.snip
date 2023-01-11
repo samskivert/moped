@@ -1,0 +1,61 @@
+# Default Java snippets ; reformat to taste
+
+%name: class Foo {}
+%keys: cls
+public class ${1:Name} {
+$0
+}
+
+%name: Javadoc block
+%keys: /* doc
+/**
+ * ${1:documentation}
+ */
+
+%name: equals() method
+%keys: eq
+%syns: default
+@Override public boolean equals(Object other) {
+$0
+}
+
+%name: hashCode() method
+%keys: hc
+%syns: default
+@Override public int hashCode() {
+$0
+}
+
+%name: equals() and hashCode() methods
+%keys: eqhc
+%syns: default
+@Override public boolean equals(Object other) {
+$1
+}
+
+@Override public int hashCode() {
+$0
+}
+
+%name: if block
+%keys: if
+%syns: default
+if (${1:condition}) {
+$0
+}
+
+%name: if/else block
+%keys: ife ifel
+%syns: default
+if (${1:condition}) {
+$2
+} else {
+$0
+}
+
+%name: for loop
+%keys: for
+%syns: default
+for (int ${1:ii} = ${2:0}, ${3:ll} = ${4:MAX}; $1 < $3; $1++) {
+$0
+}

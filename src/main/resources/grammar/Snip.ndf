@@ -1,0 +1,27 @@
+name: Snippet Description Format
+scopeName: source.snip
+repository:
+patterns:
+ single:
+  # comments must be the only thing on the line
+  name: comment.line.snip
+  pattern: [ ]*([#])(.+)?$
+  caps: 1=punctuation.definition.comment.snip
+ # special matcher for %names line to highlight the name
+ single:
+  pattern: ^(%name)(:)(.*?)$
+  caps: 1=keyword.propkey.snip 2=punctuation.separator.key-value.snip 3=snippet.name.snip
+ # special matcher for %keys line to highlight each key
+ single:
+  pattern: ^(%keys)(:)(.*?)$
+  caps: 1=keyword.propkey.snip 2=punctuation.separator.key-value.snip 3=snippet.trigger.snip
+ # properties should be '%key: value'
+ single:
+  pattern: ^(%[a-zA-Z][^:]+)([:])(.*?)$
+  caps: 1=keyword.propkey.snip 2=punctuation.separator.key-value.snip
+ single:
+  pattern: (\$\{[0-9]+)(\:)([^}]+)(\})
+  caps: 1=snippet.hole.with-default.snip 2=punctuation.separator.hole-default.snip 3=snippet.default.snip 4=snippet.hole.with-default.snip
+ single:
+  pattern: \$[0-9]+
+  caps: 0=snippet.hole.snip

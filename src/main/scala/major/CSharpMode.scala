@@ -2,9 +2,15 @@
 // Moped - my own private IDE-aho
 // https://github.com/samskivert/moped/blob/master/LICENSE
 
-package moped.csharp
+package moped.major
+
+import java.nio.file.{Files, Path}
+import scala.jdk.CollectionConverters._
+import scala.jdk.OptionConverters._
+import scala.util.matching._
 
 import moped._
+import moped.project._
 import moped.code.{Commenter, Indenter, BlockIndenter, CodeConfig}
 import moped.grammar.{GrammarCodeMode, GrammarPlugin}
 
@@ -12,46 +18,6 @@ object CSharpConfig extends Config.Defs {
 
   @Var("If true, cases inside switch blocks are indented one step.")
   val indentCase = key(false)
-}
-
-@Plugin class CSharpGrammarPlugin extends GrammarPlugin {
-  import CodeConfig._
-
-  override def grammars = Map("source.cs" -> "grammar/CSharp.ndf")
-
-  override def effacers = List(
-    effacer("comment.line", commentStyle),
-    effacer("comment.block", docStyle),
-    effacer("constant", constantStyle),
-    effacer("invalid", invalidStyle),
-    effacer("keyword", keywordStyle),
-    effacer("string", stringStyle),
-
-    effacer("entity.name.package", moduleStyle),
-    effacer("entity.name.type", typeStyle),
-    effacer("entity.name.tag", constantStyle),
-    effacer("entity.other.inherited-class", typeStyle),
-    effacer("entity.name.function", functionStyle),
-    effacer("entity.name.val-declaration", variableStyle),
-
-    effacer("meta.method.annotation", preprocessorStyle),
-
-    effacer("storage.modifier", keywordStyle),
-    effacer("storage.type", typeStyle),
-
-    effacer("variable.package", moduleStyle),
-    effacer("variable.import", typeStyle),
-    effacer("variable.language", constantStyle),
-    // effacer("variable.parameter", variableStyle), // leave params white
-    effacer("variable.other.type", variableStyle)
-  )
-
-  override def syntaxers = List(
-    syntaxer("comment.line", Syntax.LineComment),
-    syntaxer("comment.block", Syntax.DocComment),
-    syntaxer("constant", Syntax.OtherLiteral),
-    syntaxer("string.quoted", Syntax.StringLiteral)
-  )
 }
 
 @Major(name="csharp",
@@ -99,6 +65,46 @@ class CSharpMode (env :Env) extends GrammarCodeMode(env) {
 
     override def mkParagrapher (syn :Syntax, buf :Buffer) = new XmlDocCommentParagrapher(syn, buf)
   }
+}
+
+@Plugin class CSharpGrammarPlugin extends GrammarPlugin {
+  import CodeConfig._
+
+  override def grammars = Map("source.cs" -> "grammar/CSharp.ndf")
+
+  override def effacers = List(
+    effacer("comment.line", commentStyle),
+    effacer("comment.block", docStyle),
+    effacer("constant", constantStyle),
+    effacer("invalid", invalidStyle),
+    effacer("keyword", keywordStyle),
+    effacer("string", stringStyle),
+
+    effacer("entity.name.package", moduleStyle),
+    effacer("entity.name.type", typeStyle),
+    effacer("entity.name.tag", constantStyle),
+    effacer("entity.other.inherited-class", typeStyle),
+    effacer("entity.name.function", functionStyle),
+    effacer("entity.name.val-declaration", variableStyle),
+
+    effacer("meta.method.annotation", preprocessorStyle),
+
+    effacer("storage.modifier", keywordStyle),
+    effacer("storage.type", typeStyle),
+
+    effacer("variable.package", moduleStyle),
+    effacer("variable.import", typeStyle),
+    effacer("variable.language", constantStyle),
+    // effacer("variable.parameter", variableStyle), // leave params white
+    effacer("variable.other.type", variableStyle)
+  )
+
+  override def syntaxers = List(
+    syntaxer("comment.line", Syntax.LineComment),
+    syntaxer("comment.block", Syntax.DocComment),
+    syntaxer("constant", Syntax.OtherLiteral),
+    syntaxer("string.quoted", Syntax.StringLiteral)
+  )
 }
 
 object CSharpRules {
@@ -161,4 +167,72 @@ class CSharpIndenter (config :Config) extends BlockIndenter(config, Seq(
   }
 
   private val namespaceM = Matcher.regexp("\\s*namespace ")
+}
+
+/** Plugins to extract project metadata from `.sln` files. */
+object CSharpPlugins {
+
+  def findSln (root :Path) :Option[Path] =
+    Files.list(root).filter(p => p.getFileName.toString.endsWith(".sln")).findAny().toScala
+
+  @Plugin class SlnRootPlugin extends RootPlugin {
+    def checkRoot (root :Path) = if (findSln(root).isDefined) 1 else -1
+  }
+
+  @Plugin class SlnResolverPlugin extends ResolverPlugin {
+
+    override def metaFiles (root :Project.Root) = findSln(root.path).toSeq
+
+    def addComponents (project :Project) :Unit = {
+      val rootPath = project.root.path
+      val projName = rootPath.getFileName.toString // TOOD: read from sln?
+      val ignores = Seq.newBuilder[Ignorer]
+      ignores ++= Ignorer.stockIgnores
+      ignores += Ignorer.ignoreName("bin")
+      ignores += Ignorer.ignoreName("obj")
+      // TODO: only ignore these if we detect Unity
+      ignores += Ignorer.ignoreName("bin~")
+      ignores += Ignorer.ignoreName("obj~")
+      ignores += Ignorer.ignoreRegex(".*\\.meta")
+
+      // TODO: we should probably do this in stockIgnores?
+      ignores ++= Ignorer.gitIgnores(rootPath)
+
+      // val sources = Seq.newBuilder[Path]
+      def addProject (pdir :Path) :Unit = {
+        // if this appears to be a Unity project, ignore Unity stuff as well
+        if (Files.exists(pdir.resolve("Assets"))) {
+          ignores += Ignorer.ignorePath(pdir.resolve("Library"), rootPath)
+          ignores += Ignorer.ignorePath(pdir.resolve("Temp"), rootPath)
+          ignores += Ignorer.ignorePath(pdir.resolve("Logs"), rootPath)
+        }
+
+        // sources += pdir
+      }
+
+      for (sln <- findSln(rootPath) ;
+           slnLine <- Files.newBufferedReader(sln).lines.iterator.asScala) slnLine match {
+        case projRe(proj, path) if (path endsWith ".csproj") =>
+          val csproj = rootPath.resolve(path.replace('\\', '/'))
+          if (Files.exists(csproj)) addProject(csproj.getParent)
+          else println("Invalid .csproj file? " + csproj)
+          // case projRe(proj, path) => println("NOPE " + proj + " // " + path)
+        case line if (line startsWith "Project") => println("NOMATCH " + line)
+        case _ => // ignore
+      }
+
+      // add a sources component with our source directories
+      // project.addComponent(classOf[Sources], new Sources(sources.result))
+
+      project.addComponent(classOf[Filer], new DirectoryFiler(project, ignores.result))
+
+      // add a compiler that runs 'dotnet build' and parses the output
+      // project.addComponent(classOf[Compiler], new DotNetCompiler(project, sln))
+
+      val oldMeta = project.metaV()
+      project.metaV() = oldMeta.copy(name = projName)
+    }
+  }
+
+  val projRe = raw"""Project\("\{.*\}"\) = "(.*)", "(.*)", "\{.*\}"""".r
 }

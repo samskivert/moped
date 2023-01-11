@@ -1,6 +1,6 @@
 //
-// Moped TextMate Grammar - a library for using TextMate language grammars with Moped
-// http://github.com/samskivert/moped-textmate-grammar/blob/master/LICENSE
+// Moped - my own private IDE-aho
+// https://github.com/samskivert/moped/blob/master/LICENSE
 
 package moped.grammar
 
@@ -27,5 +27,5 @@ trait GrammarService {
     * @param mkProcs a function to create custom line processors given the plugin metadata.
     * @return the scoper or `None` if no grammar is available for `langScope`. */
   def scoper (buffer :Buffer, langScope :String,
-              mkProcs :GrammarInfo => List[Selector.Processor]) :Option[Scoper]
+              mkProcs :GrammarPlugin => List[Selector.Processor]) :Option[Scoper]
 }

@@ -1,6 +1,6 @@
 //
-// Moped TextMate Grammar - a library for using TextMate language grammars with Moped
-// http://github.com/samskivert/moped-textmate-grammar/blob/master/LICENSE
+// Moped - my own private IDE-aho
+// https://github.com/samskivert/moped/blob/master/LICENSE
 
 package moped.grammar
 

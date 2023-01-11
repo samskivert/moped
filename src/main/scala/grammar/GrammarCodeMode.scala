@@ -1,6 +1,6 @@
 //
-// Moped TextMate Grammar - a library for using TextMate language grammars with Moped
-// http://github.com/samskivert/moped-textmate-grammar/blob/master/LICENSE
+// Moped - my own private IDE-aho
+// https://github.com/samskivert/moped/blob/master/LICENSE
 
 package moped.grammar
 
@@ -54,15 +54,15 @@ abstract class GrammarCodeMode (env :Env) extends CodeMode(env) {
     */
   protected def isModeStyle (style :String) = style startsWith "code"
 
-  private def mkProcs (info :GrammarInfo) = {
+  private def mkProcs (plugin :GrammarPlugin) = {
     val procs = List.newBuilder[Selector.Processor]
-    if (!info.effacers.isEmpty) procs += new Selector.Processor(info.effacers) {
+    if (!plugin.effacers.isEmpty) procs += new Selector.Processor(plugin.effacers) {
       override def onBeforeLine (buf :Buffer, row :Int) :Unit = { // clear any code styles
         val start = buf.lineStart(row) ; val end = buf.lineEnd(row)
         if (start != end) buf.removeTags(classOf[String], isModeStyle, start, end)
       }
     }
-    if (!info.syntaxers.isEmpty) procs += new Selector.Processor(info.syntaxers) {
+    if (!plugin.syntaxers.isEmpty) procs += new Selector.Processor(plugin.syntaxers) {
       override protected def onUnmatched (buf :Buffer, start :Loc, end :Loc) :Unit = {
         buf.setSyntax(Syntax.Default, start, end) // reset syntax
       }

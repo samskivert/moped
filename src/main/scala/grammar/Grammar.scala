@@ -1,6 +1,6 @@
 //
-// Moped - a scalable editor extensible via JVM languages
-// http://github.com/samskivert/moped/blob/master/LICENSE
+// Moped - my own private IDE-aho
+// https://github.com/samskivert/moped/blob/master/LICENSE
 
 package moped.grammar
 

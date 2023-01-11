@@ -1,6 +1,6 @@
 //
-// Moped Scala Mode - support for editing Scala code
-// https://github.com/moped/scala-mode/blob/master/LICENSE
+// Moped - my own private IDE-aho
+// https://github.com/samskivert/moped/blob/master/LICENSE
 
 package moped.major.scala
 

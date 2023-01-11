@@ -1,15 +1,53 @@
 //
-// Moped Scala Mode - support for editing Scala code
-// https://github.com/moped/scala-mode/blob/master/LICENSE
+// Moped - my own private IDE-aho
+// https://github.com/samskivert/moped/blob/master/LICENSE
 
 package moped.major.scala
 
 // import codex.model.Kind
 import moped._
 import moped.code._
-import moped.grammar.GrammarCodeMode
+import moped.grammar.{GrammarCodeMode, GrammarPlugin}
 import moped.project._
 import moped.util.{Chars, Paragrapher}
+
+@Plugin class ScalaGrammarPlugin extends GrammarPlugin {
+  import CodeConfig._
+
+  override def grammars = Map("source.scala" -> "grammar/Scala.ndf")
+
+  override def effacers = List(
+    effacer("comment.line", commentStyle),
+    effacer("comment.block", docStyle),
+    effacer("constant", constantStyle),
+    effacer("invalid", invalidStyle),
+    effacer("keyword", keywordStyle),
+    effacer("string", stringStyle),
+
+    effacer("entity.name.package", moduleStyle),
+    effacer("entity.name.class", typeStyle),
+    effacer("entity.other.inherited-class", typeStyle),
+    effacer("entity.name.function", functionStyle),
+    effacer("entity.name.val-declaration", variableStyle),
+
+    effacer("storage.modifier", keywordStyle),
+    effacer("storage.type.primitive", typeStyle),
+
+    effacer("variable.package", moduleStyle),
+    effacer("variable.import", typeStyle),
+    effacer("variable.language", constantStyle),
+    // effacer("variable.parameter", variableStyle), // leave params white
+    effacer("variable.other.type", variableStyle)
+  )
+
+  override def syntaxers = List(
+    syntaxer("comment.line", Syntax.LineComment),
+    syntaxer("comment.block", Syntax.DocComment),
+    syntaxer("constant", Syntax.OtherLiteral),
+    syntaxer("string.quoted.triple", Syntax.HereDocLiteral),
+    syntaxer("string.quoted.double", Syntax.StringLiteral)
+  )
+}
 
 @Major(name="scala",
        tags=Array("code", "project", "scala"),

@@ -6,7 +6,7 @@ package moped.project
 
 import java.io.{InputStream, PrintWriter}
 import java.net.URI
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 import java.util.concurrent.{CompletableFuture, ExecutorService}
 import java.util.{Arrays, Collections, List => JList, HashMap, HashSet}
 import scala.annotation.nowarn
@@ -303,20 +303,31 @@ abstract class LangClient (
     }
   }
 
-  /** Visits location `loc` in `window`.
-    * @param name the name to use for the visiting buffer if this turns out to be a "synthetic"
-    * location (one for which the source is provided by the language server).
-    */
-  def visitLocation (project :Project, name :String, loc :LSP.URILoc, window :Window) :Unit = {
-    val point = LSP.fromPos(loc.range.getStart)
-    if (loc.uri.getScheme == "file") window.focus.visitFile(loc.store).point() = point
-    else fetchContents(loc.uri, window.exec).onSuccess(source => {
-      val initState = State.init(classOf[LangClient], this) ::
-        State.init(classOf[TextDocumentIdentifier], new TextDocumentIdentifier(loc.uri.toString)) ::
-        project.bufferState(modeFor(loc.uri))
-      val buf = project.pspace.wspace.createBuffer(Store.text(name, source, root), initState, true)
-      window.focus.visit(buf).point() = point
-    }).onFailure(err => window.popStatus(err.getMessage))
+  /** Creates a visit for `loc` in `project`. */
+  def visit (project :Project, loc :Location) :Visit =
+    visit(project, new URI(loc.getUri), loc.getRange)
+  /** Creates a visit for `loc` in `project`. */
+  def visit (project :Project, loc :LocationLink) :Visit =
+    visit(project, new URI(loc.getTargetUri), loc.getTargetRange)
+  /** Creates a visit for `loc` in `project`. */
+  def visit (project :Project, loc :WorkspaceSymbolLocation) :Visit =
+    visit(project, new URI(loc.getUri), new Range(new Position(0, 0), new Position(0, 0)))
+
+  /** Creates a visit for `uri`/`range` in `project`. */
+  def visit (project :Project, uri :URI, range :Range) :Visit = new Visit {
+    protected override def go (window :Window) = {
+      val store = Store(Paths.get(uri))
+      val point = LSP.fromPos(range.getStart)
+      if (uri.getScheme == "file") window.focus.visitFile(store).point() = point
+      else fetchContents(uri, window.exec).onSuccess(source => {
+        val initState = State.init(classOf[LangClient], LangClient.this) ::
+        State.init(classOf[TextDocumentIdentifier], new TextDocumentIdentifier(uri.toString)) ::
+          project.bufferState(modeFor(uri))
+        val textStore = Store.text(name, source, root)
+        val buf = project.pspace.wspace.createBuffer(textStore, initState, true)
+        window.focus.visit(buf).point() = point
+      }).onFailure(err => window.popStatus(err.getMessage))
+    }
   }
 
   /** Provides the major editing mode source code fetched from the language server via

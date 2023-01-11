@@ -47,7 +47,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
 
   override def keymap = super.keymap.
     bind("describe-element", "C-c C-d").
-    bind("visit-element",    "M-.").
+    bind("goto-definition",  "M-.").
     bind("visit-symbol",     "C-c C-v").
     bind("visit-type",       "C-c C-k").
     bind("visit-func",       "C-c C-j").
@@ -105,19 +105,50 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     })
   }
 
+  @Fn("Navigates to the declaration of the element at the point.")
+  def gotoDeclaration () :Unit = {
+    val loc = view.point()
+    val dparams = new DeclarationParams(LSP.docId(view.buffer), LSP.toPos(view.point()))
+    LSP.adapt(textSvc.declaration(dparams), window.exec).onSuccess(visitLocations("declaration"))
+  }
+
   @Fn("Navigates to the definition of the element at the point.")
-  def visitElement () :Unit = {
+  def gotoDefinition () :Unit = {
     val loc = view.point()
     val dparams = new DefinitionParams(LSP.docId(view.buffer), LSP.toPos(view.point()))
-    LSP.adapt(textSvc.definition(dparams), window.exec).map(res => LSP.toScala(res) match {
-      case Left(locs) => locs.asScala.find(_.getUri != null).map(LSP.URILoc.apply)
-      case Right(links) => links.asScala.find(_.getTargetUri != null).map(LSP.URILoc.apply)
-    }).onSuccess(_ match {
-      case None      => view.window.popStatus(s"Unable to locate definition.")
-      case Some(loc) =>
-        window.visitStack.push(view)
-        client.visitLocation(project, loc.name, loc, window)
-    }).map(_.isDefined)
+    LSP.adapt(textSvc.definition(dparams), window.exec).onSuccess(visitLocations("definition"))
+  }
+
+  @Fn("Visits all implementations of the element at the point.")
+  def findImplementations () :Unit = {
+    val loc = view.point()
+    val dparams = new ImplementationParams(LSP.docId(view.buffer), LSP.toPos(view.point()))
+    LSP.adapt(textSvc.implementation(dparams), window.exec).
+      onSuccess(visitLocations("implementation"))
+  }
+
+  @Fn("Navigates to the type definition of the element at the point.")
+  def gotoTypeDefinition () :Unit = {
+    val loc = view.point()
+    val dparams = new TypeDefinitionParams(LSP.docId(view.buffer), LSP.toPos(view.point()))
+    LSP.adapt(textSvc.typeDefinition(dparams), window.exec).
+      onSuccess(visitLocations("typeDefinition"))
+  }
+
+  import java.util.{List => JList}
+  import org.eclipse.lsp4j.jsonrpc.messages.{Either => JEither}
+  private def visitLocations (what :String)(
+    locs :JEither[JList[? <: Location],JList[? <: LocationLink]]
+  ) = {
+    val visits = LSP.toScala(locs) match {
+      case Left(locs) => locs.asScala.filter(_.getUri != null).map(client.visit(project, _))
+      case Right(links) => links.asScala.filter(_.getTargetUri != null).map(client.visit(project, _))
+    }
+    if (visits.isEmpty) view.window.popStatus(s"Unable to locate $what.")
+    else {
+      window.visits() = Visit.List(what, visits.toSeq)
+      window.visits().next(window)
+    }
   }
 
   @Fn("Queries for a project-wide symbol and visits it.")
@@ -132,8 +163,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   private def visitSymbol (kind :Option[Lang.Kind]) = {
     window.mini.read("Type:", wordAt(view.point()), symbolHistory,
                      symbolCompleter(client, kind)).onSuccess(sym => {
-      window.visitStack.push(view) // push current loc to the visit stack
-      client.visitLocation(project, sym.sig, sym.loc, window)
+      client.visit(project, sym.uri, sym.range).apply(window)
     })
   }
 

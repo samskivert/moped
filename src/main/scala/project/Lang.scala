@@ -92,9 +92,8 @@ object Lang {
   }
 
   case class Symbol (
-    kind :SymbolKind, name :String, fqName :String, sig :String, loc :LSP.URILoc
+    kind :SymbolKind, name :String, fqName :String, sig :String, uri :URI, range :Range
   ) {
-
     def sortKey = (symbolOrder.indexOf(kind), name)
   }
 
@@ -106,19 +105,26 @@ object Lang {
         case cont => s"${cont}.${sym.getName}"
       },
       formatSym(sym),
-      LSP.URILoc(sym.getLocation))
+      new URI(sym.getLocation.getUri),
+      sym.getLocation.getRange)
 
-    def apply (sym :WorkspaceSymbol) :Symbol = Symbol(
-      sym.getKind, sym.getName,
-      sym.getContainerName match {
-        case null => LSP.toScala(sym.getLocation) match {
-          case Left(loc) => s"${fileForLoc(loc)}:${sym.getName}"
-          case Right(wsloc) => s"${fileForUri(wsloc.getUri)}:${sym.getName}"
-        }
-        case cont => s"${cont}.${sym.getName}"
-      },
-      formatSym(sym),
-      LSP.URILoc(sym.getLocation))
+    def apply (sym :WorkspaceSymbol) :Symbol = LSP.toScala(sym.getLocation) match {
+      case Left(loc) => Symbol(
+        sym.getKind, sym.getName, sym.getContainerName match {
+          case null => s"${fileForLoc(loc)}:${sym.getName}"
+          case cont => s"${cont}.${sym.getName}"
+        },
+        formatSym(sym), new URI(loc.getUri), loc.getRange)
+      case Right(wsloc) => Symbol(
+        sym.getKind, sym.getName,
+        sym.getContainerName match {
+          case null => s"${fileForUri(wsloc.getUri)}:${sym.getName}"
+          case cont => s"${cont}.${sym.getName}"
+        },
+        formatSym(sym),
+        new URI(wsloc.getUri),
+        new Range(new Position(0, 0), new Position(0, 0)))
+    }
 
     /** Formats a symbol name for use during completion. Moped convention is `name:qualifier`. */
     @nowarn private def formatSym (sym :SymbolInformation) = sym.getContainerName match {

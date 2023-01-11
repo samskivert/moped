@@ -1,0 +1,267 @@
+name: C#
+scopeName: source.cs
+foldStart: ^\s*#\s*region|^\s*/\*|^(?![^{]*?//|[^{]*?/\*(?!.*?\*/.*?\{)).*?\{\s*($|//|/\*(?!.*?\*/.*\S))
+foldStop: ^\s*#\s*endregion|^\s*\*/|^\s*\}
+repository:
+ block:
+  multi:
+   name: meta.block.source.cs
+   begin: \{
+   bcaps: 0=punctuation.section.block.begin.source.cs
+   end: }
+   ecaps: 0=punctuation.section.block.end.source.cs
+   patterns:
+    include: #code
+ builtinTypes:
+  single:
+   name: storage.type.source.cs
+   pattern: \b(bool|byte|sbyte|char|decimal|double|float|int|uint|long|ulong|object|short|ushort|string|void|class|struct|enum|interface)\b
+ class:
+  multi:
+   name: meta.class.source.cs
+   begin: (?=\w?[\w\s]*(?:class|struct|interface|enum)\s+\w+)
+   end: }
+   ecaps: 0=punctuation.section.class.end.source.cs
+   patterns:
+    include: #storage-modifiers
+    include: #comments
+    single:
+     name: meta.class.identifier.source.cs
+     pattern: (class|struct|interface|enum)\s+(\w+)
+     caps: 1=storage.modifier.source.cs 2=entity.name.type.class.source.cs
+    multi:
+     begin: :
+     end: (?=\{)
+     patterns:
+      single:
+       pattern: \s*,?([A-Za-z_]\w*)\b
+       caps: 1=storage.type.source.cs
+    multi:
+     name: meta.class.body.source.cs
+     begin: \{
+     bcaps: 0=punctuation.section.class.begin.source.cs
+     end: (?=})
+     patterns:
+      include: #method
+      include: #code
+ code:
+  include: #block
+  include: #comments
+  include: #class
+  include: #constants
+  include: #storage-modifiers
+  include: #keywords
+  include: #preprocessor
+  include: #method-call
+  include: #builtinTypes
+ expr:
+  include: #comments
+  include: #constants
+  include: #keywords
+  include: #method-call
+ comments:
+  multi:
+   name: comment.block.documentation.source.cs
+   begin: ///
+   bcaps: 0=punctuation.definition.comment.source.cs
+   end: $\n?
+   patterns:
+    include: source.xml
+  multi:
+   name: comment.block.source.cs
+   begin: /\*
+   bcaps: 0=punctuation.definition.comment.source.cs
+   end: \*/\n?
+  multi:
+   name: comment.line.double-slash.source.cs
+   begin: //
+   bcaps: 0=punctuation.definition.comment.source.cs
+   end: $\n?
+ constants:
+  single:
+   name: constant.language.source.cs
+   pattern: \b(true|false|null|this|base)\b
+  single:
+   name: constant.numeric.source.cs
+   pattern: \b((0(x|X)[0-9a-fA-F]*)|(([0-9]+\.?[0-9]*)|(\.[0-9]+))((e|E)(\+|-)?[0-9]+)?)(L|l|UL|ul|u|U|F|f|ll|LL|ull|ULL)?\b
+  single:
+   name: string.quoted.double.literal.source.cs
+   pattern: @"([^"]|"")*"
+   caps: 0=punctuation.definition.string.begin.source.cs
+  multi:
+   name: string.quoted.double.source.cs
+   begin: "
+   bcaps: 0=punctuation.definition.string.begin.source.cs
+   end: "
+   ecaps: 0=punctuation.definition.string.end.source.cs
+   patterns:
+    single:
+     name: constant.character.escape.source.cs
+     pattern: \\.
+  multi:
+   name: string.quoted.single.source.cs
+   begin: '
+   bcaps: 0=punctuation.definition.string.begin.source.cs
+   end: '
+   ecaps: 0=punctuation.definition.string.end.source.cs
+   patterns:
+    single:
+     name: constant.character.escape.source.cs
+     pattern: \\.
+ keywords:
+  single:
+   name: keyword.control.source.cs
+   pattern: \b(if|else|while|for|foreach|in|do|return|continue|break|switch|case|default|goto|throw|try|catch|finally|lock|yield)\b
+  single:
+   name: keyword.linq.source.cs
+   pattern: \b(from|where|select|group|into|orderby|join|let|on|equals|by|ascending|descending)\b
+  single:
+   name: keyword.operator.source.cs
+   pattern: \b(new|is|as|using|checked|unchecked|typeof|sizeof|override|readonly|stackalloc)\b
+  single:
+   name: keyword.other.source.cs
+   pattern: \b(var|event|delegate|add|remove|set|get|value)\b
+ method:
+  multi:
+   name: meta.method.annotation.source.cs
+   begin: \[
+   end: \]
+   patterns:
+    include: #constants
+    include: #preprocessor
+    include: #builtinTypes
+  multi:
+   name: meta.new-object.source.cs
+   begin: (?=\bnew\s+)(?=[\w<].*\s+)(?=[^=]+\()
+   end: (?=\{|;)
+   patterns:
+    include: #code
+  multi:
+   name: meta.method.source.cs
+   begin: (?<!=|=\s)(?!new)(?=[\w<].*\s+)(?=[^=]+(\(|=>))
+   end: (})|(?=;)
+   ecaps: 1=punctuation.section.method.end.source.cs
+   patterns:
+    include: #storage-modifiers
+    include: #builtinTypes
+    multi:
+     name: meta.method.identifier.source.cs
+     begin: ([\w.]+)\s+\(
+     bcaps: 1=entity.name.function.source.cs
+     end: \)
+     patterns:
+      include: #parameters
+      include: #constants
+    single:
+     name: meta.method.lamba.identifier.source.cs
+     pattern: ([\w.]+)\s+(?==>)
+     bcaps: 1=entity.name.function.source.cs
+    multi:
+     name: meta.method.return-type.source.cs
+     begin: (?=\w.*\s+[\w.]+\s*(\(|=>))
+     end: (?=[\w.]+\s*(\(|=>))
+     patterns:
+      include: #builtinTypes
+    multi:
+     name: meta.method.base-call.source.cs
+     begin: :\s*(this|base)\s*\(
+     bcaps: 1=constant.language.source.cs
+     end: \)
+     patterns:
+      include: #builtinTypes
+    multi:
+     name: meta.method.lambda.body.source.cs
+     begin: =>
+     end: (?=;)
+     patterns:
+      include: #expr
+    multi:
+     name: meta.method.body.source.cs
+     begin: \{
+     bcaps: 0=punctuation.section.method.begin.source.cs
+     end: (?=})
+     patterns:
+      include: #code
+  multi:
+   name: meta.property.source.cs
+   begin: (?!new)(?=[\w<].*\s+)(?=[^=]+\{)
+   end: }
+   ecaps: 0=punctuation.section.property.end.source.cs
+   patterns:
+    include: #storage-modifiers
+    multi:
+     name: meta.method.identifier.source.cs
+     begin: ([\w.]+)\s*(?=\{)
+     bcaps: 1=entity.name.function.source.cs
+     end: (?=\{)
+    multi:
+     name: meta.method.return-type.source.cs
+     begin: (?=\w.*\s+[\w.]+\s*\{)
+     end: (?=[\w.]+\s*\{)
+     patterns:
+      include: #builtinTypes
+    multi:
+     name: meta.method.body.source.cs
+     begin: \{
+     bcaps: 0=punctuation.section.property.begin.source.cs
+     end: (?=})
+     patterns:
+      include: #code
+ method-call:
+  multi:
+   name: meta.method-call.source.cs
+   begin: ([\w$]+)(\()
+   bcaps: 1=meta.method.source.cs 2=punctuation.definition.method-parameters.begin.source.cs
+   end: \)
+   ecaps: 0=punctuation.definition.method-parameters.end.source.cs
+   patterns:
+    single:
+     name: punctuation.definition.seperator.parameter.source.cs
+     pattern: ,
+    include: #code
+ parameters:
+  multi:
+   begin: \b(ref|params|out)?\s*\b([\w.\[\]]+)\s+(\w+)\s*(=)?
+   bcaps: 1=storage.type.modifier.source.cs 2=storage.type.generic.source.cs 3=variable.parameter.function.source.cs 4=keyword.operator.assignment.source.cs
+   end: (?:(,)|(?=[\)]))
+   ecaps: 1=punctuation.definition.separator.parameter.source.cs
+   patterns:
+    include: #constants
+    include: #block
+ preprocessor:
+  single:
+   name: meta.preprocessor.source.cs
+   pattern: ^\s*#\s*(region)\b(.*)$
+   caps: 2=meta.toc-list.region.source.cs
+  single:
+   name: meta.preprocessor.source.cs
+   pattern: ^\s*#\s*(define)\b\s*(\S*)
+   caps: 2=entity.name.function.preprocessor.source.cs
+  single:
+   name: meta.preprocessor.source.cs
+   pattern: ^\s*#\s*(if|else|elif|endif|define|undef|warning|error|line|pragma|region|endregion)\b
+   caps: 1=keyword.control.import.source.cs
+ storage-modifiers:
+  single:
+   name: storage.modifier.source.cs
+   pattern: \b(event|delegate|internal|public|protected|private|static|const|new|sealed|abstract|virtual|override|extern|unsafe|readonly|volatile|implicit|explicit|operator)\b
+patterns:
+ single:
+  name: meta.keyword.using.source.cs
+  pattern: ^\s*(using)\s+([^ ;]*);
+  caps: 1=keyword.other.using.source.cs
+ multi:
+  name: meta.namespace.source.cs
+  begin: ^\s*((namespace)\s+([\w.]+))
+  bcaps: 1=meta.namespace.identifier.source.cs 2=keyword.other.namespace.source.cs 3=entity.name.type.namespace.source.cs
+  end: }
+  ecaps: 0=punctuation.section.namespace.end.source.cs
+  patterns:
+   multi:
+    name: meta.namespace.body.source.cs
+    begin: \{
+    bcaps: 0=punctuation.section.namespace.begin.source.cs
+    end: (?=})
+    patterns:
+     include: #code
+ include: #code

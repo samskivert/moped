@@ -46,15 +46,17 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   // }
 
   override def keymap = super.keymap.
-    bind("describe-element", "C-c C-d").
-    bind("goto-definition",  "M-.").
-    bind("visit-symbol",     "C-c C-v").
-    bind("visit-type",       "C-c C-k").
-    bind("visit-func",       "C-c C-j").
-    bind("visit-value",      "C-c C-h").
-    bind("rename-element",   "C-c C-r").
-    bind("find-uses",        "C-c C-f").
-    bind("lang-exec-command", "C-c C-l x")
+    bind("describe-element",     "C-c C-d").
+    bind("show-enclosers",       "S-C-c S-C-d").
+    bind("goto-definition",      "M-.").
+    bind("goto-type-definition", "M-/").
+    bind("visit-symbol",         "C-c C-v").
+    bind("visit-type",           "C-c C-k").
+    bind("visit-func",           "C-c C-j").
+    bind("visit-value",          "C-c C-h").
+    bind("rename-element",       "C-c C-r").
+    bind("find-uses",            "C-c C-f").
+    bind("lang-exec-command",    "C-c C-l x")
 
   //   bind("describe-codex", "C-h c").
 
@@ -253,24 +255,20 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     }
   }
 
-  // @Fn("Describes the internals of the Codex indices.")
-  // def describeCodex () :Unit = {
-  //   val bb = new BufferBuilder(view.width()-1)
-  //   codex.describeSelf(bb)
-  //   window.focus.visit(bb.applyTo(project.createBuffer(s"*codex*", "help")))
-  // }
-
-  // @Fn("Queries for a module (completed by the project's Codex) and navigates to its definition.")
-  // def codexVisitModule () :Unit = codexVisit("Module:", Kind.MODULE)
-
-  // @Fn("Queries for a type (completed by the project's Codex) and navigates to its definition.")
-  // def codexVisitType () :Unit = codexVisit("Type:", Kind.TYPE)
-
-  // @Fn("Queries for a function (completed by the project's Codex) and navigates to its definition.")
-  // def codexVisitFunc () :Unit = codexVisit("Function:", Kind.FUNC)
-
-  // @Fn("Queries for a value (completed by the project's Codex) and navigates to its definition.")
-  // def codexVisitValue () :Unit = codexVisit("Value:", Kind.VALUE)
+  @Fn("""Shows the symbols (functions, methods, classes, etc.) that enclose the current point.""")
+  def showEnclosers () :Unit = enclosers(view.point()).onSuccess(encs => {
+    val popbuf = Buffer.scratch("*popup*")
+    var lastRow = 0
+    for (enc <- encs) {
+      var start = LSP.fromPos(enc.sigRange.getStart)
+      // sometimes there are multiple enclosers on the same line, since we include the entire line, just skip over additional enclosers from the same line, we already got 'em
+      if (start.row != lastRow) {
+        popbuf.insertLine(popbuf.start, buffer.line(start))
+        lastRow = start.row
+      }
+    }
+    view.popup() = Popup.buffer(popbuf, Popup.UpRight(view.point()))
+  })
 
   // @Fn("""If called inside a method, visits the method it immediately overrides, if any.
   //        If called inside a class but not a method, visits the class's parent.""")
@@ -284,12 +282,6 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   //     case Some(df) => visit(df)
   //   }
   // }
-
-  // @Fn("""Queries for a module (completed by the project's Codex) and displays its summary.""")
-  // def codexSummarizeModule () :Unit = codexSummarize("Module:", Kind.MODULE);
-
-  // @Fn("""Queries for a type (completed by the project's Codex) and displays its summary.""")
-  // def codexSummarizeType () :Unit = codexSummarize("Type:", Kind.TYPE);
 
   // @Fn("""Queries for a type (completed by the project's Codex) then queries for a
   //        member of that type and visits it.""")
@@ -308,24 +300,6 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   //   }
   // }
   // private val _memHistory = MMap[Def,Ring]()
-
-  // @Fn("Displays a summary of the type or module that encloses the point. 'Zooming out.'")
-  // def codexSummarizeEncloser () :Unit = onEncloser(view.point()) { df =>
-  //   def loop (df :Def) :Unit =
-  //     if (df == null) window.popStatus("Could not find enclosing type.")
-  //     else if (Enclosers(df.kind)) summarize(df)
-  //     else loop(df.outer)
-  //   loop(df)
-  // }
-  // private val Enclosers = Set(Kind.TYPE, Kind.MODULE)
-
-  // @Fn("""Displays the documentation and signature for the element at the point, if it is known to
-  //        the project's Codex.""")
-  // def codexDescribeElement () :Unit = {
-  //   onElemAt(view.point()) { (elem, loc, df) =>
-  //     view.popup() = codex.mkDefPopup(view, codex.stores(project), df, loc)
-  //   }
-  // }
 
   // @Fn("""Displays the documentation and signature for the element at the point in a separate buffer
   //        (rather than in a popup). This can be useful when the docs are very long, or you wish
@@ -394,67 +368,47 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     window.focus.visit(project.createBuffer(s"*find-uses: ${name}*", initState))
   }
 
-  // @Fn("""Navigates to the referent of the elmeent at the point, if it is known to this project's
-  //        Codex.""")
-  // def codexVisitElement () :Unit = {
-  //   onElemAt(view.point())((_, _, df) => visit(df))
-  // }
+  def enclosers (loc :Loc) :Future[Seq[Symbol]] = {
+    val docId = LSP.docId(view.buffer)
+    val sparams = new DocumentSymbolParams(docId)
+    LSP.adapt(textSvc.documentSymbol(sparams), window.exec).map {
+      case null => Seq()
+      case syms if (syms.isEmpty) => Seq()
+      case syms =>
+        // convert from wonky "list of eithers" to two separate lists; we'll only have one kind of
+        // symbol or the other but lsp4j's "translation" of LSP's "type" is a minor disaster
+        @nowarn val sis = Seq.newBuilder[SymbolInformation]
+        val dss = Seq.newBuilder[DocumentSymbol]
+        syms.asScala map(LSP.toScala) foreach {
+          case Left(si) => sis += si
+          case Right(ds) => dss += ds
+        }
 
-  // private def bufferFile :Path = buffer.store.file getOrElse { abort(
-  //     "This buffer has no associated file. A file is needed to detect tests.") }
-
-  // override def enclosers (view :RBufferView, loc :Loc) = {
-  //   val sparams = new DocumentSymbolParams(LSP.docId(view.buffer))
-  //   LSP.adapt(textSvc.documentSymbol(sparams), view.window.exec).map {
-  //     case null => Seq()
-  //     case syms if (syms.isEmpty) => Seq()
-  //     case syms =>
-  //       // convert from wonky "list of eithers" to two separate lists; we'll only have one kind of
-  //       // symbol or the other but lsp4j's "translation" of LSP's "type" is a minor disaster
-  //       @nowarn val sis = ArrayBuffer[SymbolInformation]()
-  //       val dss = ArrayBuffer[DocumentSymbol]()
-  //       syms.asScala map(LSP.toScala) foreach {
-  //         case Left(si) => sis += si
-  //         case Right(ds) => dss += ds
-  //       }
-
-  //       if (!dss.isEmpty) {
-  //         def loopDS (dss :Iterable[DocumentSymbol], encs :List[DocumentSymbol]) :Seq[Defn] =
-  //           dss.find(ds => LSP.fromRange(ds.getRange).contains(loc)) match {
-  //             case Some(ds) => loopDS(ds.getChildren.asScala, ds :: encs)
-  //             case None => encs.map(toDefn(view.buffer, _)).toSeq
-  //           }
-  //         loopDS(dss, Nil)
-  //       }
-  //       // if we have sym infos then we don't have body ranges; so we just find the closest symbol
-  //       // that starts before our location and for which the next symbol ends after our location,
-  //       // then use 'container name' to reconstruct encloser chain...
-  //       else if (!sis.isEmpty) {
-  //         def symloc (si :SymbolInformation) = LSP.fromPos(si.getLocation.getRange.getStart)
-  //         val (before, after) = sis.partition(si => symloc(si) <= loc)
-  //         if (before.isEmpty) Seq()
-  //         else {
-  //           def outers (si :SymbolInformation, encs :List[SymbolInformation]) :Seq[Defn] =
-  //             before.find(_.getName == si.getContainerName) match {
-  //               case Some(osi) => outers(osi, si :: encs)
-  //               case None => (si :: encs).reverse.map(toDefn(view.buffer, _)).toSeq
-  //             }
-  //           outers(before.last, Nil)
-  //         }
-  //       }
-  //       else Seq()
-  //   }
-  // }
-
-  // // TODO: convert Codex to use row/char instead of offset & avoid need to convert here
-  // private def toDefn (b :BufferV, sym :SymbolInformation) = {
-  //   val r = LSP.fromRange(sym.getLocation.getRange)
-  //   Defn(toK(sym.getKind), sym.getName(), None, b.offset(r.start), b.offset(r.start), b.offset(r.end))
-  // }
-
-  // private def toDefn (b :BufferV, sym :DocumentSymbol) = {
-  //   val r = LSP.fromRange(sym.getRange) ; val sr = LSP.fromRange(sym.getSelectionRange)
-  //   Defn(toK(sym.getKind), sym.getName(), Option(sym.getDetail),
-  //        b.offset(sr.start), b.offset(r.start), b.offset(r.end))
-  // }
+        if (dss.knownSize > 0) {
+          def loopDS (dss :Iterable[DocumentSymbol], encs :List[DocumentSymbol]) :Seq[Symbol] =
+            dss.find(ds => LSP.fromRange(ds.getRange).contains(loc)) match {
+              case Some(ds) => loopDS(ds.getChildren.asScala, ds :: encs)
+              case None => encs.map(Symbol(docId, _)).toSeq
+            }
+          loopDS(dss.result, Nil)
+        }
+        // if we have sym infos then we don't have body ranges; so we just find the closest symbol
+        // that starts before our location and for which the next symbol ends after our location,
+        // then use 'container name' to reconstruct encloser chain...
+        else if (sis.knownSize > 0) {
+          def symloc (si :SymbolInformation) = LSP.fromPos(si.getLocation.getRange.getStart)
+          val (before, after) = sis.result.partition(si => symloc(si) <= loc)
+          if (before.isEmpty) Seq()
+          else {
+            def outers (si :SymbolInformation, encs :List[SymbolInformation]) :Seq[Symbol] =
+              before.find(_.getName == si.getContainerName) match {
+                case Some(osi) => outers(osi, si :: encs)
+                case None => (si :: encs).reverse.map(Symbol.apply).toSeq
+              }
+            outers(before.last, Nil)
+          }
+        }
+        else Seq()
+    }
+  }
 }

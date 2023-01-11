@@ -165,7 +165,7 @@ abstract class LangClient (
     val initParams = new InitializeParams()
     initParams.setTrace("verbose")
     initParams.setCapabilities(createClientCaps)
-    val name = root.getName.toString // TODO: get project name?
+    val name = root.toString // TODO: get project name?
     initParams.setWorkspaceFolders(List(WorkspaceFolder(root.toUri.toString, name)).asJava)
     // TEMP: metals does not support workspace folders (yet?)
     initParams.setRootUri(root.toUri.toString) : @nowarn

@@ -92,7 +92,8 @@ object Lang {
   }
 
   case class Symbol (
-    kind :SymbolKind, name :String, fqName :String, sig :String, uri :URI, range :Range
+    kind :SymbolKind, name :String, fqName :String, sig :String, uri :URI,
+    range :Range, sigRange :Range
   ) {
     def sortKey = (symbolOrder.indexOf(kind), name)
   }
@@ -106,6 +107,7 @@ object Lang {
       },
       formatSym(sym),
       new URI(sym.getLocation.getUri),
+      sym.getLocation.getRange,
       sym.getLocation.getRange)
 
     def apply (sym :WorkspaceSymbol) :Symbol = LSP.toScala(sym.getLocation) match {
@@ -114,7 +116,7 @@ object Lang {
           case null => s"${fileForLoc(loc)}:${sym.getName}"
           case cont => s"${cont}.${sym.getName}"
         },
-        formatSym(sym), new URI(loc.getUri), loc.getRange)
+        formatSym(sym), new URI(loc.getUri), loc.getRange, loc.getRange)
       case Right(wsloc) => Symbol(
         sym.getKind, sym.getName,
         sym.getContainerName match {
@@ -123,8 +125,13 @@ object Lang {
         },
         formatSym(sym),
         new URI(wsloc.getUri),
+        new Range(new Position(0, 0), new Position(0, 0)),
         new Range(new Position(0, 0), new Position(0, 0)))
     }
+
+    def apply (docId :TextDocumentIdentifier, sym :DocumentSymbol) :Symbol = Symbol(
+      sym.getKind, sym.getName, sym.getName, sym.getDetail, new URI(docId.getUri), sym.getRange,
+      sym.getSelectionRange)
 
     /** Formats a symbol name for use during completion. Moped convention is `name:qualifier`. */
     @nowarn private def formatSym (sym :SymbolInformation) = sym.getContainerName match {

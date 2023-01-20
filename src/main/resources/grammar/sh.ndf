@@ -1,0 +1,348 @@
+name: Shell Script (Bash)
+scopeName: source.shell
+repository:
+ case-clause:
+  multi:
+   name: meta.scope.case-clause.shell
+   begin: (?=\S)
+   end: ;;
+   ecaps: 0=punctuation.terminator.case-clause.shell
+   patterns:
+    multi:
+     name: meta.scope.case-pattern.shell
+     begin: (\(|(?=\S))
+     bcaps: 0=punctuation.definition.case-pattern.shell
+     end: \)
+     ecaps: 0=punctuation.definition.case-pattern.shell
+     patterns:
+      single:
+       name: punctuation.separator.pipe-sign.shell
+       pattern: \|
+      include: #string
+      include: #variable
+      include: #interpolation
+      include: #pathname
+    multi:
+     name: meta.scope.case-clause-body.shell
+     begin: (?<=\))
+     end: (?=;;)
+     patterns:
+      include: $self
+ comment:
+  single:
+   pattern: (^[ \t]+)?(#.*$)
+   caps: 1=punctuation.whitespace.comment.leading.shell 2=comment.line.number-sign.shell
+ compound-command:
+  multi:
+   name: meta.scope.logical-expression.shell
+   begin: (\[{2})
+   bcaps: 1=punctuation.definition.logical-expression.shell
+   end: (\]{2})
+   ecaps: 1=punctuation.definition.logical-expression.shell
+   patterns:
+    include: #logical-expression
+    include: $self
+  multi:
+   name: string.other.math.shell
+   begin: (\({2})
+   bcaps: 0=punctuation.definition.string.begin.shell
+   end: (\){2})
+   ecaps: 0=punctuation.definition.string.end.shell
+   patterns:
+    include: #math
+  multi:
+   name: meta.scope.subshell.shell
+   begin: (\()
+   bcaps: 1=punctuation.definition.subshell.shell
+   end: (\))
+   ecaps: 1=punctuation.definition.subshell.shell
+   patterns:
+    include: $self
+  multi:
+   name: meta.scope.group.shell
+   begin: (?<=\s|^)(\{)(?=\s|$)
+   bcaps: 1=punctuation.definition.group.shell
+   end: (?<=^|;)\s*(\})
+   ecaps: 1=punctuation.definition.group.shell
+   patterns:
+    include: $self
+ function-definition:
+  multi:
+   name: meta.function.shell
+   begin: \b(function)\s+([^\s\\]+)(?:\s*(\(\)))?
+   bcaps: 1=storage.type.function.shell 2=entity.name.function.shell 3=punctuation.definition.arguments.shell
+   end: ;|&|$
+   ecaps: 0=punctuation.definition.function.shell
+   patterns:
+    include: $self
+  multi:
+   name: meta.function.shell
+   begin: \b([^\s\\=]+)\s*(\(\))
+   bcaps: 1=entity.name.function.shell 2=punctuation.definition.arguments.shell
+   end: ;|&|$
+   ecaps: 0=punctuation.definition.function.shell
+   patterns:
+    include: $self
+ herestring:
+  single:
+   name: meta.herestring.shell
+   pattern: (<<<)((')[^']*('))
+   caps: 1=keyword.operator.herestring.shell 2=string.quoted.single.herestring.shell 3=punctuation.definition.string.begin.shell 4=punctuation.definition.string.end.shell
+  single:
+   name: meta.herestring.shell
+   pattern: (<<<)((")(\\("|\\)|[^"])*("))
+   caps: 1=keyword.operator.herestring.shell 2=string.quoted.double.herestring.shell 3=punctuation.definition.string.begin.shell 6=punctuation.definition.string.end.shell
+  single:
+   name: meta.herestring.shell
+   pattern: (<<<)(([^\s\\]|\\.)+)
+   caps: 1=keyword.operator.herestring.shell 2=string.unquoted.herestring.shell
+ interpolation:
+  multi:
+   name: string.other.math.shell
+   begin: \$\({2}
+   bcaps: 0=punctuation.definition.string.begin.shell
+   end: \){2}
+   ecaps: 0=punctuation.definition.string.end.shell
+   patterns:
+    include: #math
+  single:
+   name: string.interpolated.backtick.shell
+   pattern: `[^`]*`
+  # multi:
+  #  name: string.interpolated.backtick.shell
+  #  begin: `
+  #  bcaps: 0=punctuation.definition.string.begin.shell
+  #  end: `
+  #  ecaps: 0=punctuation.definition.string.end.shell
+  #  patterns:
+  #   single:
+  #    name: constant.character.escape.shell
+  #    pattern: \\[`\\$]
+  #   include: $self
+  multi:
+   name: string.interpolated.dollar.shell
+   begin: \$\(
+   bcaps: 0=punctuation.definition.string.begin.shell
+   end: \)
+   ecaps: 0=punctuation.definition.string.end.shell
+   patterns:
+    include: $self
+ keyword:
+  single:
+   name: keyword.control.shell
+   pattern: \b(?:if|then|else|elif|fi|for|in|do|done|select|case|continue|esac|while|until|return)\b
+  single:
+   name: storage.modifier.shell
+   pattern: (?<![-/])\b(?:export|declare|typeset|local|readonly)\b
+ list:
+  single:
+   name: keyword.operator.list.shell
+   pattern: ;|&&|&|\|\|
+ logical-expression:
+  single:
+   name: keyword.operator.logical.shell
+   pattern: =[=~]?|!=?|<|>|&&|\|\|
+  single:
+   name: keyword.operator.logical.shell
+   pattern: (?<!\S)-(nt|ot|ef|eq|ne|l[te]|g[te]|[a-hknoprstuwxzOGLSN])
+ loop:
+  multi:
+   name: meta.scope.for-loop.shell
+   begin: \b(for)\s+(?=\({2})
+   bcaps: 1=keyword.control.shell
+   end: \b(done)\b
+   ecaps: 1=keyword.control.shell
+   patterns:
+    include: $self
+  multi:
+   name: meta.scope.for-in-loop.shell
+   begin: \b(for)\s+((?:[^\s\\]|\\.)+)\b
+   bcaps: 1=keyword.control.shell 2=variable.other.loop.shell
+   end: \b(done)\b
+   ecaps: 1=keyword.control.shell
+   patterns:
+    include: $self
+  multi:
+   name: meta.scope.while-loop.shell
+   begin: \b(while|until)\b
+   bcaps: 1=keyword.control.shell
+   end: \b(done)\b
+   ecaps: 1=keyword.control.shell
+   patterns:
+    include: $self
+  multi:
+   name: meta.scope.select-block.shell
+   begin: \b(select)\s+((?:[^\s\\]|\\.)+)\b
+   bcaps: 1=keyword.control.shell 2=variable.other.loop.shell
+   end: \b(done)\b
+   ecaps: 1=keyword.control.shell
+   patterns:
+    include: $self
+  multi:
+   name: meta.scope.case-block.shell
+   begin: \b(case)\b
+   bcaps: 1=keyword.control.shell
+   end: \b(esac)\b
+   ecaps: 1=keyword.control.shell
+   patterns:
+    multi:
+     name: meta.scope.case-body.shell
+     begin: \b(?:in)\b
+     bcaps: 1=keyword.control.shell
+     end: (?=\b(?:esac)\b)
+     patterns:
+      include: #comment
+      include: #case-clause
+      include: $self
+    include: $self
+  multi:
+   name: meta.scope.if-block.shell
+   begin: \b(if)\b
+   bcaps: 1=keyword.control.shell
+   end: \b(fi)\b
+   ecaps: 1=keyword.control.shell
+   patterns:
+    include: $self
+ math:
+  include: #variable
+  single:
+   name: keyword.operator.arithmetic.shell
+   pattern: \+{1,2}|-{1,2}|!|~|\*{1,2}|/|%|<[<=]?|>[>=]?|==|!=|\^|\|{1,2}|&{1,2}|\?|\:|,|=|[*/%+\-&^|]=|<<=|>>=
+  single:
+   name: constant.numeric.hex.shell
+   pattern: 0[xX]\h+
+  single:
+   name: constant.numeric.octal.shell
+   pattern: 0\d+
+  single:
+   name: constant.numeric.other.shell
+   pattern: \d{1,2}#[0-9a-zA-Z@_]+
+  single:
+   name: constant.numeric.integer.shell
+   pattern: \d+
+ pathname:
+  single:
+   name: keyword.operator.tilde.shell
+   pattern: (?<=\s|:|=|^)~
+  single:
+   name: keyword.operator.glob.shell
+   pattern: \*|\?
+  multi:
+   name: meta.structure.extglob.shell
+   begin: ([?*+@!])(\()
+   bcaps: 1=keyword.operator.extglob.shell 2=punctuation.definition.extglob.shell
+   end: (\))
+   ecaps: 1=punctuation.definition.extglob.shell
+   patterns:
+    include: $self
+ pipeline:
+  single:
+   name: keyword.other.shell
+   pattern: \b(time)\b
+  single:
+   name: keyword.operator.pipe.shell
+   pattern: [|!]
+ redirection:
+  multi:
+   name: string.interpolated.process-substitution.shell
+   begin: [><]\(
+   bcaps: 0=punctuation.definition.string.begin.shell
+   end: \)
+   ecaps: 0=punctuation.definition.string.end.shell
+   patterns:
+    include: $self
+  single:
+   name: keyword.operator.redirect.shell
+   pattern: &>|\d*>&\d*|\d*(>>|>|<)|\d*<&|\d*<>
+ string:
+  single:
+   name: constant.character.escape.shell
+   pattern: \\.
+  multi:
+   name: string.quoted.single.shell
+   begin: '
+   bcaps: 0=punctuation.definition.string.begin.shell
+   end: '
+   ecaps: 0=punctuation.definition.string.end.shell
+  multi:
+   name: string.quoted.double.shell
+   begin: \$?"
+   bcaps: 0=punctuation.definition.string.begin.shell
+   end: "
+   ecaps: 0=punctuation.definition.string.end.shell
+   patterns:
+    single:
+     name: constant.character.escape.shell
+     pattern: \\[\$`"\\\n]
+    include: #variable
+    include: #interpolation
+  multi:
+   name: string.quoted.single.dollar.shell
+   begin: \$'
+   bcaps: 0=punctuation.definition.string.begin.shell
+   end: '
+   ecaps: 0=punctuation.definition.string.end.shell
+   patterns:
+    single:
+     name: constant.character.escape.ansi-c.shell
+     pattern: \\(a|b|e|f|n|r|t|v|\\|')
+    single:
+     name: constant.character.escape.octal.shell
+     pattern: \\[0-9]{3}
+    single:
+     name: constant.character.escape.hex.shell
+     pattern: \\x[0-9a-fA-F]{2}
+    single:
+     name: constant.character.escape.control-char.shell
+     pattern: \\c.
+ support:
+  single:
+   name: support.function.builtin.shell
+   pattern: (?<=^|\s)(?::|\.)(?=\s|;|&|$)
+  single:
+   name: support.function.builtin.shell
+   pattern: (?<![-/])\b(?:alias|bg|bind|break|builtin|caller|cd|command|compgen|complete|dirs|disown|echo|enable|eval|exec|exit|false|fc|fg|getopts|hash|help|history|jobs|kill|let|logout|popd|printf|pushd|pwd|read|readonly|set|shift|shopt|source|suspend|test|times|trap|true|type|ulimit|umask|unalias|unset|wait)\b
+ variable:
+  single:
+   name: variable.other.normal.shell
+   pattern: (\$)[a-zA-Z_][a-zA-Z0-9_]*
+   caps: 1=punctuation.definition.variable.shell
+  single:
+   name: variable.other.special.shell
+   pattern: (\$)[-*@#?$!0_]
+   caps: 1=punctuation.definition.variable.shell
+  single:
+   name: variable.other.positional.shell
+   pattern: (\$)[1-9]
+   caps: 1=punctuation.definition.variable.shell
+  multi:
+   name: variable.other.bracket.shell
+   begin: \$\{
+   bcaps: 0=punctuation.definition.variable.shell
+   end: \}
+   ecaps: 0=punctuation.definition.variable.shell
+   patterns:
+    single:
+     name: keyword.operator.expansion.shell
+     pattern: !|:[-=?+]?|\*|@|#{1,2}|%{1,2}|/
+    single:
+     pattern: (\[)([^\]]+)(\])
+     caps: 1=punctuation.section.array.shell 3=punctuation.section.array.shell
+    include: #string
+    include: #variable
+    include: #interpolation
+patterns:
+ include: #comment
+ include: #pipeline
+ include: #list
+ include: #compound-command
+ include: #loop
+ include: #function-definition
+ include: #string
+ include: #variable
+ include: #interpolation
+ include: #herestring
+ include: #redirection
+ include: #pathname
+ include: #keyword
+ include: #support

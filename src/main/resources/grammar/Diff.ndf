@@ -1,0 +1,64 @@
+name: Diff
+scopeName: source.diff
+repository:
+patterns:
+ single:
+  name: meta.separator.diff
+  pattern: ^((\*{15})|(={67})|(-{3}))$\n?
+  caps: 1=punctuation.definition.separator.diff
+ single:
+  name: meta.diff.range.normal
+  pattern: ^\d+(,\d+)*(a|d|c)\d+(,\d+)*$\n?
+ single:
+  name: meta.diff.range.unified
+  pattern: ^(@@)\s*(.+?)\s*(@@)($\n?)?
+  caps: 1=punctuation.definition.range.diff 2=meta.toc-list.line-number.diff 3=punctuation.definition.range.diff
+ single:
+  name: meta.diff.range.context
+  pattern: ^(((\-{3}) .+ (\-{4}))|((\*{3}) .+ (\*{4})))$\n?
+  caps: 3=punctuation.definition.range.diff 4=punctuation.definition.range.diff 6=punctuation.definition.range.diff 7=punctuation.definition.range.diff
+ single:
+  name: meta.diff.commit.git
+  pattern: ^commit [a-z0-9]+$\n?
+ single:
+  name: meta.diff.header.git
+  pattern: ^diff --git a/.*$\n?
+ single:
+  name: meta.diff.header.command
+  pattern: ^diff (-|\S+\s+\S+).*$\n?
+ single:
+  name: meta.diff.header.from-file
+  pattern: (^(((-{3}) .+)|((\*{3}) .+))$\n?|^(={4}) .+(?= - ))
+  caps: 4=punctuation.definition.from-file.diff 6=punctuation.definition.from-file.diff 7=punctuation.definition.from-file.diff
+ single:
+  name: meta.diff.header.to-file
+  pattern: (^(\+{3}) .+$\n?| (-) .* (={4})$\n?)
+  caps: 2=punctuation.definition.to-file.diff 3=punctuation.definition.to-file.diff 4=punctuation.definition.to-file.diff
+ single:
+  name: markup.inserted.diff
+  pattern: ^(((>)( .*)?)|((\+).*))$\n?
+  caps: 3=punctuation.definition.inserted.diff 6=punctuation.definition.inserted.diff
+ single:
+  name: markup.changed.diff
+  pattern: ^(!).*$\n?
+  caps: 1=punctuation.definition.inserted.diff
+ single:
+  name: markup.deleted.diff
+  pattern: ^(((<)( .*)?)|((-).*))$\n?
+  caps: 3=punctuation.definition.inserted.diff 6=punctuation.definition.inserted.diff
+ multi:
+  name: comment.line.number-sign.diff
+  begin: ^(#)
+  bcaps: 1=punctuation.definition.comment.diff
+  end: \n
+  ecaps: 1=punctuation.definition.comment.diff
+ single:
+  name: meta.diff.index.git
+  pattern: ^index [0-9a-f]{7,40}\.\.[0-9a-f]{7,40}.*$\n?
+ single:
+  name: meta.diff.index
+  pattern: ^Index(:) (.+)$\n?
+  caps: 1=punctuation.separator.key-value.diff 2=meta.toc-list.file-name.diff
+ single:
+  name: meta.diff.only-in
+  pattern: ^Only in .*: .*$\n?

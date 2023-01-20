@@ -18,7 +18,7 @@ won't hold my breath. Scaled has been a great editor for me for the last eight y
 a great editor for me for the next eight years.
 
 Another simplification that Moped leverages is the growing popularity of [LSP]. Instead of defining
-its own mechanism for language intellegince which was later adapted to work with LSP, Moped is
+its own mechanism for language intelligence which was later adapted to work with LSP, Moped is
 designed to use LSP from the start.
 
 ## Try it

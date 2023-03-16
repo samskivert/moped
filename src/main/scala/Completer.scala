@@ -25,6 +25,9 @@ abstract class Completion[+T] (
   /** Returns `Some` value associated with the completion `comp`, or `None`. */
   def apply (comp :String) :Option[T]
 
+  /** Returns `Some` value associated with the `index`th, or `None`. */
+  def apply (index :Int) :Option[T]
+
   /** Refines this completion with the longer prefix `prefix`. This generally means filtering
     * `comps` to contain only those elements which [[FuzzyMatch]] `prefix`. */
   def refine (prefix :String) :Completion[T]
@@ -41,6 +44,7 @@ object Completion {
   /** Returns an empty completion of type `T`. */
   def empty[T] (prefix :String) :Completion[T] = new Completion[T](prefix, Seq()) {
     override def apply (curval :String) = None
+    override def apply (index :Int) = None
     override def refine (prefix :String) :Completion[T] = this
     override def root = this
   }
@@ -95,6 +99,7 @@ object Completion {
   private class MapComp[T] (gl :String, cs :Seq[String], map :Map[String,T])
       extends Completion[T](gl, cs) {
     def apply (comp :String) = map.get(comp) orElse cs.headOption.flatMap(map.get)
+    def apply (index :Int) = if (cs.length > index) map.get(cs(index)) else None
     def refine (prefix :String) = {
       val outer = this
       new MapComp[T](prefix, FuzzyMatch(prefix).filter(comps), map) {
@@ -184,6 +189,7 @@ object Completer {
       new Completion[String](prefix, Seq(prefix)) {
         def root :Completion[String] = this
         def apply (prefix :String) = Some(prefix)
+        def apply (index :Int) = if (index == 0) Some(prefix) else None
         def refine (prefix :String) = completeSync(prefix)
       }
   }
@@ -320,6 +326,7 @@ object Completer {
 
       class FileComp (gl :String, mstrs :Seq[String]) extends Completion[Store](gl, mstrs) {
         override def apply (comp :String) = None
+        override def apply (index :Int) = None
         override def refine (prefix :String) = {
           val outer = this
           new FileComp(prefix, new FileFuzzyMatch(prefix).filter(mstrs)) {

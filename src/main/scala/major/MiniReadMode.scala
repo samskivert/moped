@@ -49,7 +49,12 @@ class MiniReadMode[T] (
     bind("previous-history-entry", "UP").
     bind("next-history-entry",     "DOWN").
     bind("extend-completion",      "TAB").
-    bind("commit-read",            "ENTER");
+    bind("commit-read",            "ENTER").
+    bind("commit-first", "C-1").
+    bind("commit-second", "C-2").
+    bind("commit-third", "C-3").
+    bind("commit-fourth", "C-4").
+    bind("commit-fifth", "C-5");
 
   @Fn("Extends the current completion to the longest shared prefix of the displayed completions.")
   def extendCompletion () :Unit = {
@@ -62,13 +67,26 @@ class MiniReadMode[T] (
   }
 
   @Fn("Commits the current minibuffer read with its current contents.")
-  def commitRead () :Unit = {
-    completer.commit(_comp, current).foreach { result =>
-      // only add contents to history if it's non-empty
-      val lns = buffer.region(buffer.start, buffer.end)
-      if (lns.size > 1 || lns.head.length > 0) history.filterAdd(lns)
-      promise.succeed(result)
-    }
+  def commitRead () :Unit = completer.commit(_comp, current).foreach(commit)
+
+  @Fn("Commits the first completion in the list.")
+  def commitFirst () :Unit = commitAt(0)
+  @Fn("Commits the second completion in the list.")
+  def commitSecond () :Unit = commitAt(1)
+  @Fn("Commits the third completion in the list.")
+  def commitThird () :Unit = commitAt(2)
+  @Fn("Commits the fourth completion in the list.")
+  def commitFourth () :Unit = commitAt(3)
+  @Fn("Commits the fifth completion in the list.")
+  def commitFifth () :Unit = commitAt(4)
+
+  private def commitAt (index :Int) :Unit = _comp.apply(index).foreach(commit)
+
+  private def commit (result :T) = {
+    // only add contents to history if it's non-empty
+    val lns = buffer.region(buffer.start, buffer.end)
+    if (lns.size > 1 || lns.head.length > 0) history.filterAdd(lns)
+    promise.succeed(result)
   }
 
   @Fn("Puts the previous history entry into the minibuffer.")

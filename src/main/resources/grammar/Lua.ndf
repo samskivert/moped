@@ -1,0 +1,129 @@
+name: Lua
+scopeName: source.lua
+repository:
+ escaped_char:
+  single:
+   name: constant.character.escape.lua
+   pattern: \\[abfnrtvz\\"'\n]
+  single:
+   name: constant.character.escape.byte.lua
+   pattern: \\\d{1,3}
+  single:
+   name: constant.character.escape.byte.lua
+   pattern: \\x[0-9A-Fa-f][0-9A-Fa-f]
+  single:
+   name: constant.character.escape.unicode.lua
+   pattern: \\u\{[0-9A-Fa-f]+\}
+  single:
+   name: invalid.illegal.character.escape.lua
+   pattern: \\.
+patterns:
+ multi:
+  name: meta.function.lua
+  begin: \b(?:(local)\s+)?(function)\s*(?:\s+([a-zA-Z_][a-zA-Z0-9_]*(?:([\.:])[a-zA-Z_][a-zA-Z0-9_]*)?)\s*)?(\()
+  bcaps: 1=storage.modifier.local.lua 2=keyword.control.lua 3=entity.name.function.lua 4=punctuation.separator.parameter.lua 5=punctuation.definition.parameters.begin.lua
+  end: \)
+  ecaps: 0=punctuation.definition.parameters.end.lua
+  patterns:
+   single:
+    name: variable.parameter.function.lua
+    pattern: [a-zA-Z_][a-zA-Z0-9_]*
+   single:
+    name: punctuation.separator.arguments.lua
+    pattern: ,
+ single:
+  name: constant.numeric.integer.hexadecimal.lua
+  pattern: (?<![\w\d.])0[xX][0-9A-Fa-f]+(?![pPeE.0-9])
+ single:
+  name: constant.numeric.float.hexadecimal.lua
+  pattern: (?<![\w\d.])0[xX][0-9A-Fa-f]+(\.[0-9A-Fa-f]+)?([eE]-?\d*)?([pP][-+]\d+)?
+ single:
+  name: constant.numeric.integer.lua
+  pattern: (?<![\w\d.])\d+(?![pPeE.0-9])
+ single:
+  name: constant.numeric.float.lua
+  pattern: (?<![\w\d.])\d+(\.\d+)?([eE]-?\d*)?
+ multi:
+  name: string.quoted.single.lua
+  begin: '
+  bcaps: 0=punctuation.definition.string.begin.lua
+  end: '
+  ecaps: 0=punctuation.definition.string.end.lua
+  patterns:
+   include: #escaped_char
+ multi:
+  name: string.quoted.double.lua
+  begin: "
+  bcaps: 0=punctuation.definition.string.begin.lua
+  end: "
+  ecaps: 0=punctuation.definition.string.end.lua
+  patterns:
+   include: #escaped_char
+ multi:
+  contentName: meta.embedded.lua
+  begin: (?<=\.cdef)\s*(\[(=*)\[)
+  bcaps: 0=string.quoted.other.multiline.lua 1=punctuation.definition.string.begin.lua
+  end: (\]\2\])
+  ecaps: 0=string.quoted.other.multiline.lua 1=punctuation.definition.string.end.lua
+  patterns:
+   include: source.c
+ multi:
+  name: string.quoted.other.multiline.lua
+  begin: (?<!--)\[(=*)\[
+  bcaps: 0=punctuation.definition.string.begin.lua
+  end: \]\1\]
+  ecaps: 0=punctuation.definition.string.end.lua
+ single:
+  name: comment.line.shebang.lua
+  pattern: \A(#!).*$\n?
+  caps: 1=punctuation.definition.comment.lua
+ multi:
+  begin: (^[ \t]+)?(?=--)
+  bcaps: 1=punctuation.whitespace.comment.leading.lua
+  end: $
+  patterns:
+   multi:
+    name: comment.block.lua
+    begin: --\[(=*)\[
+    bcaps: 0=punctuation.definition.comment.begin.lua
+    end: \]\1\]
+    ecaps: 0=punctuation.definition.comment.end.lua
+   multi:
+    name: comment.line.double-dash.lua
+    begin: --
+    bcaps: 0=punctuation.definition.comment.lua
+    end: $
+ single:
+  pattern: \b(goto)\s+([a-zA-Z_][a-zA-Z0-9_]*)
+  caps: 1=keyword.control.goto.lua 2=constant.other.placeholder.lua
+ single:
+  name: constant.other.placeholder.lua
+  pattern: (::)[a-zA-Z_][a-zA-Z0-9_]*(::)
+  caps: 1=punctuation.definition.label.begin.lua 2=punctuation.definition.label.end.lua
+ single:
+  name: keyword.control.lua
+  pattern: \b(break|do|else|for|if|elseif|goto|return|then|repeat|while|until|end|function|local|in)\b
+ single:
+  name: constant.language.lua
+  pattern: (?<![^.]\.|:)\b(false|nil|true|_G|_VERSION|math\.(pi|huge))\b|(?<![.])\.{3}(?!\.)
+ single:
+  name: variable.language.self.lua
+  pattern: (?<![^.]\.|:)\b(self)\b
+ single:
+  name: support.function.lua
+  pattern: (?<![^.]\.|:)\b(assert|collectgarbage|dofile|error|getfenv|getmetatable|ipairs|loadfile|loadstring|module|next|pairs|pcall|print|rawequal|rawget|rawset|require|select|setfenv|setmetatable|tonumber|tostring|type|unpack|xpcall)\b(?=\s*(?:[({"']|\[\[))
+ single:
+  name: support.function.library.lua
+  pattern: (?<![^.]\.|:)\b(coroutine\.(create|resume|running|status|wrap|yield)|string\.(byte|char|dump|find|format|gmatch|gsub|len|lower|match|rep|reverse|sub|upper)|table\.(concat|insert|maxn|remove|sort)|math\.(abs|acos|asin|atan2?|ceil|cosh?|deg|exp|floor|fmod|frexp|ldexp|log|log10|max|min|modf|pow|rad|random|randomseed|sinh?|sqrt|tanh?)|io\.(close|flush|input|lines|open|output|popen|read|tmpfile|type|write)|os\.(clock|date|difftime|execute|exit|getenv|remove|rename|setlocale|time|tmpname)|package\.(cpath|loaded|loadlib|path|preload|seeall)|debug\.(debug|[gs]etfenv|[gs]ethook|getinfo|[gs]etlocal|[gs]etmetatable|getregistry|[gs]etupvalue|traceback))\b(?=\s*(?:[({"']|\[\[))
+ single:
+  name: keyword.operator.lua
+  pattern: \b(and|or|not)\b
+ single:
+  name: support.function.any-method.lua
+  pattern: \b([a-zA-Z_][a-zA-Z0-9_]*)\b(?=\s*(?:[({"']|\[\[))
+ single:
+  name: variable.other.lua
+  pattern: (?<=[^.]\.|:)\b([a-zA-Z_][a-zA-Z0-9_]*)
+ single:
+  name: keyword.operator.lua
+  pattern: \+|-|%|#|\*|\/|\^|==?|~=|<=?|>=?|(?<!\.)\.{2}(?!\.)

@@ -63,6 +63,7 @@ object LuaIndenter {
     new TokenBlockRule(Matcher.regexp("function\\s"), Matcher.exact("end"), '@'),
     new TokenBlockRule(Matcher.regexp("if.*(then|and|or)"), Matcher.exact("else"),
                        Matcher.exact("end"), '?'),
+    new TokenBlockRule(Matcher.regexp("while.*(do|and|or)"), Matcher.exact("end"), '%'),
     new TokenBlockRule(Matcher.regexp("for\\s"), Matcher.exact("end"), '#'),
   ))
 

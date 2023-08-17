@@ -566,8 +566,8 @@ abstract class LangClient (
   }
 
   override def workspaceFolders () :CompletableFuture[JList[WorkspaceFolder]] = {
-    trace("TODO: workspaceFolders")
-    CompletableFuture.completedFuture(Collections.emptyList[WorkspaceFolder])
+    // TODO: do we have any other folders? or should we list just source folders, etc?
+    CompletableFuture.completedFuture(List(WorkspaceFolder(root.toUri.toString, name)).asJava)
   }
 
   override def configuration (params :ConfigurationParams) :CompletableFuture[JList[Object]] = {

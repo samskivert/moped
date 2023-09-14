@@ -1,0 +1,360 @@
+name: Dart
+scopeName: source.dart
+repository:
+ annotations:
+  single:
+   pattern: ^(?:\s*)((@)([a-zA-Z0-9_]+))
+   caps: 1=annotation.dart 2=entity.name.function.annotation.dart 3=support.type.dart
+ comments:
+  single:
+   name: comment.block.empty.dart
+   pattern: /\*\*/
+   caps: 0=punctuation.definition.comment.dart
+  include: #comments-inline
+ comments-inline:
+  multi:
+   name: comment.block.dart
+   begin: /\*
+   end: \*/
+   patterns:
+    include: #comments-doc
+  multi:
+   name: comment.line.triple-slash.dart
+   begin: (///)
+   bcaps: 1=marker.dart
+   end: $
+   patterns:
+    include: #comments-doc
+  multi:
+   name: comment.line.double-slash.dart
+   begin: (//)
+   bcaps: 1=marker.dart
+   end: $
+   patterns:
+    include: #comments-doc
+ comments-doc:
+  name: mata.link.inline.dart-doccomments
+  pattern: \[(.*)\]\((.*)\)
+  caps: 1=string.other.link.title.dart-doccomments 2=markup.underline.link.dart-doccomments
+ constants-and-special-vars:
+  single:
+   name: constant.language.dart
+   pattern: \b(true|false|null)\b
+  single:
+   name: variable.language.dart
+   pattern: \b(this|super)\b
+  single:
+   name: constant.numeric.dart
+   pattern: \b((0(x|X)[0-9a-fA-F]*)|(([0-9]+\.?[0-9]*)|(\.[0-9]+))((e|E)(\+|-)?[0-9]+)?)\b
+ decl-class:
+  multi:
+   name: meta.declaration.class.dart
+   begin: \bclass\b
+   bcaps: 0=keyword.control.new.dart
+   end: (?=\{)
+   patterns:
+    include: #keywords
+    single:
+     name: class.name.dart
+     pattern: [A-Za-z_][A-Za-z0-9_]*
+ decl-enum:
+  multi:
+   name: meta.declaration.enum.dart
+   begin: \benum\b
+   bcaps: 0=keyword.declaration.dart
+   end: (?=\{)
+   patterns:
+    include: #keywords
+    single:
+     name: enum.name.dart
+     pattern: [A-Za-z_][A-Za-z0-9_]*
+ decl-function:
+  single:
+   name: meta.declaration.function.dart
+   pattern: ^\s*(?:\b(void|bool|num|int|double|dynamic|var|String|List|Map)\b)\s+(get)\s+(\w+)\s+(?==>)
+   caps: 1=storage.type.primitive.dart 2=keyword.declaration.dart 3=function.name.dart
+  single:
+   name: meta.declaration.function.dart
+   pattern: ^\s*(?:\b(\w+)\b\s+)?(get)\s+(\w+)\s+(?==>)
+   caps: 1=type.user-defined.dart 2=keyword.declaration.dart 3=function.name.dart
+  multi:
+   name: meta.declaration.function.dart
+   begin: ^\s*(set)\s+(\w+)(?=\()
+   bcaps: 1=keyword.declaration.dart 2=function.name.dart
+   end: \)
+   patterns:
+    include: #comments-inline
+    include: #decl-function-parameter
+    include: #strings
+    include: #keywords
+  multi:
+   name: meta.declaration.function.dart
+   begin: ^\s*(?:\b(void|bool|num|int|double|dynamic|var|String|List|Map)\b)\s+(\w+)(?=\()
+   bcaps: 1=storage.type.primitive.dart 2=function.name.dart
+   end: \)
+   patterns:
+    include: #comments-inline
+    include: #decl-function-parameter
+    include: #strings
+    include: #keywords
+  multi:
+   name: meta.invocation.function.dart
+   begin: ^\s*(?:\b(return)\b)\s+(\w+)(?=\()
+   bcaps: 1=keyword.control.dart 2=function.name.dart
+   end: \)
+   patterns:
+    include: #comments-inline
+    include: #decl-function-parameter
+    include: #strings
+    include: #keywords
+  multi:
+   name: meta.invocation.function.dart
+   begin: ^\s*\b(new)\b\s+(\w+)(?=\()
+   bcaps: 1=keyword.declaration.dart 2=function.name.dart
+   end: \)
+   patterns:
+    include: #comments-inline
+    include: #decl-function-parameter
+    include: #strings
+    include: #keywords
+ decl-function-parameter:
+  include: #constants-and-special-vars
+  multi:
+   name: meta.parameter.function.dart
+   begin: (?:\b(void|bool|num|int|double|dynamic|var|String|List|Map)\b)\s+(\w+)(?=\()
+   bcaps: 1=storage.type.primitive.dart 2=function.name.dart
+   end: \)
+   patterns:
+    include: #comments-inline
+    include: #decl-function-parameter
+    include: #strings
+    include: #keywords
+  multi:
+   name: meta.invocation.function.dart
+   begin: \b(new)\b\s+(\w+)(?=\()
+   bcaps: 1=keyword.declaration.dart 2=function.name.dart
+   end: \)
+   patterns:
+    include: #decl-function-parameter
+    include: #strings
+    include: #keywords
+  multi:
+   name: meta.parameter.function.dart
+   begin: (?:\b(\w+)\b)\s+(\w+)(?=\()
+   bcaps: 1=type.user-defined.dart 2=function.name.dart
+   end: \)
+   patterns:
+    include: #comments-inline
+    include: #decl-function-parameter
+    include: #strings
+    include: #keywords
+  multi:
+   name: meta.parameter.function.dart
+   begin: (\w+)(?=\()
+   bcaps: 1=function.name.dart
+   end: \)
+   patterns:
+    include: #comments-inline
+    include: #decl-function-parameter
+    include: #strings
+    include: #keywords
+ decl-typedef:
+  multi:
+   name: meta.declaration.typedef.dart
+   begin: typedef
+   bcaps: 0=keyword.control.new.dart
+   end: ;
+   ecaps: 0=punctuation.terminator.dart
+   patterns:
+    single:
+     pattern: (?:\b(void|bool|num|int|double|dynamic|var|String|List|Map)\b|([a-zA-Z_][a-zA-Z0-9_]*))\s+([a-zA-Z_][a-zA-Z0-9_]+)
+     caps: 1=storage.type.primitive.dart 2=typedef.return.dart 3=typedef.name.dart
+    multi:
+     name: typedef.params.dart
+     begin: \(
+     end: \)
+     patterns:
+      include: #keywords
+ keywords:
+  single:
+   name: keyword.control.assert.dart
+   pattern: \bassert\b
+  single:
+   name: keyword.cast.dart
+   pattern: \bas\b
+  single:
+   name: keyword.control.catch-exception.dart
+   pattern: \b(try|catch|finally|throw|on|rethrow)\b
+  single:
+   name: keyword.control.ternary.dart
+   pattern: \s+\?\s+|\s+:\s+
+  single:
+   name: keyword.control.dart
+   pattern: \b(break|case|continue|default|do|else|for|if|in|return|switch|while)\b
+  single:
+   name: keyword.control.async.dart
+   pattern: \b(async\*|async|await\*|await|yield)\b
+  single:
+   name: keyword.control.new.dart
+   pattern: \b(new)\b
+  single:
+   name: keyword.declaration.dart
+   pattern: \b(abstract|extends|external|factory|implements|with|interface|get|native|operator|set|typedef)\b
+  single:
+   name: keyword.operator.dart
+   pattern: \b(is\!?)\b
+  single:
+   name: keyword.operator.bitwise.dart
+   pattern: (<<|>>>?|~|\^|\||&)
+  single:
+   name: keyword.operator.assignment.bitwise.dart
+   pattern: ((&|\^|\||<<|>>>?)=)
+  single:
+   name: keyword.operator.comparison.dart
+   pattern: (===?|!==?|<=?|>=?)
+  single:
+   name: keyword.operator.assignment.arithmetic.dart
+   pattern: (([+*/%-]|\~)=)
+  single:
+   name: keyword.operator.assignment.dart
+   pattern: (=)
+  single:
+   name: keyword.operator.increment-decrement.dart
+   pattern: (\-\-|\+\+)
+  single:
+   name: keyword.operator.arithmetic.dart
+   pattern: (\-|\+|\*|\/|\~\/|%)
+  single:
+   name: keyword.operator.logical.dart
+   pattern: (!|&&|\|\|)
+  single:
+   name: punctuation.terminator.dart
+   pattern: ;
+  single:
+   name: storage.modifier.dart
+   pattern: \b(static|final|const)\b
+  single:
+   name: storage.type.primitive.dart
+   pattern: \b(?:void|bool|num|int|double|dynamic|var|String|List|Map)\b
+ regexp:
+  single:
+   name: constant.character.escaped.regex.dart
+   pattern: \\[^'"]
+  multi:
+   contentName: meta.capture.regex.dart
+   begin: \(
+   end: \)
+   patterns:
+    single:
+     name: ignore.capture.regex.dart
+     pattern: \?(:|=|!)
+    include: #regex.dart
+  single:
+   name: keyword.other.regex.dart
+   pattern: \*|\+|\?|\.|\|
+  single:
+   name: keyword.other.regex.dart
+   pattern: \^|\$
+  single:
+   name: constant.other.regex.dart
+   pattern: \.
+  multi:
+   name: constant.character.range.regex.dart
+   begin: \[(\^)?
+   bcaps: 1=keyword.other.negation.regex.dart
+   end: \]
+   patterns:
+    single:
+     name: constant.character.escaped.regex.dart
+     pattern: \\[^"']
+  single:
+   name: keyword.other.regex.dart
+   pattern: \{(?:\d+)?,(?:\d+)?\}
+ string-interp:
+  multi:
+   name: interpolation.dart
+   contentName: source.dart
+   begin: (\$)(\{)
+   bcaps: 1=keyword.other.dart 2=keyword.other.dart
+   end: (\})
+   ecaps: 1=keyword.other.dart
+   patterns:
+    include: $self
+  single:
+   pattern: (\$)(\w+)
+   caps: 1=keyword.other.dart 2=variable.parameter.dart
+  single:
+   name: constant.character.escape.dart
+   pattern: \\.
+ strings:
+  multi:
+   name: string.interpolated.triple.double.dart
+   begin: (?<!r)"""
+   end: """(?!")
+   patterns:
+    include: #string-interp
+  multi:
+   name: string.interpolated.triple.single.dart
+   begin: (?<!r)'''
+   end: '''(?!')
+   patterns:
+    include: #string-interp
+  multi:
+   name: string.quoted.triple.double.dart
+   begin: r"""
+   end: """(?!")
+  multi:
+   name: string.quoted.triple.single.dart
+   begin: r'''
+   end: '''(?!')
+  multi:
+   name: string.interpolated.double.dart
+   begin: (?<!\\|r)"
+   end: "
+   patterns:
+    single:
+     name: invalid.string.newline
+     pattern: \n
+    include: #string-interp
+  multi:
+   name: string.quoted.double.dart
+   begin: r"
+   end: "
+   patterns:
+    include: #regexp
+  multi:
+   name: string.interpolated.single.dart
+   begin: (?<!\|r)'
+   end: '
+   patterns:
+    include: #string-interp
+  multi:
+   name: string.quoted.single.dart
+   begin: r'
+   end: '
+   patterns:
+    include: #regexp
+patterns:
+ single:
+  name: meta.preprocessor.script.dart
+  pattern: ^(#!.*)$
+ multi:
+  name: meta.declaration.dart
+  begin: ^\s*\b(library|import|export|part of|part)\b
+  bcaps: 0=keyword.other.import.dart
+  end: ;
+  ecaps: 0=punctuation.terminator.dart
+  patterns:
+   include: #strings
+   single:
+    name: keyword.other.import.dart
+    pattern: \b(as|show|hide|deferred)\b
+ include: #comments
+ include: #constants-and-special-vars
+ include: #annotations
+ include: #decl-typedef
+ include: #decl-class
+ include: #decl-enum
+ include: #decl-function
+ include: #keywords
+ include: #strings

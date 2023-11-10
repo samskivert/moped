@@ -1,0 +1,4 @@
+name: Grain Hover
+scopeName: source.grain.hover.type
+patterns:
+ include: source.grain

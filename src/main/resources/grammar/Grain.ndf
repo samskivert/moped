@@ -1,0 +1,155 @@
+name: Grain
+scopeName: source.grain
+foldStart: ^.*\bfun\s*(\w+\s*)?\([^\)]*\)(\s*\{[^\}]*)?\s*$
+foldStop: ^\s*\}
+repository:
+ grain_comment_block:
+  multi:
+   name: comment.block.source.grain
+   begin: /\*
+   end: \*/
+   patterns:
+    include: #grain_comment_block
+ grain_comment_doc_block:
+  multi:
+   name: comment.block.documentation.source.grain
+   begin: /\*[!\*][^\*]
+   end: \*/
+   patterns:
+    include: #grain_comment_doc_block
+ grain_escaped_character:
+  single:
+   name: constant.character.escape.source.grain
+   pattern: \\(x[0-9A-Fa-f]{2}|u\{[0-9A-Fa-f]{1,6}\}|.)
+ grain_lifetime:
+  single:
+   name: storage.modifier.lifetime.source.grain
+   pattern: \'([a-zA-Z_][a-zA-Z0-9_]*)(?!\')\b
+   caps: 1=entity.name.lifetime.source.grain
+ grain_module:
+  single:
+   pattern: \b([A-Z][a-zA-Z0-9_]*)\b
+   caps: 1=variable.other.grain
+ grain_named_arg:
+  single:
+   pattern: (@([a-zA-Z_][a-zA-Z0-9_]*))\b
+   caps: 1=storage.modifier.lifetime.source.grain 2=entity.name.lifetime.source.grain
+ grain_raw_string:
+  multi:
+   name: string.quoted.double.raw.source.grain
+   begin: r(#*)"
+   end: "(\1)
+ grain_self:
+  single:
+   name: variable.language.source.grain
+   pattern: \bself\b
+ grain_string:
+  multi:
+   name: string.quoted.double.source.grain
+   begin: "
+   end: "
+   patterns:
+    include: #grain_escaped_character
+patterns:
+ include: #grain_comment_doc_block
+ include: #grain_comment_block
+ include: #grain_named_arg
+ include: #grain_module
+ include: #grain_lifetime
+ include: #grain_self
+ include: #grain_string
+ include: #grain_raw_string
+ single:
+  name: string.quoted.single.source.grain
+  pattern: \'([^\'\\]|\\(x[0-9A-Fa-f]{2}|u\{[0-9A-Fa-f]{1,6}\}|.))\'
+ single:
+  name: meta.function.source.grain
+  pattern: \b(fun)\s+([a-zA-Z_][a-zA-Z0-9_]?[\w\:,+ \'<>?]*)\s*(?:\()
+  caps: 1=keyword.source.grain 2=entity.name.function.source.grain
+ single:
+  name: meta.initialization.grain
+  pattern: (let|and)\s+(module\s+)(rec\s+)?([[:alpha:]_][[:alnum:]_]*)\s*(:[^=]*)?(=?)
+  caps: 1=keyword.source.grain 2=keyword.source.grain 3=keyword.source.grain 4=variable.other.grain 5=storage.type.source.grain 6=keyword.operator.grain
+ single:
+  name: meta.initialization.grain
+  pattern: (let)\s+(rec\s+)?([[:alpha:]_][[:alnum:]_]*)\s*(:[^=]*)?(=?)
+  caps: 1=keyword.source.grain 2=keyword.source.grain 4=storage.type.source.grain 5=keyword.operator.grain
+ single:
+  name: meta.import.grain
+  pattern: (extern\s+crate)\s+(\w+)
+  caps: 1=keyword.source.grain 2=support
+ single:
+  name: meta.macro.source.grain
+  pattern: \b(macro_rules!)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\{)
+  caps: 1=keyword.source.grain 2=entity.name.macro.source.grain
+ single:
+  name: keyword.source.grain
+  pattern: \b(as|box|break|claim|const|continue|copy|Copy|crate|do|drop|then|else|extern|for|if|impl|in|let|and|loop|switch|fun|open|include|mod|move|mutable|Owned|priv|pub|pure|ref|return|unsafe|use|while|mod|Send|static|trait|struct|enum|exception|type|module|rec|where)\b
+ single:
+  name: storage.type.source.grain
+  pattern: \b(Self|m32|m64|m128|f80|f16|f128|int|uint|isize|usize|float|char|bool|u8|u16|u32|u64|f32|f64|i8|i16|i32|i64|str|Option|Either|c_float|c_double|c_void|FILE|fpos_t|DIR|dirent|c_char|c_schar|c_uchar|c_short|c_ushort|c_int|c_uint|c_long|c_ulong|size_t|ptrdiff_t|clock_t|time_t|c_longlong|c_ulonglong|intptr_t|uintptr_t|off_t|dev_t|ino_t|pid_t|mode_t|ssize_t)\b
+ single:
+  name: variable.language.source.grain
+  pattern: \bself\b
+ single:
+  name: constant.language.source.grain
+  pattern: \b(true|false|Some|None|Ok|Err)\b
+ single:
+  name: support.constant.source.grain
+  pattern: \b(EXIT_FAILURE|EXIT_SUCCESS|RAND_MAX|EOF|SEEK_SET|SEEK_CUR|SEEK_END|_IOFBF|_IONBF|_IOLBF|BUFSIZ|FOPEN_MAX|FILENAME_MAX|L_tmpnam|TMP_MAX|O_RDONLY|O_WRONLY|O_RDWR|O_APPEND|O_CREAT|O_EXCL|O_TRUNC|S_IFIFO|S_IFCHR|S_IFBLK|S_IFDIR|S_IFREG|S_IFMT|S_IEXEC|S_IWRITE|S_IREAD|S_IRWXU|S_IXUSR|S_IWUSR|S_IRUSR|F_OK|R_OK|W_OK|X_OK|STDIN_FILENO|STDOUT_FILENO|STDERR_FILENO)\b
+ multi:
+  name: comment.block.attribute.grain
+  begin: #!?\[
+  end: \]
+  patterns:
+   include: #grain_string
+   include: #grain_raw_string
+ single:
+  name: constant.numeric.integer.source.grain
+  pattern: \b(([0-9][0-9_]*)|([0-9][0-9_]*(usize|u8|u16|u32|u64))|([0-9][0-9_]*(isize|i8|i16|i32|i64)))\b
+ single:
+  name: constant.numeric.hex.source.grain
+  pattern: \b((0x[a-fA-F0-9_]+)|(0x[a-fA-F0-9_]+(usize|u8|u16|u32|u64))|(0x[a-fA-F0-9_]+(isize|i8|i16|i32|i64)))\b
+ single:
+  name: constant.numeric.binary.source.grain
+  pattern: \b((0b[01_]+)|(0b[01_]+(usize|u8|u16|u32|u64))|(0b[01_]+(isize|i8|i16|i32|i64)))\b
+ single:
+  name: constant.numeric.float.source.grain
+  pattern: \b(([0-9][0-9_]*(f32|f64|f))|([0-9][0-9_]*([eE][+-]=[0-9_]+))|([0-9][0-9_]*([eE][+-]=[0-9_]+)(f32|f64|f))|([0-9][0-9_]*\.[0-9_]+)|([0-9][0-9_]*\.[0-9_]+(f32|f64|f))|([0-9][0-9_]*\.[0-9_]+%([eE][+-]=[0-9_]+))|([0-9][0-9_]*\.[0-9_]+%([eE][+-]=[0-9_]+)(f32|f64|f)))\b
+ single:
+  name: keyword.operator.grain
+  pattern: (=>)|(->)|[-:=*,!.+|%/&~@<>;]
+ single:
+  name: support.function.grain
+  pattern: \b_\b
+ single:
+  name: support.function.grain
+  pattern: \b(\w+)\b(?=\()
+ single:
+  name: support.macro.grain
+  pattern: \b(\w+!)(?=\()
+ single:
+  name: meta.namespace-block.grain
+  pattern: \b(\w+)::
+ single:
+  name: meta.macro.source.grain
+  pattern: \b(\w+!)\s*[({\[]
+  caps: 1=meta.preprocessor.grain
+ single:
+  name: punctuation.definition.bracket.grain
+  pattern: (\[|\]|\{|\}|\(|\))
+ single:
+  name: support.class.std.source.grain
+  pattern: \b(Box|Vec|StrBuf|Path|Option|Result|Reader|Writer|Stream|Seek|Buffer|IoError|IoResult|Sender|SyncSender|Receiver|Cell|RefCell|Any)\b
+ single:
+  name: support.type.kind.source.grain
+  pattern: \b(Send|Sized|Copy|Share)\b
+ single:
+  name: storage.modifier.box.source.grain
+  pattern: \bbox\b
+ single:
+  name: storage.modifier.rec.source.grain
+  pattern: \brec\b
+ single:
+  name: storage.modifier.module.source.grain
+  pattern: \bmodule\b

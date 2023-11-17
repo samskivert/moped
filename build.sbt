@@ -20,6 +20,7 @@ lazy val root = project.in(file(".")).settings(
   libraryDependencies += "com.eclipsesource.minimal-json" % "minimal-json" % "0.9.4",
   libraryDependencies += "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.19.0",
   libraryDependencies += "org.reflections" % "reflections" % "0.10.2",
+  libraryDependencies += "org.apache.commons" % "commons-compress" % "1.15",
 
   libraryDependencies ++= Seq("base", "controls").map(
     m => "org.openjfx" % s"javafx-$m" % "19" classifier osName),

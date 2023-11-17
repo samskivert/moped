@@ -1,0 +1,23 @@
+name: Java Properties
+scopeName: source.java-props
+repository:
+patterns:
+ single:
+  name: comment.doc.java-props
+  pattern: (##)(.+)?$\n?
+  caps: 1=punctuation.definition.comment.java-props
+ single:
+  name: comment.line.java-props
+  pattern: ([#!])(.+)?$\n?
+  caps: 1=punctuation.definition.comment.java-props
+ multi:
+  name: comment.block.java-props
+  begin: /\*
+  bcaps: 0=punctuation.definition.comment.java-props
+  end: \*/
+  ecaps: 0=punctuation.definition.comment.java-props
+ single:
+  # Not compliant with the properties file spec, but this works for me, and I'm the one
+  # who counts around here. (Says the original JavaProperties.tmLanguage author...)
+  pattern: ^([^:=]+)([:=])(.*)$
+  caps: 1=keyword.other.java-props 2=punctuation.separator.key-value.java-props

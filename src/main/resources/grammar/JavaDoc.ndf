@@ -1,0 +1,177 @@
+name: JavaDoc
+scopeName: text.html.javadoc
+foldStart: /\*\*
+foldStop: \*\*/
+repository:
+ inline:
+  include: #invalid
+  include: #inline-formatting
+  include: text.html.basic
+  single:
+   name: markup.underline.link
+   pattern: ((https?|s?ftp|ftps|file|smb|afp|nfs|(x-)?man|gopher|txmt)://|mailto:)[-:@a-zA-Z0-9_.~%+/?=&#]+(?<![.?:])
+ inline-formatting:
+  multi:
+   name: meta.directive.code.javadoc
+   contentName: markup.raw.code.javadoc
+   begin: (\{)((\@)code)
+   bcaps: 1=punctuation.definition.directive.begin.javadoc 2=keyword.other.documentation.directive.code.javadoc 3=punctuation.definition.keyword.javadoc
+   end: \}
+   ecaps: 0=punctuation.definition.directive.end.javadoc
+  multi:
+   name: meta.directive.literal.javadoc
+   contentName: markup.raw.literal.javadoc
+   begin: (\{)((\@)literal)
+   bcaps: 1=punctuation.definition.directive.begin.javadoc 2=keyword.other.documentation.directive.literal.javadoc 3=punctuation.definition.keyword.javadoc
+   end: \}
+   ecaps: 0=punctuation.definition.directive.end.javadoc
+  single:
+   name: meta.directive.docRoot.javadoc
+   pattern: (\{)((\@)docRoot)(\})
+   caps: 1=punctuation.definition.directive.begin.javadoc 2=keyword.other.documentation.directive.docRoot.javadoc 3=punctuation.definition.keyword.javadoc 4=punctuation.definition.directive.end.javadoc
+  single:
+   name: meta.directive.inheritDoc.javadoc
+   pattern: (\{)((\@)inheritDoc)(\})
+   caps: 1=punctuation.definition.directive.begin.javadoc 2=keyword.other.documentation.directive.inheritDoc.javadoc 3=punctuation.definition.keyword.javadoc 4=punctuation.definition.directive.end.javadoc
+  single:
+   name: meta.directive.link.javadoc
+   pattern: (\{)((\@)link)(?:\s+(\S+?))?(?:\s+(.+?))?\s*(\})
+   caps: 1=punctuation.definition.directive.begin.javadoc 2=keyword.other.documentation.directive.link.javadoc 3=punctuation.definition.keyword.javadoc 4=markup.underline.link.javadoc 5=string.other.link.title.javadoc 6=punctuation.definition.directive.end.javadoc
+  single:
+   name: meta.directive.linkplain.javadoc
+   pattern: (\{)((\@)linkplain)(?:\s+(\S+?))?(?:\s+(.+?))?\s*(\})
+   caps: 1=punctuation.definition.directive.begin.javadoc 2=keyword.other.documentation.directive.linkplain.javadoc 3=punctuation.definition.keyword.javadoc 4=markup.underline.linkplain.javadoc 5=string.other.link.title.javadoc 6=punctuation.definition.directive.end.javadoc
+  single:
+   name: meta.directive.value.javadoc
+   pattern: (\{)((\@)value)\s*(\S+?)?\s*(\})
+   caps: 1=punctuation.definition.directive.begin.javadoc 2=keyword.other.documentation.directive.value.javadoc 3=punctuation.definition.keyword.javadoc 4=variable.other.javadoc 5=punctuation.definition.directive.end.javadoc
+  single:
+   name: meta.directive.backtick.javadoc
+   pattern: `[^`]*`
+   caps: 0=constant.other.documentation.directive.value.javadoc
+ invalid:
+  single:
+   name: invalid.illegal.missing-asterisk.javadoc
+   pattern: ^(?!\s*\*).*$\n?
+patterns:
+ multi:
+  name: comment.block.documentation.javadoc
+  begin: (/\*\*)\s*
+  bcaps: 1=punctuation.definition.comment.begin.javadoc
+  end: \*/
+  ecaps: 0=punctuation.definition.comment.javadoc
+  patterns:
+   include: #invalid
+   multi:
+    name: meta.documentation.comment.javadoc
+    contentName: text.html
+    begin: \*\s*(?=\w)
+    end: (?=\s*\*\s*@)|(?=\s*\*\s*/)
+    patterns:
+     include: #inline
+   multi:
+    name: meta.documentation.tag.param.javadoc
+    contentName: text.html
+    begin: \*\s*((\@)param)\s*(\{([^}]+)\})?\s*(\S+)
+    bcaps: 1=keyword.other.documentation.param.javadoc 2=punctuation.definition.keyword.javadoc 4=storage.type.other.documentation.param.javadoc 5=variable.other.documentation.param.javadoc
+    end: (?=\s*\*\s*/)|$
+    patterns:
+     include: #inline
+   multi:
+    name: meta.documentation.tag.return.javadoc
+    contentName: text.html
+    begin: \*\s*((\@)return)
+    bcaps: 1=keyword.other.documentation.return.javadoc 2=punctuation.definition.keyword.javadoc
+    end: (?=\s*\*\s*/)|$
+    patterns:
+     include: #inline
+   multi:
+    name: meta.documentation.tag.throws.javadoc
+    contentName: text.html
+    begin: \*\s*((\@)throws)
+    bcaps: 1=keyword.other.documentation.throws.javadoc 2=punctuation.definition.keyword.javadoc
+    end: (?=\s*\*\s*/)|$
+    patterns:
+     include: #inline
+   multi:
+    name: meta.documentation.tag.exception.javadoc
+    contentName: text.html
+    begin: \*\s*((\@)exception)
+    bcaps: 1=keyword.other.documentation.exception.javadoc 2=punctuation.definition.keyword.javadoc
+    end: (?=\s*\*\s*/)|$
+    patterns:
+     include: #inline
+   multi:
+    name: meta.documentation.tag.author.javadoc
+    contentName: text.html
+    begin: \*\s*((\@)author)
+    bcaps: 1=keyword.other.documentation.author.javadoc 2=punctuation.definition.keyword.javadoc
+    end: (?=\s*\*\s*/)|$
+    patterns:
+     include: #inline
+   multi:
+    name: meta.documentation.tag.version.javadoc
+    contentName: text.html
+    begin: \*\s*((\@)version)
+    bcaps: 1=keyword.other.documentation.version.javadoc 2=punctuation.definition.keyword.javadoc
+    end: (?=\s*\*\s*/)|$
+    patterns:
+     include: #inline
+   multi:
+    name: meta.documentation.tag.see.javadoc
+    contentName: text.html
+    begin: \*\s*((\@)see)
+    bcaps: 1=keyword.other.documentation.see.javadoc 2=punctuation.definition.keyword.javadoc
+    end: (?=\s*\*\s*/)|$
+    patterns:
+     include: #inline
+   multi:
+    name: meta.documentation.tag.since.javadoc
+    contentName: text.html
+    begin: \*\s*((\@)since)
+    bcaps: 1=keyword.other.documentation.since.javadoc 2=punctuation.definition.keyword.javadoc
+    end: (?=\s*\*\s*/)|$
+    patterns:
+     include: #inline
+   multi:
+    name: meta.documentation.tag.serial.javadoc
+    contentName: text.html
+    begin: \*\s*((\@)serial)
+    bcaps: 1=keyword.other.documentation.serial.javadoc 2=punctuation.definition.keyword.javadoc
+    end: (?=\s*\*\s*/)|$
+    patterns:
+     include: #inline
+   multi:
+    name: meta.documentation.tag.serialField.javadoc
+    contentName: text.html
+    begin: \*\s*((\@)serialField)
+    bcaps: 1=keyword.other.documentation.serialField.javadoc 2=punctuation.definition.keyword.javadoc
+    end: (?=\s*\*\s*/)|$
+    patterns:
+     include: #inline
+   multi:
+    name: meta.documentation.tag.serialData.javadoc
+    contentName: text.html
+    begin: \*\s*((\@)serialData)
+    bcaps: 1=keyword.other.documentation.serialData.javadoc 2=punctuation.definition.keyword.javadoc
+    end: (?=\s*\*\s*/)|$
+    patterns:
+     include: #inline
+   multi:
+    name: meta.documentation.tag.deprecated.javadoc
+    contentName: text.html
+    begin: \*\s*((\@)deprecated)
+    bcaps: 1=keyword.other.documentation.deprecated.javadoc 2=punctuation.definition.keyword.javadoc
+    end: (?=\s*\*\s*/)|$
+    patterns:
+     include: #inline
+   single:
+    pattern: \*\s*((\@)\S+)\s
+    caps: 1=keyword.other.documentation.custom.javadoc 2=punctuation.definition.keyword.javadoc
+   multi:
+    name: meta.documentation.comment.javadoc
+    contentName: text.html
+    begin: \s*(?=\w)
+    end: (?=\s*\*\s*@)|(?=\s*\*\s*/)
+    patterns:
+     include: #inline

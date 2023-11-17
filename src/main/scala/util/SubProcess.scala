@@ -132,10 +132,8 @@ class SubProcess (config :SubProcess.Config, events :Signal[SubProcess.Event]) e
   def isAlive :Boolean = process.isAlive
 
   /** Closes this subprocess's output stream. This may trigger termination if it expects that sort
-    * of thing. This must only be called after [[start]]. */
-  override def close () :Unit = {
-    process.getOutputStream.close()
-  }
+    * of thing. */
+  override def close () :Unit = process.getOutputStream.close()
 
   /** Returns the PID of this subprocess, if we can get it. This is only available on Unix
     * platforms. */
@@ -149,19 +147,13 @@ class SubProcess (config :SubProcess.Config, events :Signal[SubProcess.Event]) e
   }
 
   /** Terminates the subprocess, less than forcibly. */
-  def terminate () :Unit = {
-    process.destroy()
-  }
+  def terminate () :Unit = process.destroy()
 
   /** Terminates the subprocess forcibly. */
-  def kill () :Unit = {
-    process.destroyForcibly()
-  }
+  def kill () :Unit = process.destroyForcibly()
 
   /** Waits for the process to complete and returns its exit code. */
-  def waitFor () :Int = {
-    process.waitFor()
-  }
+  def waitFor () :Int = process.waitFor()
 
   override def toString = s"SubProcess(${config.cmd.mkString(" ")})"
 

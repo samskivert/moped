@@ -166,7 +166,7 @@ object TypeScriptPlugins {
     def suffs (root :Project.Root) = Set("ts", "tsx")
     def canActivate (root :Project.Root) = Files.exists(root.path.resolve(TSConfigFile))
     def createClient (proj :Project) = Future.success(
-      new TypeScriptLangClient(proj.metaSvc, proj.root.path, serverCmd(proj.root.path)))
+      new TypeScriptLangClient(proj, serverCmd(proj.root.path)))
   }
 
   private def serverCmd (root :Path) :Seq[String] = {
@@ -174,8 +174,8 @@ object TypeScriptPlugins {
   }
 }
 
-class TypeScriptLangClient (msvc :MetaService, root :Path, serverCmd :Seq[String])
-    extends LangClient(msvc, root, serverCmd) {
+class TypeScriptLangClient (proj :Project, serverCmd :Seq[String])
+    extends LangClient(proj, serverCmd, None) {
 
   override def name = "TypeScript"
 }

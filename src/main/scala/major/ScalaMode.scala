@@ -12,7 +12,7 @@ import moped.util.{Chars, Paragrapher}
 
 @Major(name="scala",
        tags=Array("code", "project", "scala"),
-       pats=Array(".*\\.scala", ".*\\.sbt"),
+       pats=Array(".*\\.scala", ".*\\.sbt", ".*\\.flix"),
        ints=Array("scala"),
        desc="A major editing mode for the Scala language.")
 class ScalaMode (env :Env) extends GrammarCodeMode(env) {

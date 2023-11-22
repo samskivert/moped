@@ -23,6 +23,7 @@ object Generic {
     val suffs = configSL("suff")
     val serverCmd = config.resolve("serverCmd", Config.StringP)
     val serverArgs = config.resolve("serverArg", Config.StringListP)
+    val serverPort = config.resolve("serverPort", Config.StringP, null)
     config.finish()
     private def configS (name :String) = config.resolve(name, Config.StringP)
     private def configSL (name :String) = config.resolve(name, Config.StringListP)
@@ -54,7 +55,8 @@ object Generic {
   override def createClient (proj :Project) = {
     val config = readLangConfig(proj.root.path)
     val serverCmd = Seq(config.serverCmd) ++ config.serverArgs.asScala
-    Future.success(new LangClient(proj.metaSvc, proj.root.path, serverCmd) {
+    val serverPort = Option(config.serverPort).map(Integer.parseInt)
+    Future.success(new LangClient(proj, serverCmd, serverPort) {
       def name = "Generic"
     })
   }

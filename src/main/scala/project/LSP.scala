@@ -33,7 +33,7 @@ object LSP {
   def langId (uri :String) = uri.substring(uri.lastIndexOf(".")+1) // TODO: what's a real mapping?
 
   def docId (buffer :Buffer) = buffer.state.get[TextDocumentIdentifier] getOrElse {
-    throw Errors.feedback("Buffer not saved to a file?")
+    throw Errors.feedback("No TextDocumentIdentifier. Buffer not saved to a file?")
   }
 
   def toTDPP (buffer :Buffer, pos :Loc) = new TextDocumentPositionParams(docId(buffer), toPos(pos))

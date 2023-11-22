@@ -106,8 +106,7 @@ class AnalyzerStatusParams {
   def setAnalyzing(isAnalyzing :Boolean) = _isAnalyzing = isAnalyzing
 }
 
-class DartLangClient (metaSvc :MetaService, root :Path, cmd :Seq[String])
-    extends LangClient(metaSvc, root, cmd) {
+class DartLangClient (proj :Project, cmd :Seq[String]) extends LangClient(proj, cmd, None) {
 
   override def name = "Dart"
 
@@ -128,12 +127,10 @@ class DartLangClient (metaSvc :MetaService, root :Path, cmd :Seq[String])
   override def suffs (root :Project.Root) = Set("dart") // TODO: others?
   override def canActivate (root :Project.Root) = Files.exists(root.path.resolve("pubspec.yaml"))
   override def createClient (proj :Project) = dartRoot match {
-    case Some(dsdk) => Future.success(new DartLangClient(
-      proj.metaSvc, proj.root.path, Seq(
-        dsdk.resolve("bin").resolve("dart").toString,
-        dsdk.resolve("bin/cache/dart-sdk/bin/snapshots/analysis_server.dart.snapshot").toString,
-        "--lsp")
-    ))
+    case Some(dsdk) => Future.success(new DartLangClient(proj, Seq(
+      dsdk.resolve("bin").resolve("dart").toString,
+      dsdk.resolve("bin/cache/dart-sdk/bin/snapshots/analysis_server.dart.snapshot").toString,
+      "--lsp")))
     case None => Future.failure(new Throwable("Unable to locate Dart SDK"))
   }
 }

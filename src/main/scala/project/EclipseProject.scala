@@ -118,7 +118,7 @@ class EclipseLangPlugin extends LangPlugin {
   override def canActivate (root :Project.Root) = Files.exists(root.path.resolve(PROJECT_FILE))
 
   override def createClient (proj :Project) = JDTLS.resolve(proj.metaSvc, proj.root).map(
-    jdtls => new EclipseLangClient(proj.metaSvc, proj.root.path, serverCmd(proj, jdtls)))
+    jdtls => new EclipseLangClient(proj, serverCmd(proj, jdtls)))
 
   private final val PROJECT_FILE = ".project"
 
@@ -151,8 +151,7 @@ class EclipseLangPlugin extends LangPlugin {
 
 case class StatusReport (message :String, typ :String)
 
-class EclipseLangClient (metaSvc :MetaService, root :Path, cmd :Seq[String])
-    extends LangClient(metaSvc, root, cmd) {
+class EclipseLangClient (proj :Project, cmd :Seq[String]) extends LangClient(proj, cmd, None) {
 
   override def name = "Eclipse"
   override def langServerClass = classOf[EclipseLangServer]

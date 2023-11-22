@@ -4,7 +4,7 @@
 
 package moped.project
 
-import java.io.{InputStream, PrintWriter}
+import java.io.{InputStream, OutputStream, PrintWriter}
 import java.net.URI
 import java.nio.file.{Path, Paths}
 import java.util.concurrent.{CompletableFuture, ExecutorService}
@@ -51,19 +51,24 @@ object LangClient {
 }
 
 abstract class LangClient (
-  metaSvc :MetaService, root :Path, serverCmd :Seq[String]
+  project :Project, serverCmd :Seq[String], serverPort :Option[Int]
 ) extends LanguageClient with AutoCloseable {
+
+  private def root :Path = project.root.path
+  private def metaSvc :MetaService = project.metaSvc
+  private def grammarSvc = metaSvc.service[GrammarService]
 
   private val debugMode = java.lang.Boolean.getBoolean("moped.debug")
   trace(s"Starting ${serverCmd}...")
   private val serverProc = new ProcessBuilder(serverCmd.asJava).
     directory(root.toFile).
     start();
+  private var closeSocket :() => Unit = () => {}
 
   // read and pass along stderr
-  SubProcess.reader(serverProc.getErrorStream,
-                    line => System.err.println(s"STDERR: $line"),
-                    _.printStackTrace(System.err)).start()
+  private def debugRead (in :InputStream, prefix :String) = SubProcess.reader(
+    in, line => System.err.println(s"$prefix: $line"), _.printStackTrace(System.err)).start()
+  debugRead(serverProc.getErrorStream, "STDERR")
 
   // for debugging, it can sometimes be useful to record a transcript of the raw data we got from
   // the language server (particularly when the server sends invalid JSON RPC, whee!)
@@ -81,20 +86,11 @@ abstract class LangClient (
     }
   }
 
-  private val launcher = Launcher.createLauncher(
-    this,
-    langServerClass.asInstanceOf[Class[LanguageServer]],
-    serverProc.getInputStream, // record(serverProc.getInputStream),
-    serverProc.getOutputStream(),
-    exec.bgService,
-    consumer => {
-      ((message :Message) => { trace(message) ; consumer.consume(message) }) :MessageConsumer
-    })
-
   protected def langServerClass :Class[_] = classOf[LanguageServer]
 
   /** A proxy for talking to the server. */
-  val server = launcher.getRemoteProxy()
+  def server = serverV()
+  private val serverV = Value[LanguageServer](null)
 
   /** Provides the server capabilities, once known. */
   val serverCaps = Promise[ServerCapabilities]()
@@ -117,11 +113,100 @@ abstract class LangClient (
 
   override def toString = s"$name langserver"
 
-  private val grammarSvc = metaSvc.service[GrammarService]
-  private val textSvc = server.getTextDocumentService
-  private val wspaceSvc = server.getWorkspaceService
+  private def textSvc = server.getTextDocumentService
+  private def wspaceSvc = server.getWorkspaceService
 
   private val uriToProject = new HashMap[String, Project]()
+
+  // once we are connected, our server instance will be set and we can initialize our session
+  serverV.onValue(server => {
+    val initParams = new InitializeParams()
+    initParams.setTrace("verbose")
+    initParams.setCapabilities(createClientCaps)
+    val name = root.toString // TODO: get project name?
+    initParams.setWorkspaceFolders(List(WorkspaceFolder(root.toUri.toString, name)).asJava)
+    // TEMP: metals does not support workspace folders (yet?)
+    initParams.setRootUri(root.toUri.toString) : @nowarn
+    // TODO: can we get our real PID via a Java API? Ensime fails if we don't send something, sigh
+    initParams.setProcessId(0)
+    trace(s"Initializing at root: $root")
+    messages.emit(s"$name langserver initializing...")
+    server.initialize(initParams).thenAccept(rsp => {
+      server.initialized(new InitializedParams())
+      serverCaps.succeed(rsp.getCapabilities)
+      messages.emit(s"$name langserver ready.")
+    }).exceptionally(err => {
+      import org.eclipse.lsp4j.jsonrpc.MessageIssueException
+      messages.emit(s"$name init failure: ${err.getMessage}")
+      err.getCause match {
+        case me :MessageIssueException =>
+          println(s"Broken message: '${me.getMessage}'")
+          me.getIssues.forEach { issue =>
+            println(s"Issue ${issue.getIssueCode}: ${issue.getText}")
+            issue.getCause.printStackTrace(System.out)
+          }
+        case err => err.printStackTrace(System.err)
+      }
+      null
+    })
+  })
+
+  private def initLauncher (launcher :Launcher.Builder[LanguageServer]) = launcher.
+    setLocalService(LangClient.this).
+    setRemoteInterface(langServerClass.asInstanceOf[Class[LanguageServer]]).
+    wrapMessages(consumer => {
+      ((message :Message) => { trace(message) ; consumer.consume(message) }) :MessageConsumer
+    }).
+    setExecutorService(exec.bgService)
+
+  // connect to the language server process either implicitly (via stdio) or over a websocket
+  serverPort.match {
+    case Some(port) =>
+      import javax.websocket._
+      import org.eclipse.lsp4j.websocket._
+      debugRead(serverProc.getInputStream, "STDOUT")
+      val endpoint = new WebSocketEndpoint[LanguageServer] {
+        override protected def configure (launcher :Launcher.Builder[LanguageServer]) =
+          initLauncher(launcher)
+        override protected def connect (
+          localServices :java.util.Collection[Object], server :LanguageServer
+        ) = serverV.update(server)
+      }
+      val prov = ContainerProvider.getWebSocketContainer()
+      // in the socket case, we may have to wait for the language server to be ready which means
+      // we'll have a (hopefully short) period during which we are not fully initialized; though we
+      // will be added to the buffer during this time, we will avoid doing anything that triggers
+      // calls to the language client; messy, but the alternative is a major rearchitecture of how
+      // services are added to buffers and how modes are resolved, which does not seem like a fun
+      // exercise
+      exec.runInBG({
+        val uri = new URI(s"ws://localhost:$port")
+        var attempts = 0 ; var done = false ; while (!done) {
+          try {
+            trace(s"Connecting websocket: $uri")
+            var sess = prov.connectToServer(endpoint, uri)
+            closeSocket = () => sess.close()
+            done = true
+          } catch {
+            case ce :DeploymentException =>
+              println(s"Failed to connect to langserver ($ce), retrying...")
+              if (attempts >= 10) done = true
+              else {
+                Thread.sleep(500)
+                attempts += 1
+              }
+          }
+        }
+      })
+
+    case None =>
+      val launcher = initLauncher(new Launcher.Builder[LanguageServer]()).
+        setInput(record(serverProc.getInputStream)).
+        setOutput(serverProc.getOutputStream).
+        create()
+      launcher.startListening()
+      serverV.update(launcher.getRemoteProxy())
+  }
 
   private def init[T] (t :T)(f :T => Unit) = { f(t) ; t }
   private def createClientCaps = init(new ClientCapabilities()) { caps =>
@@ -157,39 +242,6 @@ abstract class LangClient (
     })
     caps.setWorkspace(init(new WorkspaceClientCapabilities()) { caps =>
       // TODO: nothing to set re: workspace capabilities as of yet
-    })
-  }
-
-  /* init */ {
-    launcher.startListening()
-    val initParams = new InitializeParams()
-    initParams.setTrace("verbose")
-    initParams.setCapabilities(createClientCaps)
-    val name = root.toString // TODO: get project name?
-    initParams.setWorkspaceFolders(List(WorkspaceFolder(root.toUri.toString, name)).asJava)
-    // TEMP: metals does not support workspace folders (yet?)
-    initParams.setRootUri(root.toUri.toString) : @nowarn
-    // TODO: can we get our real PID via a Java API? Ensime fails if we don't send something, sigh
-    initParams.setProcessId(0)
-    trace(s"Initializing at root: $root")
-    messages.emit(s"$name langserver initializing...")
-    server.initialize(initParams).thenAccept(rsp => {
-      server.initialized(new InitializedParams())
-      serverCaps.succeed(rsp.getCapabilities)
-      messages.emit(s"$name langserver ready.")
-    }).exceptionally(err => {
-      import org.eclipse.lsp4j.jsonrpc.MessageIssueException
-      messages.emit(s"$name init failure: ${err.getMessage}")
-      err.getCause match {
-        case me :MessageIssueException =>
-          println(s"Broken message: '${me.getMessage}'")
-          me.getIssues.forEach { issue =>
-            println(s"Issue ${issue.getIssueCode}: ${issue.getText}")
-            issue.getCause.printStackTrace(System.out)
-          }
-        case err => err.printStackTrace(System.err)
-      }
-      null
     })
   }
 
@@ -376,12 +428,15 @@ abstract class LangClient (
       }
     }
 
-    // let the lang server know we've opened a file (if it corresponds to a file on disk)
-    buffer.store.file.foreach(path => serverCaps.onSuccess(caps => {
-      val uri = path.toUri.toString
-      uriToProject.put(uri, project)
-      buffer.state[Syncer]() = new Syncer(caps, buffer, uri)
-    }))
+    // wait for server to transition to non-null before creating our syncers
+    serverV.onValueNotify(server => {
+      // let the lang server know we've opened a file (if it corresponds to a file on disk)
+      if (server != null) buffer.store.file.foreach(path => serverCaps.onSuccess(caps => {
+        val uri = path.toUri.toString
+        uriToProject.put(uri, project)
+        buffer.state[Syncer]() = new Syncer(caps, buffer, uri)
+      }))
+    })
     // TODO: if a file transitions from not having a disk-backed store to having one (i.e. newly
     // created file that is then saved, or file that is save-as-ed), we should tell the lang server
     // about that too
@@ -472,6 +527,8 @@ abstract class LangClient (
       server.exit()
       // give the langserver five seconds to shutdown, then stick a fork in it
       exec.bg.schedule(5000L, () => if (serverProc.isAlive) serverProc.destroy())
+      // if we have a socket connection to the server, close that
+      closeSocket()
     }
     server.shutdown().whenComplete(onShutdown)
   }

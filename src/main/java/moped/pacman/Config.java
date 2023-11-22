@@ -60,6 +60,14 @@ public class Config {
   }
 
   public <T> T resolve (String key, Parser<T> parser) {
+    return resolve(key, parser, true, null);
+  }
+
+  public <T> T resolve (String key, Parser<T> parser, T defval) {
+    return resolve(key, parser, false, defval);
+  }
+
+  private <T> T resolve (String key, Parser<T> parser, boolean required, T defval) {
     List<String> errors = new ArrayList<>();
     Optional<T> res = parser.zero();
     List<String> vals = _data.remove(key);
@@ -75,8 +83,9 @@ public class Config {
     }
     _errors.addAll(errors);
     if (res.isPresent()) return res.get();
-    throw new IllegalArgumentException(String.format(
+    if (required) throw new IllegalArgumentException(String.format(
       "Missing or invalid binding for '%s' [data=%s, errors=%s]", key, vals, errors));
+    return defval;
   }
 
   public List<String> finish () {

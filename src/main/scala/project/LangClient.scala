@@ -632,6 +632,8 @@ abstract class LangClient (
     CompletableFuture.completedFuture(Collections.emptyList[Object])
   }
 
+  override def logTrace (params :LogTraceParams) = trace(params.getMessage)
+
   protected def trace (msg :Any) :Unit = {
     if (debugMode) println(s"$name langserver: $msg")
   }

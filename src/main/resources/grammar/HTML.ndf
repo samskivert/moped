@@ -114,7 +114,7 @@ patterns:
    multi:
     name: constant.other.inline-data.html
     begin: \[CDATA\[
-    end: ]](?=>)
+    end: \]\](?=>)
    single:
     name: invalid.illegal.bad-comments-or-CDATA.html
     pattern: (\s*)(?!--|>)\S(\s*)

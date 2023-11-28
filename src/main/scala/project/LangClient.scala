@@ -51,7 +51,7 @@ object LangClient {
 }
 
 abstract class LangClient (
-  project :Project, serverCmd :Seq[String], serverPort :Option[Int]
+  project :Project, val serverCmd :Seq[String], serverPort :Option[Int]
 ) extends LanguageClient with AutoCloseable {
 
   private def root :Path = project.root.path

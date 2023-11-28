@@ -235,6 +235,60 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
       onFailure(window.exec.handleError)
   }
 
+  @Fn("Describes the status and capabilities of the current language client.")
+  def describeLangClient () :Unit = {
+    val bb = new BufferBuilder(this.view.width()-1)
+    bb.addHeader("Client")
+    bb.addKeysValues(
+      "Name: " -> client.name,
+      "Server command: " -> client.serverCmd,
+    )
+
+    bb.addHeader("Exec commands")
+    client.execCommands.foreach(bb.add(_))
+
+    def addInfo (subhead :String, info :AnyRef) = {
+      bb.addSubHeader(subhead)
+      String.valueOf(info).split("\n").foreach(line => bb.add(line))
+    }
+    bb.addHeader("Server capabilities")
+    client.serverCaps.onSuccess(caps => {
+      addInfo("Code actions", caps.getCodeActionProvider)
+      addInfo("Code lens", caps.getCodeLensProvider)
+      addInfo("Color", caps.getColorProvider)
+      addInfo("Completion", caps.getCompletionProvider)
+      addInfo("Declaration", caps.getDeclarationProvider)
+      addInfo("Definition", caps.getDefinitionProvider)
+      addInfo("Document formatting", caps.getDocumentFormattingProvider)
+      addInfo("Document highlight", caps.getDocumentHighlightProvider)
+      addInfo("Document link", caps.getDocumentLinkProvider)
+      addInfo("Document type formatting", caps.getDocumentOnTypeFormattingProvider)
+      addInfo("Document range formatting", caps.getDocumentRangeFormattingProvider)
+      addInfo("Document symbol", caps.getDocumentSymbolProvider)
+      addInfo("Execute command", caps.getExecuteCommandProvider)
+      addInfo("Experimental", caps.getExperimental)
+      addInfo("Folding range", caps.getFoldingRangeProvider)
+      addInfo("Hover", caps.getHoverProvider)
+      addInfo("Goto Implementation", caps.getImplementationProvider)
+      addInfo("Linked editing range", caps.getLinkedEditingRangeProvider)
+      addInfo("Moniker", caps.getMonikerProvider)
+      addInfo("References", caps.getReferencesProvider)
+      addInfo("Rename", caps.getRenameProvider)
+      addInfo("Selection range", caps.getSelectionRangeProvider)
+      addInfo("Semantic tokens", caps.getSemanticTokensProvider)
+      addInfo("Signature help", caps.getSignatureHelpProvider)
+      addInfo("Text document sync", caps.getTextDocumentSync)
+      addInfo("Type definition", caps.getTypeDefinitionProvider)
+      addInfo("Type hierarchy", caps.getTypeHierarchyProvider)
+      addInfo("Workspace", caps.getWorkspace)
+      addInfo("Workspace symbol", caps.getWorkspaceSymbolProvider)
+    })
+
+    val hbuf = wspace.createBuffer(Store.scratch(s"*lang-client*", buffer.store),
+                                   reuse=true, state=State.inits(Mode.Hint("help")))
+    frame.visit(bb.applyTo(hbuf))
+  }
+
   @Fn("Restarts the language server client for the active project.")
   def restartLangClient () :Unit = {
     project.emitStatus("Restaring langserver client...")
@@ -366,6 +420,18 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     var req = new ReferenceParams(doc, pos, ReferenceContext());
     val initState = project.bufferState("lang-find-uses", LangFindUsesConfig.Context(name, req), client)
     window.focus.visit(project.createBuffer(s"*find-uses: ${name}*", initState))
+  }
+
+  @Fn("Debug document symbols")
+  def debugDocSymbols () :Unit = {
+    val docId = LSP.docId(view.buffer)
+    val sparams = new DocumentSymbolParams(docId)
+    LSP.adapt(textSvc.documentSymbol(sparams), window.exec).onSuccess {
+      case null => println("null?")
+      case syms if (syms.isEmpty) => println("no symbols?")
+      case syms =>
+        for (sym <- syms.asScala) println(sym)
+    }
   }
 
   def enclosers (loc :Loc) :Future[Seq[Symbol]] = {

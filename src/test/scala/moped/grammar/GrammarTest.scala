@@ -253,6 +253,60 @@ class GrammarTest {
     // println(scoper)
   }
 
+  val testHTMLCode = Seq(
+    //                1         2         3
+    //      0123456789012345678901234567890
+    /* 0*/ "<html>",
+    /* 1*/ "",
+    /* 2*/ "<foo>",
+    /* 3*/ " <!-- a comment, how lovely -->",
+    /* 4*/ " <bar>baz</bar>",
+    /* 5*/ " <dingle a=\"b\" />",
+    /* 6*/ "</foo>",
+    /* 7*/ "}").mkString("\n")
+
+  val html = Grammar.parseNDF(getClass.getClassLoader.getResource("grammar/HTML.ndf"))
+
+  /* @Test */ def debugHTML () :Unit = {
+    val buffer = BufferImpl(new TextStore("Test.html", "", testHTMLCode))
+    val scoper = Grammar.testScoper(Seq(html), buffer, Nil)
+    // println(scoper.showMatchers(Set("#tag-stuff", "#entity")))
+    scoper.rethinkBuffer()
+
+    val start = 0  ; val end = buffer.lines.length
+    start until end foreach { ll =>
+      println(buffer.line(ll))
+      scoper.showScopes(ll) foreach { s => println(s"$ll: $s") }
+    }
+  }
+
+  val testSwiftCode = Seq(
+    //                1         2         3
+    //      0123456789012345678901234567890
+    /* 0*/ "class Monkey {",
+    /* 1*/ "  var items :[Int]",
+    /* 2*/ "  var op :String",
+    /* 3*/ "  var rhs :String",
+    /* 4*/ "  var divis :Int",
+    /* 5*/ "  var onTrue, onFalse :Int",
+    /* 6*/ "  var inspected = 0",
+    /* 7*/ "}").mkString("\n")
+
+  val swift = Grammar.parseNDF(getClass.getClassLoader.getResource("grammar/Swift.ndf"))
+
+  @Test def debugSwift () :Unit = {
+    val buffer = BufferImpl(new TextStore("Test.swift", "", testSwiftCode))
+    val scoper = Grammar.testScoper(Seq(swift), buffer, Nil)
+    // println(scoper.showMatchers(Set("#tag-stuff", "#entity")))
+    scoper.rethinkBuffer()
+
+    val start = 0  ; val end = buffer.lines.length
+    start until end foreach { ll =>
+      println(buffer.line(ll))
+      scoper.showScopes(ll) foreach { s => println(s"$ll: $s") }
+    }
+  }
+
   // @Test def testPrint () :Unit = {
   //   val javaDoc = Grammar.parsePlist(
   //     getClass.getClassLoader.getResourceAsStream("JavaDoc.tmLanguage"))

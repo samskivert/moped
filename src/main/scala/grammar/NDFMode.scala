@@ -22,3 +22,20 @@ class NDFMode (env :Env) extends GrammarCodeMode(env) {
     override def linePrefix = "#"
   }
 }
+
+@Plugin
+class NDFGrammarPlugin extends GrammarPlugin {
+  import code.CodeConfig._
+
+  override def grammars = Map("source.ndf" -> "grammar/NDF.ndf")
+
+  override def effacers = List(
+    effacer("comment.line", commentStyle),
+    effacer("punctuation.line-cont", typeStyle),
+    effacer("keyword", keywordStyle)
+  )
+
+  override def syntaxers = List(
+    syntaxer("comment.line", Syntax.LineComment)
+  )
+}

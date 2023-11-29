@@ -9,53 +9,87 @@ import moped.code.{CodeConfig, Commenter, BlockIndenter}
 import moped.grammar._
 import moped.util.Paragrapher
 
-@Plugin
-class SwiftGrammarPlugin extends GrammarPlugin {
-  import CodeConfig._
-
-  override def grammars = Map("source.swift" -> "grammar/Swift.ndf")
-
-  override def effacers = List(
-    effacer("comment.line", commentStyle),
-    effacer("comment.block", docStyle),
-    effacer("constant", constantStyle),
-    effacer("invalid", invalidStyle),
-    effacer("keyword", keywordStyle),
-    effacer("string", stringStyle),
-
-    effacer("variable.other.namespace", moduleStyle),
-    effacer("entity.name.type", typeStyle),
-    effacer("entity.name.function", functionStyle),
-    effacer("entity.other.field-id", preprocessorStyle),
-
-    effacer("meta.type-name", typeStyle),
-    effacer("storage.type", keywordStyle),
-    effacer("definition.type", typeStyle),
-    effacer("inherited-class", typeStyle),
-    // storage.type.field: leaving white for now
-    effacer("variable.parameter", variableStyle)
-  )
-
-  override def syntaxers = List(
-    syntaxer("comment.line", Syntax.LineComment),
-    syntaxer("comment.block", Syntax.DocComment),
-    syntaxer("constant", Syntax.OtherLiteral),
-    syntaxer("string.quoted.triple", Syntax.HereDocLiteral),
-    syntaxer("string.quoted.double", Syntax.StringLiteral)
-  )
-}
-
 @Major(name="swift",
        tags=Array("code", "project", "swift"),
        pats=Array(".*\\.swift"),
        ints=Array("swift"),
        desc="A major editing mode for Swift source files.")
-class SwiftMode (env :Env) extends GrammarCodeMode(env) {
+class SwiftMode (env :Env) extends SitterCodeMode(env) {
   import CodeConfig._
   import moped.util.Chars._
   import Syntax.{HereDocLiteral => HD}
+  import Selector._
 
-  override def langScope = "source.swift"
+  override def langId = ch.usi.si.seart.treesitter.Language.SWIFT
+
+  override def styles = Map(
+    "comment" -> always(commentStyle),
+
+    "integer_literal" -> always(constantStyle),
+    "line_string_literal" -> always(stringStyle),
+    "raw_str_end_part" -> always(stringStyle),
+
+    "import" -> always(keywordStyle),
+    "typealias" -> always(keywordStyle),
+    "struct" -> always(keywordStyle),
+    "class" -> always(keywordStyle),
+    "protocol" -> always(keywordStyle),
+    "enum" -> always(keywordStyle),
+
+    "mutating" -> always(keywordStyle),
+    "static" -> always(keywordStyle),
+    "private" -> always(keywordStyle),
+
+    "func" -> always(keywordStyle),
+    "init" -> always(keywordStyle),
+    "inout" -> always(keywordStyle),
+    "throws" -> always(keywordStyle),
+    "in" -> always(keywordStyle),
+
+    "for" -> always(keywordStyle),
+    "while" -> always(keywordStyle),
+    "if" -> always(keywordStyle),
+    "else" -> always(keywordStyle),
+    "guard" -> always(keywordStyle),
+    "return" -> always(keywordStyle),
+    "switch" -> always(keywordStyle),
+    "case" -> always(keywordStyle),
+    "default_keyword" -> always(keywordStyle),
+    "continue" -> always(keywordStyle),
+    "break" -> always(keywordStyle),
+
+    "let" -> always(keywordStyle),
+    "var" -> always(keywordStyle),
+    "self" -> always(keywordStyle),
+    "nil" -> always(keywordStyle),
+    "try" -> always(keywordStyle),
+    "throw_keyword" -> always(keywordStyle),
+
+    // "&&" -> always(keywordStyle),
+    // "||" -> always(keywordStyle),
+    // "??" -> always(keywordStyle),
+    // "==" -> always(keywordStyle),
+    // "@" -> always(keywordStyle),
+
+    "type_identifier" -> always(typeStyle),
+    "simple_identifier" -> (scopes => scopes.head match {
+      case "function_declaration" => functionStyle
+      case "call_expression" => functionStyle
+      case "navigation_suffix" => functionStyle
+      case "array_literal" => typeStyle
+      case "enum_entry" => typeStyle
+      case _ => variableStyle
+    })
+  )
+
+  override def syntaxes = Map(
+    "comment" -> (_ => Syntax.LineComment),
+    // syntaxer("comment.block", Syntax.DocComment),
+
+    "integer_literal" -> (_ => Syntax.OtherLiteral),
+    "line_string_literal" -> (_ => Syntax.StringLiteral),
+    "raw_str_end_part" -> (_ => Syntax.HereDocLiteral),
+  )
 
   override def mkParagrapher (syntax :Syntax) =
     if (syntax != HD) super.mkParagrapher(syntax)

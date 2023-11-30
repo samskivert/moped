@@ -225,8 +225,8 @@ object BlockIndenter {
   }
 
   class LambdaBlockRule (arrow :String) extends Rule {
-    // if the top of the stack is a BlockS but the end of the line is => then we're in a lambda
-    // and need to adjust the BlockS to let it know that it actually should trigger indent
+    // if the top of the stack is a BlockS but the end of the line is `arrow` then we're in a
+    // lambda and need to adjust the BlockS to let it know that it actually should trigger indent
     override def adjustEnd (line :LineV, first :Int, last :Int, start :State, cur :State) :State = {
       var end = cur
       if (end.isInstanceOf[BlockS]) {

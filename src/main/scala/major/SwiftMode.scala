@@ -35,6 +35,7 @@ class SwiftMode (env :Env) extends SitterCodeMode(env) {
     "class" -> always(keywordStyle),
     "protocol" -> always(keywordStyle),
     "enum" -> always(keywordStyle),
+    "extension" -> always(keywordStyle),
 
     "mutating" -> always(keywordStyle),
     "static" -> always(keywordStyle),
@@ -100,7 +101,11 @@ class SwiftMode (env :Env) extends SitterCodeMode(env) {
       }
     }
 
-  override protected def createIndenter () = new BlockIndenter(config, Seq())
+  import BlockIndenter._
+  override protected def createIndenter () = new BlockIndenter(config, Seq(
+    new LambdaBlockRule(" in"),
+    new AlignUnderDotRule()
+  ))
 
   override protected def canAutoFill (p :Loc) :Boolean =
     super.canAutoFill(p) || (buffer.syntaxNear(p) == HD)

@@ -49,8 +49,6 @@ object SwiftPlugins {
   //   }
   // }
 
-  // TODO: we should try to figure out if the typescript-language-server node module is actually
-  // installed (globally); of course there's going to be no pleasant way to do this...
   @Plugin class SwiftLangPlugin extends LangPlugin {
     def suffs (root :Project.Root) = Set("swift")
     def canActivate (root :Project.Root) = Files.exists(root.path.resolve(PackageFile))

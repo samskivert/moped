@@ -257,8 +257,3 @@ object ScalaIndenter {
   private val elseM = Matcher.regexp("""\belse\b""")
   private val whileM = Matcher.regexp("""\bwhile\b""")
 }
-
-object ScalaPlugins {
-
-  @Plugin class SbtRootPlugin extends RootPlugin.File("build.sbt")
-}

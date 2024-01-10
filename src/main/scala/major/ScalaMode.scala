@@ -165,7 +165,7 @@ object ScalaIndenter {
       slbExprOpen = -1 ; slbExprClose = -1 ; slbExpectsPair = false
       // if we're looking at an SLB, push a state for it
       opensSLB = line.matches(singleLineBlockM, first)
-      if (!opensSLB) start
+      if (!opensSLB) super.adjustStart(line, first, last, start)
       else {
         val token = singleLineBlockM.group(1)
         val nstate = new SingleBlockS(token, first, start)
@@ -195,7 +195,7 @@ object ScalaIndenter {
       if (opensSLB && last > slbExprClose) {
         opensSLB = false
         cur.popIf(_.isInstanceOf[SingleBlockS])
-      } else cur
+      } else super.adjustEnd(line, first, last, start, cur)
     }
 
     override def willOpenBlock (line :LineV, open :Char, close :Char, col :Int, state :State) :State = {

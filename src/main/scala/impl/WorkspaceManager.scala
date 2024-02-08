@@ -407,14 +407,32 @@ class WorkspaceImpl (val app  :Moped, val mgr  :WorkspaceManager,
     stage.setScene(scene)
 
     // set our stage position based on the values specified in editor config
-    config.value(EditorConfig.viewLeft) onValueNotify { x =>
-      if (x >= 0) stage.setX(x)
+    def getOffset (pos :Int, size :Double, min :Double, max :Double) = pos match {
+      case pos if (pos < -1) => max - size + pos
+      case pos if (pos >= 0) => min + pos
+      case pos => min + ((max-min) - size)/2
     }
-    config.value(EditorConfig.viewTop) onValueNotify { y =>
-      if (y >= 0) stage.setY(y)
+
+    def setStageLeft (viewLeft :Int) = {
+      val sbounds = screenForStage(stage).getVisualBounds
+      val swidth = stage.getWidth()
+      if (!swidth.isNaN) stage.setX(getOffset(viewLeft, swidth, sbounds.getMinX, sbounds.getMaxX))
     }
+    config.value(EditorConfig.viewLeft) onValueNotify setStageLeft
+    stage.widthProperty.addListener(
+      (obs, ov, nv) => setStageLeft(config(EditorConfig.viewLeft)))
+
+    def setStageTop (viewTop :Int) = {
+      val sbounds = screenForStage(stage).getVisualBounds
+      val sheight = stage.getHeight()
+      if (!sheight.isNaN) stage.setY(getOffset(viewTop, sheight, sbounds.getMinY, sbounds.getMaxY))
+    }
+    config.value(EditorConfig.viewTop) onValueNotify setStageTop
+    stage.heightProperty.addListener(
+      (obs, ov, nv) => setStageTop(config(EditorConfig.viewTop)))
+
     // if a position was passed in, override the value from prefs
-    geom.pos.foreach { pos => stage.setX(pos._1) ; stage.setY(pos._2) }
+    geom.pos.foreach { pos => setStageLeft(pos._1) ; setStageTop(pos._2) }
 
     // update our last "opened" time when a new editor is created
     Files.setLastModifiedTime(root, FileTime.fromMillis(System.currentTimeMillis))
@@ -429,6 +447,13 @@ class WorkspaceImpl (val app  :Moped, val mgr  :WorkspaceManager,
 
     _windows += win // TODO: didOpenWindow signal?
     win
+  }
+
+  private def screenForStage (stage :Stage) :Screen = {
+    val screens = Screen.getScreensForRectangle(
+      stage.getX, stage.getY, stage.getWidth, stage.getHeight)
+    if (screens.size > 0) screens.get(0)
+    else Screen.getPrimary
   }
 
   private def freshName (name :String, n :Int = 1) :String = {

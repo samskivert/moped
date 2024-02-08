@@ -1,5 +1,5 @@
 .root, .tooltip {
-  -fx-font-size: 12px;
+  -fx-font-size: 14px;
   -fx-text-fill: white;
 }
 
@@ -23,17 +23,17 @@
 }
 
 .tooltip {
-  -fx-font-size: 14px;
+  -fx-font-size: 16px;
 }
 
 .overpop .status {
   -fx-text-fill: white;
-  -fx-font-size: 18px;
+  -fx-font-size: 20px;
 }
 
 .overpop .substatus {
   -fx-text-fill: white;
-  -fx-font-size: 14px;
+  -fx-font-size: 16px;
 }
 
 .editor .status {
@@ -41,7 +41,7 @@
 }
 
 .mini {
-  -fx-font-size: 15px;
+  -fx-font-size: 17px;
 }
 
 .mini .prompt, .status .prompt {

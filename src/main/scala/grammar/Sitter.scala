@@ -144,7 +144,8 @@ class Sitter (
         if (node.getChildCount > 0) {
           for (ii <- 0 until node.getChildCount) process(node.getChild(ii), nscopes)
         }
-        else buf.addTag(Sitter.Scopes(nscopes), sloc, eloc)
+        // uncomment to add scopes to every node; costly but needed when setting up a new language
+        // else buf.addTag(Sitter.Scopes(nscopes), sloc, eloc)
       }
       process(tree.getRootNode, Nil)
 

@@ -25,7 +25,7 @@ lazy val root = project.in(file(".")).settings(
   libraryDependencies += "org.glassfish.tyrus.bundles" % "tyrus-standalone-client" % "1.21",
   libraryDependencies += "org.reflections" % "reflections" % "0.10.2",
   libraryDependencies += "org.apache.commons" % "commons-compress" % "1.15",
-  libraryDependencies += "ch.usi.si.seart" % "java-tree-sitter" % "1.9.1-SNAPSHOT",
+  libraryDependencies += "ch.usi.si.seart" % "java-tree-sitter" % "1.13.0-SNAPSHOT",
 
   libraryDependencies ++= Seq("base", "controls").map(
     m => "org.openjfx" % s"javafx-$m" % "19" classifier osName),

@@ -101,7 +101,7 @@ class Moped extends Application with Editor {
     // listen for open files events
     Moped.openFiles.via(uiScheduler).onValue { _.foreach(wspMgr.visit) }
     // start our command server
-    // server.start()
+    server.start()
   }
 
   override def stop () :Unit = {

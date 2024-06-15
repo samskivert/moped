@@ -614,6 +614,19 @@ abstract class LangClient (
     CompletableFuture.completedFuture(null)
   }
 
+  // we just log progress messages, so we don't care about the id token
+  override def createProgress (params :WorkDoneProgressCreateParams) =
+    CompletableFuture.completedFuture(null)
+
+  override def notifyProgress (params :ProgressParams) :Unit = LSP.toScala(params.getValue) match {
+    case Left(note) => note match {
+      case begin :WorkDoneProgressBegin => messages.emit(begin.getTitle)
+      case end :WorkDoneProgressEnd => messages.emit(end.getMessage)
+      case _ => println(s"notifyProgress: $note")
+    }
+    case Right(obj) => println(s"notifyProgress: $obj")
+  }
+
   /**
    * The log message notification is send from the server to the client to ask the client to log a
    * particular message.

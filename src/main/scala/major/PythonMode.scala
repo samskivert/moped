@@ -73,9 +73,7 @@ class PythonMode (env :Env) extends SitterCodeMode(env) {
       case List("assignment", _*) => variableStyle
       case List("attribute", "assignment", _*) => variableStyle
       case List("attribute", "subscript", "assignment", _*) => variableStyle
-      case scopes =>
-        println(scopes)
-        null
+      case scopes => null
     })
   )
 

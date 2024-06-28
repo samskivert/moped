@@ -138,8 +138,10 @@ class Sitter (
       def process (node :Node, scopes :List[String]) :Unit = {
         val sloc = buf.loc(node.getStartByte)
         val eloc = buf.loc(node.getEndByte)
-        stylers.get(node.getType).foreach(styler => buf.addStyle(styler(scopes), sloc, eloc))
-        syntaxers.get(node.getType).foreach(taxer => buf.setSyntax(taxer(scopes), sloc, eloc))
+        stylers.get(node.getType).flatMap(styler => Option(styler(scopes))).
+          foreach(style => buf.addStyle(style, sloc, eloc))
+        syntaxers.get(node.getType).flatMap(taxer => Option(taxer(scopes))).
+          foreach(tax => buf.setSyntax(tax, sloc, eloc))
         val nscopes = node.getType :: scopes
         if (node.getChildCount > 0) {
           for (ii <- 0 until node.getChildCount) process(node.getChild(ii), nscopes)

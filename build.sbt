@@ -11,7 +11,7 @@ lazy val osName = System.getProperty("os.name") match {
 lazy val root = project.in(file(".")).settings(
   name := "Moped",
   version := "0.1.0-SNAPSHOT",
-  scalaVersion := "3.4.1",
+  scalaVersion := "3.4.2",
   scalacOptions += "-deprecation",
   fork := true,
 

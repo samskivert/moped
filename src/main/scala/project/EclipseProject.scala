@@ -34,22 +34,21 @@ object JDTLS {
 
   // from whence we download the Eclipse JDT language server
   val JdtFile = "jdt-language-server-latest.tar.gz"
-  val JdtUrl = new URL(s"http://download.eclipse.org/jdtls/snapshots/$JdtFile")
+  val JdtUrl = new URL(s"https://download.eclipse.org/jdtls/snapshots/$JdtFile")
 
   /** Downloads and unpacks the JDTLS, if needed. */
   def resolve (metaSvc :MetaService, root :Project.Root) :Future[Path] = {
     val pkgSvc = metaSvc.service[PackageService]
-    val selfSource = "git:https://github.com/scaled/java-mode.git"
-    val selfRoot = pkgSvc.installDir(selfSource)
-    val jdtlsDir = selfRoot.resolve("eclipse-jdt-ls")
+    val extrasDir = pkgSvc.extrasDir("eclipse-extras")
+    val jdtlsDir = extrasDir.resolve("eclipse-jdt-ls")
     if (Files.exists(jdtlsDir)) Future.success(jdtlsDir)
     else {
-      val jdtPath = selfRoot.resolve(JdtFile)
+      val jdtPath = extrasDir.resolve(JdtFile)
       Fetcher.fetch(metaSvc.exec, JdtUrl, jdtPath, pct => {
         metaSvc.log.log(s"Downloading $JdtFile: $pct%")
       }).map(targz => {
         metaSvc.log.log(s"Unpacking $JdtFile...")
-        val jdtlsTmp = Files.createTempDirectory(selfRoot, "jdtls")
+        val jdtlsTmp = Files.createTempDirectory(extrasDir, "jdtls")
         try {
           untargz(targz, jdtlsTmp)
           deleteAll(jdtlsDir)

@@ -19,7 +19,7 @@ class ServiceManager (app :Moped) extends AbstractService with MetaService {
   // we provide MetaService, so stick ourselves in the cache directly; meta!
   services.put(getClass, this)
   // wire the workspace and package managers up directly as well
-  // services.put(app.pkgMgr.getClass, app.pkgMgr)
+  services.put(app.pkgMgr.getClass, app.pkgMgr)
   services.put(app.wspMgr.getClass, app.wspMgr)
 
   override def metaFile (name :String) = app.pkgMgr.metaDir.resolve(name)
@@ -87,6 +87,7 @@ class ServiceManager (app :Moped) extends AbstractService with MetaService {
     if (!sclass.getName.endsWith("Service")) throw new InstantiationException(
       s"Service classes must be named FooService: $sclass")
     else if (sclass.getName == "moped.MetaService") return this
+    else if (sclass.getName == "moped.PackageService") return app.pkgMgr
     else app.pkgMgr.service(sclass.getName) match {
       case None       => throw new InstantiationException(s"Missing implementation: $sclass")
       case Some(impl) => services.get(impl)

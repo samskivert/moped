@@ -20,7 +20,7 @@ import moped.minor._
 import moped.util.BufferBuilder
 
 /** Extends the base package manager with extra info needed by Moped. */
-class PackageManager (log :Logger) extends AbstractService /* with PackageService */ {
+class PackageManager (log :Logger) extends AbstractService with PackageService {
 
   /** The top-level metadata directory. */
   val metaDir :Path = locateMetaDir
@@ -75,6 +75,12 @@ class PackageManager (log :Logger) extends AbstractService /* with PackageServic
 
   override def didStartup () :Unit = {} // not used
   override def willShutdown () :Unit = {} // not used
+
+  override def extrasDir (id :String) = {
+    val extrasDir = metaDir.resolve("Extras").resolve(id)
+    Files.createDirectories(extrasDir)
+    extrasDir
+  }
 
   // override def installDir (source :String) = metas.get(Source.parse(source)).mod.root
 

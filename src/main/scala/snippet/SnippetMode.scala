@@ -108,7 +108,7 @@ class SnippetMode (env :Env, major :MajorMode) extends MinorMode(env) {
     }
     val aholes = holes map { new ActiveHole(_) }
 
-    private[this] var ahole :ActiveHole = null
+    private var ahole :ActiveHole = null
     def activeHole = ahole
     def activeHole_= (hole :ActiveHole) = if (hole != ahole) {
       if (ahole != null) ahole.deactivate()
@@ -136,8 +136,8 @@ class SnippetMode (env :Env, major :MajorMode) extends MinorMode(env) {
 
     // wire up our buffer listeners and advance to the first hole
     val toClose = Close.bag()
-    toClose += buffer.edited onValue onEdit
-    toClose += view.point onValue checkSwitchHole
+    toClose += buffer.edited `onValue` onEdit
+    toClose += view.point `onValue` checkSwitchHole
     activateHole(0) // this will deactivate this snippet if hole 0 is the exit hole
 
     def deactivate () :Unit = {
@@ -236,7 +236,7 @@ class SnippetMode (env :Env, major :MajorMode) extends MinorMode(env) {
   }
 
   /** The currently active snippet, if any. */
-  var activeSnip :ActiveSnip = _
+  var activeSnip :ActiveSnip = null
   def reqActiveSnip = if (activeSnip == null) abort("No active snippet.") else activeSnip
 
   @Fn("""If there is no active snippet, attemps to expand the snippet at the point.

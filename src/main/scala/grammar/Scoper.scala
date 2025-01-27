@@ -103,7 +103,7 @@ class Scoper (grammar :Grammar, matcher :Matcher, buf :Buffer, procs :List[Selec
       try {
         val ostate = curState(row) ; val nstate = rethink(row, firstRow)
         setState(row, nstate)
-        if (ostate == null || force || (ostate nequiv nstate)) cascadeRethink(
+        if (ostate == null || force || (ostate `nequiv` nstate)) cascadeRethink(
           row+1, stopRow, firstRow, force)
       } catch {
         case ex :Exception =>

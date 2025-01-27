@@ -29,14 +29,14 @@ class PackageManager (log :Logger) extends AbstractService with PackageService {
   val reflections = new Reflections("moped")
 
   /** Resolves the class for the mode named `name`. */
-  def mode (major :Boolean, name :String) :Option[Class[_]] = Option(modeMap(major).get(name))
+  def mode (major :Boolean, name :String) :Option[Class[?]] = Option(modeMap(major).get(name))
 
   /** Resolves the implementation class for the service with fq classname `name`. */
-  def service (name :String) :Option[Class[_]] = Option(serviceMap.get(name))
+  def service (name :String) :Option[Class[?]] = Option(serviceMap.get(name))
 
   /** The services that are marked for auto-loading at startup. */
-  def autoLoadServices :Seq[Class[_]] = _autoloads
-  private var _autoloads = Seq[Class[_]]()
+  def autoLoadServices :Seq[Class[?]] = _autoloads
+  private var _autoloads = Seq[Class[?]]()
 
   /** Returns the name of all modes provided by all packages. */
   def modes (major :Boolean) :Iterable[String] = modeMap(major).keySet.asScala
@@ -48,7 +48,7 @@ class PackageManager (log :Logger) extends AbstractService with PackageService {
     def fileLocal :Option[String] = None // TODO
     // if the file starts with #!, detects based on "interpreter"
     def interp :Option[String] = line0 match {
-      case text if (text startsWith "#!") =>
+      case text if (text `startsWith` "#!") =>
         // break #!/usr/bin/perl -w into tokens, filtering out known meaningless tokens
         val tokens = text.substring(2).split("[ /]").filterNot(skipToks)
         tokens.map(i => (i, interps.get(i))) collectFirst {
@@ -112,7 +112,7 @@ class PackageManager (log :Logger) extends AbstractService with PackageService {
   // }
 
   // private def fmt (iter :JIterable[_]) :String = iter.asScala.mkString(", ")
-  private def fmt (iter :Iterable[_]) :String = (iter.map {
+  private def fmt (iter :Iterable[?]) :String = (iter.map {
     case (k, v) => s"$k=$v"
     case v      => v
   }).mkString(", ")
@@ -167,16 +167,16 @@ class PackageManager (log :Logger) extends AbstractService with PackageService {
 
   // private val metas = new HashMap[Source,ModuleMeta]()
 
-  private val serviceMap = new HashMap[String,Class[_]]()
-  private val majorMap = new HashMap[String,Class[_]]()
-  private val minorMap = new HashMap[String,Class[_]]()
+  private val serviceMap = new HashMap[String,Class[?]]()
+  private val majorMap = new HashMap[String,Class[?]]()
+  private val minorMap = new HashMap[String,Class[?]]()
   private def modeMap (major :Boolean) = if (major) majorMap else minorMap
 
   private val patterns   = ArrayBuffer[(Pattern,String)]()
   private val interps    = HashMultimap.create[String,String]()
   private val minorTags  = HashMultimap.create[String,String]()
 
-  private def registerService (clazz :Class[_]) :Unit = try {
+  private def registerService (clazz :Class[?]) :Unit = try {
     var meta = clazz.getAnnotation(classOf[Service])
     if (meta == null) throw new Exception("Missing @Service annotation " + clazz)
     if (meta.autoLoad) _autoloads :+= clazz
@@ -186,7 +186,7 @@ class PackageManager (log :Logger) extends AbstractService with PackageService {
     case e :Throwable => log.log(s"Failed to register service $clazz: $e")
   }
 
-  private def registerMajor (clazz :Class[_]) :Unit = try {
+  private def registerMajor (clazz :Class[?]) :Unit = try {
     var meta = clazz.getAnnotation(classOf[Major])
     if (meta == null) throw new Exception("Missing @Major annotation " + clazz)
     majorMap.put(meta.name, clazz)
@@ -201,7 +201,7 @@ class PackageManager (log :Logger) extends AbstractService with PackageService {
     case e :Throwable => log.log(s"Failed to register major mode $clazz: $e")
   }
 
-  private def registerMinor (clazz :Class[_]) :Unit = try {
+  private def registerMinor (clazz :Class[?]) :Unit = try {
     var meta = clazz.getAnnotation(classOf[Minor])
     if (meta == null) throw new Exception("Missing @Minor annotation " + clazz)
     minorMap.put(meta.name, clazz)

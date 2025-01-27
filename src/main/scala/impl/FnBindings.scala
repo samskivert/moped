@@ -62,9 +62,9 @@ class FnBindings (mode :Mode, errFn :(String => Unit)) {
   /** Returns the binding with the specified name, or `None`. */
   def binding (name :String) :Option[FnBinding] = _bindmap.get(name)
 
-  private[this] val _bindmap = bindings.map(b => (b.name, b)).toMap
+  private val _bindmap = bindings.map(b => (b.name, b)).toMap
 
-  private def extractBindings (clazz :Class[_]) :Seq[FnBinding] = {
+  private def extractBindings (clazz :Class[?]) :Seq[FnBinding] = {
     val bs = clazz.getDeclaredMethods.filter(_.getAnnotation(classOf[Fn]) != null).flatMap(
       FnBindings.toFnBinding(mode, errFn))
     if (clazz.getSuperclass != null) extractBindings(clazz.getSuperclass) ++ bs

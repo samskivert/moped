@@ -148,7 +148,7 @@ class ProjectSpace (val wspace :Workspace, val msvc :MetaService)
           toClose += client
           project.toClose += client.messages.onValue(project.emitStatus(_))
         }}
-        client onFailure project.exec.handleError
+        client `onFailure` project.exec.handleError
         Some(client)
       } catch {
         case t :Throwable => project.exec.handleError(t) ; None

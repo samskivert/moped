@@ -54,10 +54,10 @@ class MetaMode (env :Env) extends MinorMode(env) {
   override def configDefs = MetaConfig :: super.configDefs
 
   /** Queries the user for the name of a config var and invokes `fn` on the chosen var. */
-  def withConfigVar (fn :Config.VarBind[_] => Unit) :Unit = {
+  def withConfigVar (fn :Config.VarBind[?] => Unit) :Unit = {
     val vars = disp.modes.flatMap(m => m.varBindings)
     val comp = Completer.from(vars)(_.v.name)
-    window.mini.read("Var:", "", varHistory(wspace), comp) onSuccess fn
+    window.mini.read("Var:", "", varHistory(wspace), comp) `onSuccess` fn
   }
 
   //
@@ -110,7 +110,7 @@ class MetaMode (env :Env) extends MinorMode(env) {
         Completer.file(editor.exec)
     }
     window.mini.read("Find file:", buffer.store.parent, fileHistory(wspace),
-                     comp) onSuccess frame.visitFile
+                     comp) `onSuccess` frame.visitFile
   }
 
   @Fn("Reads a filename from the minibuffer and visits it in a buffer. The file need not exist.")
@@ -298,7 +298,7 @@ class MetaMode (env :Env) extends MinorMode(env) {
   @Fn("Toggles the activation of a minor mode.")
   def toggleMode () :Unit = {
     val comp = Completer.from(disp.minorModes)
-    window.mini.read("Mode:", "", modeHistory(wspace), comp) onSuccess disp.toggleMode
+    window.mini.read("Mode:", "", modeHistory(wspace), comp) `onSuccess` disp.toggleMode
   }
 
   @Fn("Opens the configuration file for the Moped editor in a buffer.")
@@ -308,13 +308,13 @@ class MetaMode (env :Env) extends MinorMode(env) {
   def editModeConfig () :Unit = {
     val comp = Completer.from(disp.modes)(_.name)
     val mname = disp.modes.last.name // default to major mode name
-    window.mini.read("Mode:", mname, modeHistory(wspace), comp) map(_.config) onSuccess(editConfig)
+    window.mini.read("Mode:", mname, modeHistory(wspace), comp) `map`(_.config) `onSuccess`(editConfig)
   }
 
   @Fn("Opens the configuration file for the specified service in a buffer.")
   def editServiceConfig () :Unit = {
     val comp = Completer.from(env.msvc.service[ConfigService].serviceConfigs)(_._1)
-    window.mini.read("Service:", "", serviceHistory, comp) map(_._2) onSuccess(editConfig)
+    window.mini.read("Service:", "", serviceHistory, comp) `map`(_._2) `onSuccess`(editConfig)
   }
 
   private def bufferHistory = window.historyRing("buffer")

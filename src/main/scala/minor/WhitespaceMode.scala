@@ -37,7 +37,7 @@ class WhitespaceMode (env :Env) extends MinorMode(env) {
     override protected def activate () :Unit = {
       // respond to buffer edits
       note(buffer.edited onValue { edit =>
-        queueRethink(edit.start.row until edit.end.row :_*)
+        queueRethink(edit.start.row until edit.end.row*)
       })
       // when the point moves, the line it left may now need highlighting and the line it moves to
       // may no longer need highlighting

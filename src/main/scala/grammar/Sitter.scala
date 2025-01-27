@@ -104,7 +104,7 @@ class Sitter (
   //   state
   // }
 
-  protected def isModeStyle (style :String) = style startsWith "code"
+  protected def isModeStyle (style :String) = style `startsWith` "code"
   private val allStyles = stylers.values.toSet
 
   // rethinks row; if end of row state changed, rethinks the next row as well; &c

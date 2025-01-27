@@ -145,7 +145,7 @@ object Moped {
     }
     // if there's already a Moped instance running, pass our args to it and exit; otherwise launch
     // our fully operational mothership
-    if (!sendFiles(args)) Application.launch(classOf[Moped], args :_*)
+    if (!sendFiles(args)) Application.launch(classOf[Moped], args*)
   }
 
   private def sendFiles (args :Array[String]) :Boolean = {

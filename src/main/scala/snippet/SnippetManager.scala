@@ -14,7 +14,7 @@ import moped._
 class SnippetManager (msvc :MetaService, editor :Editor)
     extends AbstractService with SnippetService {
 
-  private val userSnipCache = Mutable.cacheMap[(String,Path),Seq[Snippet]]((readDirSnips _).tupled)
+  private val userSnipCache = Mutable.cacheMap[(String,Path),Seq[Snippet]]((readDirSnips).tupled)
   private val SnippetsDir = "Snippets"
 
   override def didStartup () :Unit = {}

@@ -21,7 +21,7 @@ object ProjectConfig extends Config.Defs {
     case Severity.Error   => "noteErrorFace"
   }
 
-  def isNoteStyle (style :String) = style startsWith "note"
+  def isNoteStyle (style :String) = style `startsWith` "note"
 }
 
 /** A minor mode which provides fns for interacting with project files and services.
@@ -70,7 +70,7 @@ class ProjectMode (env :Env) extends MinorMode(env) {
   private def findFileIn (proj :Project) :Unit = {
     window.mini.read(
       s"Find file in project (${proj.name}):", "", proj.fileHistory, proj.files.completer
-    ) map(wspace.openBuffer) onSuccess(frame.visit(_))
+    ) `map`(wspace.openBuffer) `onSuccess`(frame.visit(_))
   }
 
   private def bufferNotes = project.notes(buffer.store)
@@ -105,7 +105,7 @@ class ProjectMode (env :Env) extends MinorMode(env) {
   note(env.mline.addDatum(project.status.map(_._1), project.status.map(s => s._2)))
 
   // forward project feedback to our window
-  note(project.feedback.onValue(_ fold((window.emitStatus _).tupled, window.emitError)))
+  note(project.feedback.onValue(_ fold((window.emitStatus).tupled, window.emitError)))
 
   // when new analysis notes are generated, stuff them into the visit list
   note(bufferNotes.onValue(notes => {
@@ -142,7 +142,7 @@ class ProjectMode (env :Env) extends MinorMode(env) {
     val exns = pspace.execs.executions
     if (exns.isEmpty) window.popStatus(s"${pspace.name} defines no executions.")
     else window.mini.read(s"Execute:", "", pspace.execHistory,
-                          Completer.from(exns)(_.name)) onSuccess execute
+                          Completer.from(exns)(_.name)) `onSuccess` execute
   }
 
   @Fn("""Reinvokes the last invoked execution.""")
@@ -200,7 +200,7 @@ class ProjectMode (env :Env) extends MinorMode(env) {
   @Fn("Removes a project from the current workspace.")
   def removeProject () :Unit = {
     val comp = Completer.from(pspace.allProjects)(_._2)
-    window.mini.read(s"Project:", "", projectHistory, comp) onSuccess(info => {
+    window.mini.read(s"Project:", "", projectHistory, comp) `onSuccess`(info => {
       val (root, name) = info
       pspace.removeProject(pspace.projectFor(root))
       window.popStatus(s"Removed '$name' from '${pspace.name}' workspace.")

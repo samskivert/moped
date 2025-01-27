@@ -98,7 +98,7 @@ object Grammar {
     def include (ref :String) :List[Matcher] = ref match {
       case "$self" => matchers
       case "$base" => matchers
-      case group if (group startsWith "#") => cache.get(group substring 1) match {
+      case group if (group `startsWith` "#") => cache.get(group `substring` 1) match {
         case null => log.log(s"Unknown include [grammar=${grammar.name}, group=$group]") ; Nil
         case ms   => ms
       }

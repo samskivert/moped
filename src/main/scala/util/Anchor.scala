@@ -50,8 +50,8 @@ class Anchor private[util] (initLoc :Loc) extends Comparable[Anchor] {
     _isDeleted
   }
 
-  private[this] var _loc = initLoc
-  private[this] var _isDeleted = false
+  private var _loc = initLoc
+  private var _isDeleted = false
 }
 
 /** Anchor stuffs. */
@@ -64,9 +64,9 @@ object Anchor {
     */
   class Set (buffer :RBuffer) extends Closeable {
 
-    private[this] val _anchors = new ArrayList[Anchor]()
+    private val _anchors = new ArrayList[Anchor]()
 
-    private[this] val _conn = buffer.edited onValue {
+    private val _conn = buffer.edited onValue {
       case Buffer.Insert(start, end) =>
         val iter = _anchors.iterator
         while (iter.hasNext) iter.next.onInsert(start, end)

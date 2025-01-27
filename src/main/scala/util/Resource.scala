@@ -33,7 +33,7 @@ abstract class Resource {
     * resource has been modified. */
   def toProperty[T] (parser :Resource => T) :PropertyV[T] = new PropertyV[T] {
     private var lastLoaded = 0L
-    private var value :T = _
+    private var value :T | Null = null
 
     override def apply () = get
     override def get :T = {
@@ -42,7 +42,7 @@ abstract class Resource {
         lastLoaded = lastModified
         value = parser(Resource.this)
       }
-      value
+      value.nn
     }
   }
 

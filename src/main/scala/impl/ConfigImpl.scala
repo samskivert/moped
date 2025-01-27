@@ -73,7 +73,7 @@ class ConfigImpl (name :String, val file :Path, val scope :Config.Scope,
     Mutable.getOrPut(_vals, key, new ConfigValue(key)).asInstanceOf[ConfigValue[T]]
 
   private class ConfigValue[T] (key :Config.Key[T]) {
-    var conn :Connection = _
+    var conn :Connection = null
     val value = Value[T](null.asInstanceOf[T])
     reset()
 
@@ -91,6 +91,6 @@ class ConfigImpl (name :String, val file :Path, val scope :Config.Scope,
     }
   }
 
-  private[this] val _vars = defs.flatMap(_.vars).map(s => (s.name, s)).toMap // String -> Config.Var[_]
-  private[this] val _vals = new HashMap[Config.Key[_],ConfigValue[_]]()
+  private val _vars = defs.flatMap(_.vars).map(s => (s.name, s)).toMap // String -> Config.Var[_]
+  private val _vals = new HashMap[Config.Key[?],ConfigValue[?]]()
 }

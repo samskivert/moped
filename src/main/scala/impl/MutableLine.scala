@@ -53,7 +53,7 @@ class MutableLine (buffer :BufferImpl, cs :Array[Char], xs :Array[Syntax],
   protected var _syns = xs
   protected def _tags = tags
   protected def _ltags = ltags
-  private[this] var _end = cs.length
+  private var _end = cs.length
 
   override def length = _end
   override def view (start :Int, until :Int) = new Line(

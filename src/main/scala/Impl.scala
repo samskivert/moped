@@ -17,7 +17,7 @@ object Impl {
     val priority :Int
   ) extends Connection {
     /** The next connection in our chain. */
-    var next :Link = _
+    var next :Link = null
     /** Indicates whether this connection is one-shot or persistent. */
     var oneShot :Boolean = false
 
@@ -34,7 +34,7 @@ object Impl {
   }
 
   abstract class Runs extends Runnable {
-    var next :Runs = _
+    var next :Runs = null
   }
 
   final val DISPATCHING = new Link(null, 0)

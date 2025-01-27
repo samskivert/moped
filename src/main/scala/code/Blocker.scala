@@ -32,7 +32,7 @@ class Blocker (buffer :BufferV, openers :String, closers :String) {
     findOpener.reset(syntax)
     findCloser.reset(syntax)
     // if the character immediately prior to `loc` is a close bracket; return that block
-    val pcidx = if (scol == 0 || !(buffer.syntaxAt(Loc(srow, scol-1)) matches syntax)) -1
+    val pcidx = if (scol == 0 || !(buffer.syntaxAt(Loc(srow, scol-1)) `matches` syntax)) -1
                 else closers.indexOf(buffer.charAt(loc.prevC))
     if (pcidx >= 0) {
       val start = buffer.scanBackward(findOpener, loc.prevC)
@@ -63,16 +63,16 @@ class Blocker (buffer :BufferV, openers :String, closers :String) {
   class Scanner (starts :String, ends :String) extends Function2[Char,Syntax,Boolean] {
     val counts = new Array[Int](starts.length)
     val zeros = counts.clone()
-    private[this] var syntax = Syntax.Default
+    private var syntax = Syntax.Default
 
     def apply (c :Char, cs :Syntax) :Boolean = {
       // if we see a block starter, tick up a counter for that bracket
       val sidx = starts.indexOf(c)
-      if (sidx >= 0 && (cs matches syntax)) counts(sidx) += 1
+      if (sidx >= 0 && (cs `matches` syntax)) counts(sidx) += 1
       else {
         // if we see a block ender, tick down the counter for that bracket
         val eidx = ends.indexOf(c)
-        if (eidx >= 0 && (cs matches syntax)) {
+        if (eidx >= 0 && (cs `matches` syntax)) {
           val cur = counts(eidx)
           // if we haven't seen a starter for this opener, it's what we're looking for
           if (cur == 0) return true

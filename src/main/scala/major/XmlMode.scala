@@ -143,11 +143,11 @@ class XmlIndenter (cfg :Config) extends Indenter.ByState(cfg) {
   }
 
   // line parser state; reset on each call to parse()
-  private[this] val name = new StringBuilder()
-  private[this] var cs :CharSequence = _
-  private[this] var len = 0
-  private[this] var top :State = _
-  private[this] var startTop :State = _
+  private val name = new StringBuilder()
+  private var cs :CharSequence = null
+  private var len = 0
+  private var top :State = null
+  private var startTop :State = null
 
   // state:
   // 0 - between tags
@@ -155,9 +155,9 @@ class XmlIndenter (cfg :Config) extends Indenter.ByState(cfg) {
   // 2 - parsed name, ignoring rest of tag
   // 3 - in string
   // 4 - in comment
-  private[this] var pos = 0
-  private[this] var isClose = false
-  private[this] var isProc = false
+  private var pos = 0
+  private var isClose = false
+  private var isProc = false
 
   // this assumes pos is incremented *before* calling step()
   private def peek :Char = if (pos >= len) 0 else cs.charAt(pos)

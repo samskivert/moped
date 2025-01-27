@@ -126,7 +126,7 @@ class SignalV[+T] extends Reactor {
         } catch {
           case t :Throwable =>
             if (err == null) err = new ReactionException()
-            err addSuppressed t
+            err `addSuppressed` t
         }
         if (cons.oneShot) cons.close()
         cons = cons.next
@@ -147,7 +147,7 @@ private abstract class DelegateSignalV[D,T] (parent :SignalV[D]) extends SignalV
   // so we're safe in checking and mutating _conn
   override protected def connectionAdded () :Unit = {
     super.connectionAdded()
-    if (_conn == null) _conn = parent.onValue(onParentValue _)
+    if (_conn == null) _conn = parent.onValue(onParentValue)
   }
   override protected def connectionRemoved () :Unit = {
     super.connectionRemoved()
@@ -156,5 +156,5 @@ private abstract class DelegateSignalV[D,T] (parent :SignalV[D]) extends SignalV
       _conn = null
     }
   }
-  protected var _conn :Connection = _
+  protected var _conn :Connection = null
 }

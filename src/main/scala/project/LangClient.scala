@@ -86,7 +86,7 @@ abstract class LangClient (
     }
   }
 
-  protected def langServerClass :Class[_] = classOf[LanguageServer]
+  protected def langServerClass :Class[?] = classOf[LanguageServer]
 
   /** A proxy for talking to the server. */
   def server = serverV()

@@ -102,7 +102,7 @@ class ZipFiler (zipPaths :Seq[Path]) extends Filer {
     import Completer._
     def complete (prefix :String) = Future.success({
       val comps = splitPath(prefix)
-      val pathpre = (if (prefix endsWith "/") comps else comps.dropRight(1)).mkString
+      val pathpre = (if (prefix `endsWith` "/") comps else comps.dropRight(1)).mkString
       val matches = rootNodes.flatMap { root =>
         root.lookup(comps).filter(startsWithI(comps.last)).map(
           m => ZipEntryStore(root.zipPath, pathpre + m))

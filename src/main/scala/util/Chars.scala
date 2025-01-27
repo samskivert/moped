@@ -92,7 +92,7 @@ object Chars {
   }
 
   abstract class Pred extends Function1[Char,Boolean] with Function2[Char,Syntax,Boolean] {
-    private[this] val masks = new Array[Long](4)
+    private val masks = new Array[Long](4)
     private def computeMask (mm :Int) :Long = {
       var mask = 0L ; val off = mm*64 ; var ii = 0 ; while (ii < 64) {
         if (slowApply((off+ii).toChar)) mask |= (1L << ii) ; ii += 1

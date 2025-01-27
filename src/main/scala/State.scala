@@ -34,7 +34,7 @@ abstract class StateV extends Describable {
     req(tag.runtimeClass.asInstanceOf[Class[T]], msg)
 
   /** Returns the keys for all currently defined state. */
-  def keys :Set[Class[_]]
+  def keys :Set[Class[?]]
 
   /** Adds a description of this state to `bb`. */
   def describeSelf (bb :BufferBuilder) :Unit = {
@@ -79,13 +79,13 @@ abstract class State extends StateV {
   * state which maps to a reactive value which optionally holds an instance of the class. This is
   * used to maintain per-editor and per-buffer state maps.
   */
-class RState (inits :State.Init[_]*) extends State {
+class RState (inits :State.Init[?]*) extends State {
 
   /** A signal emitted when a new type of state is added. */
-  val keyAdded = Signal[Class[_]]()
+  val keyAdded = Signal[Class[?]]()
 
   /** A signal emitted when a type of state that was mapped is cleared. */
-  val keyCleared = Signal[Class[_]]()
+  val keyCleared = Signal[Class[?]]()
 
   /** Returns the state value associated with the specified type, if any. */
   def apply[T] (key :Class[T]) :OptValue[T] = _states.get(key).asInstanceOf[OptValue[T]]
@@ -95,7 +95,7 @@ class RState (inits :State.Init[_]*) extends State {
     apply(tag.runtimeClass.asInstanceOf[Class[T]])
 
   /** Returns the keys for all currently defined state. */
-  def keys :Set[Class[_]] = _states.asMap.keySet.asScala.filter(key => apply(key).isDefined).toSet
+  def keys :Set[Class[?]] = _states.asMap.keySet.asScala.filter(key => apply(key).isDefined).toSet
 
   override def get[T] (key :Class[T]) = apply(key).getOption
   override def get[T] (implicit tag :ClassTag[T]) = apply(tag).getOption
@@ -110,7 +110,7 @@ class RState (inits :State.Init[_]*) extends State {
 
   override def toString = keys.map(k => s"$k=${apply(k)}").toString
 
-  private val _states = Mutable.cacheMap { (key :Class[_]) =>
+  private val _states = Mutable.cacheMap { (key :Class[?]) =>
     val opt = new OptValue[Any](null) {
       override def emptyFail = throw new NoSuchElementException(s"No state for $key")
     }
@@ -139,8 +139,8 @@ object State {
   def init[T] (value :T) = new Init(value.getClass.asInstanceOf[Class[T]], value)
 
   /** Creates a state instance for a list of values, each with its class as key. */
-  def inits (values :Any*) :List[State.Init[_]] = {
-    val lb = List.newBuilder[State.Init[_]]
+  def inits (values :Any*) :List[State.Init[?]] = {
+    val lb = List.newBuilder[State.Init[?]]
     values foreach { lb += init(_) }
     lb.result()
   }

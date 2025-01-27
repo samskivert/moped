@@ -106,7 +106,7 @@ class Future[+T] protected (_result :ValueV[Try[T]]) {
     * on the supplied executor. */
   def via (exec :Executor) = new Future(_result.via(exec))
 
-  private def foreachFailure (t :Try[_], slot :Throwable => Unit) = t match {
+  private def foreachFailure (t :Try[?], slot :Throwable => Unit) = t match {
     case Failure(e) => slot(e)
     case _          => // nada
   }
@@ -142,7 +142,7 @@ object Future {
             case Success(v) => _results(idx) = v
             case Failure(e) =>
               if (_err == null) _err = new ReactionException()
-              _err addSuppressed e
+              _err `addSuppressed` e
           }
           _remain -= 1
           if (_remain == 0) {
@@ -151,9 +151,9 @@ object Future {
             else pseq.succeed(ArraySeq.unsafeWrapArray(_results).asInstanceOf[Seq[T]])
           }
         }
-        private[this] val _results = Array.ofDim[Any](futures.size)
-        private[this] var _remain :Int = futures.size
-        private[this] var _err :ReactionException = _
+        private val _results = Array.ofDim[Any](futures.size)
+        private var _remain :Int = futures.size
+        private var _err :ReactionException = null
       }
       val seq = new Sequencer()
       var ii = 0

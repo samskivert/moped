@@ -22,7 +22,7 @@ object Filer {
     /** Returns the current value (loaded lazily). */
     def apply () :T = {
       if (_value == null) read()
-      _value
+      _value.nn
     }
     /** Replaces the current value with `value`, and [[write]]s it. */
     def update (value :T) :Unit = {
@@ -43,7 +43,7 @@ object Filer {
     }
     /** Writes the current value to the backing file. */
     def write () :Unit = try {
-      if (_value != null) Files.write(path, encode(_value).asJava, StandardCharsets.UTF_8)
+      if (_value != null) Files.write(path, encode(_value.nn).asJava, StandardCharsets.UTF_8)
     } catch {
       case e :Exception => e.printStackTrace(System.err)
     }
@@ -51,7 +51,7 @@ object Filer {
     protected def decode (lines :Iterable[String]) :T
     protected def encode (value :T) :Iterable[String]
 
-    private var _value :T = _
+    private var _value :T | Null = null
   }
 
   /** Creates a [[FileDB]] with the specified encoder and decoder fns. */

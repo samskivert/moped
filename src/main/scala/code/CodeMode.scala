@@ -240,7 +240,7 @@ abstract class CodeMode (env :Env) extends EditingMode(env) {
       // compute the longest shared prefix among our available completions
       val longestPrefix = Completer.longestPrefix(choices.map(_.label))
       val typedPrefix = buffer.line(comp.start).sliceString(startCol, endCol)
-      val atLongest = typedPrefix equalsIgnoreCase longestPrefix
+      val atLongest = typedPrefix `equalsIgnoreCase` longestPrefix
       // if the prefix in the buffer is itself a prefix of the longest prefix (meaning we're not
       // doing funny interspersed letter matching), and the longest prefix is longer than the
       // prefix in the buffer, then extend to the longest prefix
@@ -319,7 +319,7 @@ abstract class CodeMode (env :Env) extends EditingMode(env) {
     view.point() = pend // move the point to the end of the to-be-completed prefix
     if (activeComp != null) clearActiveComp()
     completer.completeAt(window, buffer, pstart, pend).
-      onFailure(window.emitError _).
+      onFailure(window.emitError).
       onSuccess(comp => if (!comp.choices.isEmpty) activeComp = new ActiveComp(comp))
   }
 

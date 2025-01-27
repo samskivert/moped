@@ -46,7 +46,7 @@ abstract class GrammarTextMode (env :Env) extends TextMode(env) {
     * this method to additionally return true for your styles (by perhaps keeping all your styles
     * in a set and checking the style for inclusion in that set).
     */
-  protected def isModeStyle (style :String) = style startsWith "text"
+  protected def isModeStyle (style :String) = style `startsWith` "text"
 
   private def mkProcs (plugin :GrammarPlugin) =
     if (plugin.effacers.isEmpty) Nil else List(new Selector.Processor(plugin.effacers) {

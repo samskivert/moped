@@ -60,7 +60,7 @@ object Close {
     */
   abstract class Ref[T >: Null] (bag :Bag) extends AutoCloseable {
 
-    private[this] var _contents :T = null
+    private var _contents :T = null
 
     /** Creates (if necessary) and returns the referent. */
     def get :T = synchronized {

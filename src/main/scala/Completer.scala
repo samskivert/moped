@@ -130,7 +130,7 @@ abstract class Completer[T] {
     // normal case: extending an existing match
     else if (refines(prefix, oglob)) Future.success(comp.refine(prefix))
     // backspace case: new glob is prefix of old glob
-    else if (oglob startsWith prefix) {
+    else if (oglob `startsWith` prefix) {
       // if we're still within our root glob, refine from there
       if (refines(prefix, comp.root.glob)) Future.success(comp.root.refine(prefix))
       // otherwise we need to generate a new completion
@@ -254,7 +254,7 @@ object Completer {
 
   /** Returns the longest shared prefix of `a` and `b`. Matches case loosely, using uppercase
     * only when both strings have the character in uppercase, lowercase otherwise. */
-  def sharedPrefix (a :String, b :String) = if (b startsWith a) a else {
+  def sharedPrefix (a :String, b :String) = if (b `startsWith` a) a else {
     val buf = new StringBuilder
     @inline @tailrec def loop (ii :Int) :Unit = {
       if (ii < a.length && ii < b.length) {
@@ -313,7 +313,7 @@ object Completer {
     class FileFuzzyMatch (glob :String) extends IFuzzyMatch(glob) {
       // sort dot files after non-dot-files
       override def compare (a :String, b :String) = {
-        val adot = a startsWith "." ; val bdot = b startsWith "."
+        val adot = a `startsWith` "." ; val bdot = b `startsWith` "."
         if (adot == bdot) super.compare(a, b)
         else if (adot) 1 else -1
       }
@@ -346,7 +346,7 @@ object Completer {
 
     private def grok (pathstr :String) :(String,Path,Boolean) = {
       val path = Paths.get(pathstr) ; val fname = path.getFileName
-      val endInSep = pathstr endsWith fileSep
+      val endInSep = pathstr `endsWith` fileSep
       if (fname != null && fname.toString == "~") {
         val home = Paths.get(System.getProperty("user.home"))
         (s"$home${fileSep}", home, true)

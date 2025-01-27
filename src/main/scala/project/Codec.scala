@@ -24,7 +24,7 @@ class CodecImpl (private val idSep :String, private val rootSep :String) {
   }
 
   /** Reads an [[Id]] from `string`. `string` must be the result of a call to [[showId]]. */
-  def readId (string :String) :Option[Id] = try string charAt(0) match {
+  def readId (string :String) :Option[Id] = try string `charAt`(0) match {
     case 'r' => {
       val Array(id, repo, groupId, artifId, vers) = string.split(idSep, 5)
       Some(RepoId(repo, groupId, artifId, vers))

@@ -32,7 +32,7 @@ class WindowImpl (val stage :Stage, ws :WorkspaceImpl, defWidth :Int, defHeight 
   class FrameImpl extends BorderPane with Frame {
     var toClose = Close.bag()
     var onStale = Connection.Noop
-    var disp :DispatcherImpl = _
+    var disp :DispatcherImpl = null
     var prevStore :Option[Store] = None // this also implements 'def prevStore' in Frame
 
     def focus () :Unit = {
@@ -47,12 +47,12 @@ class WindowImpl (val stage :Stage, ws :WorkspaceImpl, defWidth :Int, defHeight 
       if (disp != null && buf == view.buffer) view else {
         // create the modeline and add some default data before anyone else sneaks in
         val mline = new ModeLineImpl()
-        mline.addDatum(buf.dirtyV map(if (_) " *" else " -"), Value("* Indicates unsaved changes"))
+        mline.addDatum(buf.dirtyV `map`(if (_) " *" else " -"), Value("* Indicates unsaved changes"))
         mline.addDatum(buf.nameV, Value("Name of the current buffer"))
 
         val view = new BufferViewImpl(WindowImpl.this, buf, defWidth, defHeight)
         // TODO: move this to LineNumberMode? (and enable col number therein)
-        mline.addDatum(view.point map(p => s" L${p.row+1} C${p.col} "), Value("Current line number"))
+        mline.addDatum(view.point `map`(p => s" L${p.row+1} C${p.col} "), Value("Current line number"))
         // add "*" to our list of tags as this is a "real" buffer; we want global minor modes, but
         // we don't want non-real buffers (like the minimode buffer) to have global minor modes
         val tags = "*" :: Mode.tagsHint(buf.state)
@@ -271,7 +271,7 @@ class WindowImpl (val stage :Stage, ws :WorkspaceImpl, defWidth :Int, defHeight 
 
   // we manage focus specially, via this reactive value
   private val _focus = Value[FrameImpl](_frame)
-  _focus onValue onFocusChange
+  _focus `onValue` onFocusChange
 
   private def onFocusChange (frame :FrameImpl) :Unit = {
     frame.focus()

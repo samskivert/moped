@@ -23,7 +23,7 @@ abstract class ValueV[T] extends ValueReactor[T] with PropertyV[T] {
     * connection to this value for as long as it has connections of its own.
     */
   def map[M] (f :T => M) :ValueV[M] = new DelegateValueV[T,M](this) {
-    private[this] var mapped = f(parent.get)
+    private var mapped = f(parent.get)
     override def get = mapped
     override def onParentChange (value :T, ovalue :T) = {
       val omapped = mapped
@@ -60,7 +60,7 @@ abstract class ValueV[T] extends ValueReactor[T] with PropertyV[T] {
           _conn = null
         }
       }
-      protected var _conn :Connection = _
+      protected var _conn :Connection = null
     }
   }
 
@@ -72,7 +72,7 @@ abstract class ValueV[T] extends ValueReactor[T] with PropertyV[T] {
   override def equals (other :Any) = {
     if (other == null) false
     else if (other.getClass != getClass) false
-    else get == other.asInstanceOf[ValueV[_]].get
+    else get == other.asInstanceOf[ValueV[?]].get
   }
 
   override def toString :String = s"$shortClassName($get)"
@@ -125,5 +125,5 @@ private abstract class DelegateValueV[D,T] (protected val parent :ValueV[D]) ext
       _conn = null
     }
   }
-  protected var _conn :Connection = _
+  protected var _conn :Connection = null
 }

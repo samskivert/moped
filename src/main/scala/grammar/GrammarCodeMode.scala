@@ -52,7 +52,7 @@ abstract class GrammarCodeMode (env :Env) extends CodeMode(env) {
     * additionally return true for your styles (by perhaps keeping all your styles in a set and
     * checking the style for inclusion in that set).
     */
-  protected def isModeStyle (style :String) = style startsWith "code"
+  protected def isModeStyle (style :String) = style `startsWith` "code"
 
   private def mkProcs (plugin :GrammarPlugin) = {
     val procs = List.newBuilder[Selector.Processor]

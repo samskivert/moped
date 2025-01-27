@@ -37,7 +37,7 @@ class MiniReadMode[T] (
       _refreshConn = Closeable.Noop
     })
   }
-  buffer.edited onEmit queueRefresh
+  buffer.edited `onEmit` queueRefresh
 
   private var nonHistoryText = current
   private var historyAge = -1

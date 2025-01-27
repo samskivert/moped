@@ -84,7 +84,7 @@ abstract class Mode (env :Env) {
   def configDefs :List[Config.Defs] = Nil
 
   /** Returns bindings for all of this mode's vars. */
-  def varBindings :List[Config.VarBind[_]] = configDefs.flatMap(_.vars).map(
+  def varBindings :List[Config.VarBind[?]] = configDefs.flatMap(_.vars).map(
     v => Config.VarBind(this, v))
 
   /** Returns the URL for any custom stylesheets associated with this mode. These should be bundled
@@ -157,7 +157,7 @@ abstract class Mode (env :Env) {
     */
   protected def addBehavior (key :Config.Key[Boolean], behavior :Behavior) :Unit = {
     // bind behavior's activation to the specified config key
-    note(config.value(key) onValueNotify behavior.setActive)
+    note(config.value(key) `onValueNotify` behavior.setActive)
     note(behavior) // deactivate the behavior (if active) when we're disposed
   }
 
@@ -184,7 +184,7 @@ abstract class Mode (env :Env) {
   /** A helper for creating key bindings. */
   protected def bind (trigger :String, fn :String) = Key.Binding(trigger, fn)
 
-  private[this] val _toClose = Close.bag()
+  private val _toClose = Close.bag()
 }
 
 /** [[Mode]] related statics. */

@@ -46,21 +46,21 @@ class BufferImpl private (initStore :Store) extends RBuffer {
   // TODO: character encoding
   // TODO: line endings
 
-  private[this] val _lines = ArrayBuffer[MutableLine]()
-  private[this] val _name = Value(initStore.name)
-  private[this] val _store = Value(initStore)
-  private[this] val _mark = Value(None :Option[Loc])
-  private[this] val _editable = Value(true)
-  private[this] val _dirty = Value(false)
-  private[this] val _willSave = Signal[Buffer]()
-  private[this] val _stale = Signal[Buffer]()
-  private[this] val _killed = Signal[Buffer]()
-  private[this] val _edited = Signal[Edit]()
-  private[this] val _lineStyled = Signal[Loc]()
+  private val _lines = ArrayBuffer[MutableLine]()
+  private val _name = Value(initStore.name)
+  private val _store = Value(initStore)
+  private val _mark = Value(None :Option[Loc])
+  private val _editable = Value(true)
+  private val _dirty = Value(false)
+  private val _willSave = Signal[Buffer]()
+  private val _stale = Signal[Buffer]()
+  private val _killed = Signal[Buffer]()
+  private val _edited = Signal[Edit]()
+  private val _lineStyled = Signal[Loc]()
 
   /** The "expected" last modified time of this buffer's backing store (if any).
     * Used to detect files changed by external programs. */
-  private[this] var _lastModified :Long = initStore.lastModified
+  private var _lastModified :Long = initStore.lastModified
 
   val undoStack = new UndoStack(this)
 
@@ -138,7 +138,7 @@ class BufferImpl private (initStore :Store) extends RBuffer {
     val end = _lines(loc.row).insert(loc, line)
     noteInsert(loc, end)
   }
-  override def insert (loc :Loc, region :Iterable[_ <: LineV]) :Loc = region.size match {
+  override def insert (loc :Loc, region :Iterable[? <: LineV]) :Loc = region.size match {
     case 0 => loc
     case 1 => insert(loc, region.head)
     case _ =>
@@ -185,7 +185,7 @@ class BufferImpl private (initStore :Store) extends RBuffer {
     dline
   }
 
-  override def replace (start :Loc, until :Loc, lines :Iterable[_ <: LineV]) :Loc = {
+  override def replace (start :Loc, until :Loc, lines :Iterable[? <: LineV]) :Loc = {
     if (until < start) replace(until, start, lines) else {
       // if this is an exact replacement, handle it specially; this is mainly for efficient undoing
       // of transforms; overkill perhaps, but whatever, it's four lines of code

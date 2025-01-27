@@ -82,9 +82,9 @@ object Selector {
       var ii = 0 ; var ll = _curmstrs.size ; while (ii < ll) {
         val exmstr = _curmstrs(ii)
         // if it starts with us, then we're subsumed; abort abort!
-        if (exmstr startsWith mstr) return
+        if (exmstr `startsWith` mstr) return
         // if we start with it, then it's subsumed
-        if (mstr startsWith exmstr) {
+        if (mstr `startsWith` exmstr) {
           _curfns.remove(ii) ; _curmstrs.remove(ii)
           ii -= 1 ; ll -= 1
         }
@@ -97,12 +97,12 @@ object Selector {
     private val _curfns = ArrayBuffer[Fn]()
     private val _curmstrs = ArrayBuffer[String]()
     private var _curdepth = -1
-    private[this] val addMatchFn = addMatch(_, _, _)
+    private val addMatchFn = addMatch(_, _, _)
   }
 
   /** Parses a selector description.
     * @see http://manual.macromates.com/en/scope_selectors.html */
-  def parse (selstr :String) :Selector = selstr split(",") map(_.trim) match {
+  def parse (selstr :String) :Selector = selstr `split`(",") map(_.trim) match {
     case Array(selstr) => parse0(selstr)
     case selstrs => new Any(List.from(selstrs).map(parse0))
     null
@@ -137,7 +137,7 @@ object Selector {
     override def checkMatch (scopes :List[String], fn :Fn, onMatch :OnMatchFn) :Boolean = {
       var ss = scopes ; var ps = pres ; var depth = -1
       while (!ss.isEmpty && !ps.isEmpty) {
-        if (ss.head startsWith ps.head) {
+        if (ss.head `startsWith` ps.head) {
           if (depth == -1) depth = ss.length
           if (ps.tail.isEmpty) {
             onMatch(fn, ps.head, depth)

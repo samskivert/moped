@@ -72,7 +72,7 @@ abstract class Funnel[-V] extends (V => Unit) {
 object Pipe {
 
   /** Returns a reference to the pipe for the process executing on this thread, or null. */
-  def current :Pipe[_] = curpipe.get
+  def current :Pipe[?] = curpipe.get
 
   /** Creates a "funnel" into the currently executing process's pipe. When a value is applied to the
     * funnel, `f` will be invoked on the value in the currently executing process's execution
@@ -83,5 +83,5 @@ object Pipe {
     def funnel [V] (f :V => Unit) :Funnel[V]
   }
 
-  private[moped] val curpipe = new ThreadLocal[Impl[_]]()
+  private[moped] val curpipe = new ThreadLocal[Impl[?]]()
 }

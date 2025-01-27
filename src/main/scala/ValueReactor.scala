@@ -97,7 +97,7 @@ abstract class ValueReactor[T] extends Reactor {
         } catch {
           case t :Throwable =>
             if (err == null) err = new ReactionException()
-            err addSuppressed t
+            err `addSuppressed` t
         }
         if (cons.oneShot) cons.close()
         cons = cons.next

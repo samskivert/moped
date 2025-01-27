@@ -27,10 +27,10 @@ class DispatcherImpl (window :WindowImpl, resolver :ModeResolver, view :BufferVi
   private val _willInvoke = Signal[String]()
   private val _didInvoke = Signal[String]()
   private val _didHandle = Signal[String]()
-  private var _curFn :String = _
-  private var _prevFn :String = _
+  private var _curFn :String = null
+  private var _prevFn :String = null
 
-  private var _majorMeta :MajorModeMeta = _
+  private var _majorMeta :MajorModeMeta = null
   private val _minors = Value[Seq[MinorMode]](Seq.empty)
   private var _metas = List[ModeMeta]() // the stack of active modes (major last)
   private var _prefixes = Set[Seq[KeyPress]]() // union of cmd prefixes from active modes' keymaps

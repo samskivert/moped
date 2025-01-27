@@ -11,8 +11,11 @@ lazy val osName = System.getProperty("os.name") match {
 lazy val root = project.in(file(".")).settings(
   name := "Moped",
   version := "0.1.0-SNAPSHOT",
-  scalaVersion := "3.4.2",
+  scalaVersion := "3.6.3",
   scalacOptions += "-deprecation",
+  scalacOptions += "-rewrite",
+  scalacOptions += "-source",
+  scalacOptions += "3.4-migration",
   fork := true,
 
   resolvers += "Local Maven Repository" at Path.userHome.asFile.toURI.toURL + ".m2/repository",

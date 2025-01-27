@@ -85,7 +85,7 @@ object Matcher {
     //
     // implementation details
 
-    private[this] var lastPos = 0
+    private var lastPos = 0
 
     def onMatch (didAdvance :Boolean) :Unit = {
       // if we advanced the scan position, clear the skipped matchers set
@@ -139,8 +139,8 @@ object Matcher {
   class Pattern (regexp :String, p :JPattern, captures :List[(Int,String)]) {
     // we use transparent bounds so that things like word boundary detection works properly even
     // when we restrict a pattern to a sub-region of a string
-    private[this] val m = p.matcher("").useTransparentBounds(true)
-    private[this] val fullLine = regexp startsWith "^"
+    private val m = p.matcher("").useTransparentBounds(true)
+    private val fullLine = regexp `startsWith` "^"
 
     def apply (line :LineV, start :Int) :Boolean = if (fullLine && start != 0) false else {
       m.reset(line)
@@ -245,7 +245,7 @@ object Matcher {
   class Multi (var id :String, open :Pattern, close :Pattern, name :Option[String],
                contentName :Option[String], contentMatchers :List[Matcher]) extends Matcher {
 
-    private[this] val contentEnd = new Matcher() {
+    private val contentEnd = new Matcher() {
       def id = s"${Multi.this.id}:close"
       def apply (state :Matcher.State, line :LineV, start :Int) = {
         applyFirst(contentMatchers, state, line, start) match {

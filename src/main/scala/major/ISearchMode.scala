@@ -34,7 +34,7 @@ class ISearchMode (
         showMatches(matches, sought)
       }
     }
-    matchesF.onSuccess(setMatches _)
+    matchesF.onSuccess(setMatches)
 
     /** The location to place the point when this state is active. */
     def point :Loc = if (fwd) end else start
@@ -174,7 +174,7 @@ class ISearchMode (
       }
     }
   }
-  buffer.edited onEmit queueRefresh
+  buffer.edited `onEmit` queueRefresh
 
   override def keymap = super.keymap.
     // we don't inherit normal editing commands; we repeat a few essentials here and route all

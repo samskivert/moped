@@ -52,9 +52,9 @@ class ConfigManager (editor :Editor, log :Logger, watchSvc :WatchService)
       override def onCreate (dir :Path, name :String) = checkReload(name)
       override def onModify (dir :Path, name :String) = checkReload(name)
       protected def checkReload (name :String) :Unit = {
-        if (name endsWith FileSuff) {
+        if (name `endsWith` FileSuff) {
           val root = name dropRight FileSuff.length
-          if (root endsWith ModeSuff) {
+          if (root `endsWith` ModeSuff) {
             val mode = root dropRight ModeSuff.length
             Option(_modeConfigs.get(mode)) foreach { _.read(log) }
           } else if (root == EditorName) _editor.read(log)

@@ -61,7 +61,7 @@ class OptValue[T] protected (init :T) extends OptValueV[T] {
 
   protected def emptyFail :Nothing = throw new NoSuchElementException()
 
-  private[this] var _value :T = init
+  private var _value :T = init
 }
 
 /** Helper methods for values. */

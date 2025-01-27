@@ -42,8 +42,8 @@ class Plumbing[P] (exec :Executor, process : => P) extends Pipe.Impl[P] with Run
   override def req[R] (f :P => R) = {
     val p = Promise[R]()
     execute(new Runnable() {
-      override def run () = try p succeed f(_process)
-                            catch { case t :Throwable => p fail t }
+      override def run () = try p `succeed` f(_process)
+                            catch { case t :Throwable => p `fail` t }
     })
     p
   }
@@ -70,7 +70,7 @@ class Plumbing[P] (exec :Executor, process : => P) extends Pipe.Impl[P] with Run
     t.printStackTrace(System.err);
   }
 
-  private[this] def pop () = synchronized {
+  private def pop () = synchronized {
     val top = _ops.poll
     _active = (top != null)
     top
@@ -83,6 +83,6 @@ class Plumbing[P] (exec :Executor, process : => P) extends Pipe.Impl[P] with Run
   }
 
   // we only manipulate these in push() and pop(), which are synchronized
-  private[this] var _active :Boolean = false
-  private[this] val _ops = new ArrayDeque[Runnable]()
+  private var _active :Boolean = false
+  private val _ops = new ArrayDeque[Runnable]()
 }

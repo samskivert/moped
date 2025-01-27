@@ -12,12 +12,12 @@ object LineV {
 
   /** A ordering that sorts lines lexically, sensitive to case. */
   implicit val ordering :Ordering[LineV] = new Ordering[LineV]() {
-    def compare (a :LineV, b :LineV) :Int = a compare b
+    def compare (a :LineV, b :LineV) :Int = a `compare` b
   }
 
   /** A ordering that sorts lines lexically, insensitive to case. */
   val orderingIgnoreCase = new Ordering[LineV]() {
-    def compare (a :LineV, b :LineV) :Int = a compareIgnoreCase b
+    def compare (a :LineV, b :LineV) :Int = a `compareIgnoreCase` b
   }
 
   /** A character comparator function that sorts upper before lower case. */
@@ -73,10 +73,10 @@ abstract class LineV extends CharSequence {
   def tagAt[T] (tclass :Class[T], pos :Int, dflt :T) :T = _tags.tagAt(tclass, pos, dflt)
 
   /** Returns all tags which overlap `pos`. */
-  def tagsAt (pos :Int) :List[Tag[_]] = _tags.tagsAt(pos)
+  def tagsAt (pos :Int) :List[Tag[?]] = _tags.tagsAt(pos)
 
   /** Returns all tags on this line as a list. */
-  def tags :List[Tag[_]] = _tags.tags
+  def tags :List[Tag[?]] = _tags.tags
 
   /** Visits tags which match `tclass` in order. `vis` will be called for each region which contains
     * a unique set of tags (including no tags). In the case of overlapping tags, the overlapping
@@ -426,7 +426,7 @@ object Line {
 
   /** Maintains a collection of line tags. */
   class TagSet (capacity :Int = 4) {
-    private[this] var _tags = new Array[Line.Tag](capacity)
+    private var _tags = new Array[Line.Tag](capacity)
 
     /** Returns the tag with the same key as `dflt`, or `dflt` if no matching tag is found. */
     def tag[T <: Line.Tag] (dflt :T) :T = {

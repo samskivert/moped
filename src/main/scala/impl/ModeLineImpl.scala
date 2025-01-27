@@ -15,8 +15,8 @@ class ModeLineImpl extends HBox(8) with ModeLine {
 
   def addDatum (value :ValueV[String], tooltip :ValueV[String]) :Closeable = {
     val label = new Label()
-    val vconn = value onValueNotify(label.setText)
-    val tconn = tooltip onValueNotify(tt => label.setTooltip(new Tooltip(tt)))
+    val vconn = value `onValueNotify`(label.setText)
+    val tconn = tooltip `onValueNotify`(tt => label.setTooltip(new Tooltip(tt)))
     getChildren.add(label)
     Closeable({
       getChildren.remove(label)

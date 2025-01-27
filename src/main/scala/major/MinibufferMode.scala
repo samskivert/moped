@@ -47,7 +47,7 @@ abstract class MiniUI {
   * Note: minibuffer mode names must start with the string `mini-`. For example: `mini-isearch`,
   * `mini-read`, etc.
   */
-abstract class MinibufferMode (env :Env, promise :Promise[_]) extends EditingMode(env) {
+abstract class MinibufferMode (env :Env, promise :Promise[?]) extends EditingMode(env) {
 
   override def keymap = super.keymap.
     // TODO: disable other commands (like save-buffer) or factor them out of editing mode? or

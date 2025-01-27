@@ -22,7 +22,7 @@ trait Region {
   def isEmpty = start >= end
 
   /** Clamps `loc` into this region. */
-  def clamp (loc :Loc) :Loc = (loc greater start) lesser end
+  def clamp (loc :Loc) :Loc = (loc `greater` start) `lesser` end
 
   /** Clamps `region` into this region. */
   def clamp (region :Region) :Region = {

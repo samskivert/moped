@@ -158,7 +158,7 @@ class SubProcess (config :SubProcess.Config, events :Signal[SubProcess.Event]) e
   override def toString = s"SubProcess(${config.cmd.mkString(" ")})"
 
   private lazy val process = {
-    val pb = new ProcessBuilder(config.cmd :_*)
+    val pb = new ProcessBuilder(config.cmd*)
     pb.directory(config.cwd.toFile)
     config.env foreach { (k, v) => pb.environment.put(k, v) }
     pb.start

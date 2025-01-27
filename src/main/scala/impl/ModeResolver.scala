@@ -34,7 +34,7 @@ abstract class ModeResolver (msvc :MetaService, window :Window, frame :Window#Fr
     else None
   }
 
-  protected def locate (major :Boolean, mode :String) :Class[_]
+  protected def locate (major :Boolean, mode :String) :Class[?]
   protected def configScope :Config.Scope
   protected def injectInstance[T] (clazz :Class[T], args :List[Any]) :T
 

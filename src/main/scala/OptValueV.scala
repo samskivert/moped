@@ -53,7 +53,7 @@ abstract class OptValueV[T] extends ValueReactor[Option[T]] {
           _conn = null
         }
       }
-      protected var _conn :Connection = _
+      protected var _conn :Connection = null
     }
   }
 
@@ -73,7 +73,7 @@ abstract class OptValueV[T] extends ValueReactor[Option[T]] {
           _conn = null
         }
       }
-      protected var _conn :Connection = _
+      protected var _conn :Connection = null
     }
   }
 
@@ -82,7 +82,7 @@ abstract class OptValueV[T] extends ValueReactor[Option[T]] {
   override def equals (other :Any) = {
     if (other == null || other.getClass != getClass) false
     else {
-      val ov = other.asInstanceOf[OptValueV[_]]
+      val ov = other.asInstanceOf[OptValueV[?]]
       (isEmpty && ov.isEmpty) || (get == ov.get)
     }
   }

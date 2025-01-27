@@ -212,12 +212,12 @@ object CSharpPlugins {
 
       for (sln <- findSln(rootPath) ;
            slnLine <- Files.newBufferedReader(sln).lines.iterator.asScala) slnLine match {
-        case projRe(proj, path) if (path endsWith ".csproj") =>
+        case projRe(proj, path) if (path `endsWith` ".csproj") =>
           val csproj = rootPath.resolve(path.replace('\\', '/'))
           if (Files.exists(csproj)) addProject(csproj.getParent)
           else println("Invalid .csproj file? " + csproj)
           // case projRe(proj, path) => println("NOPE " + proj + " // " + path)
-        case line if (line startsWith "Project") => println("NOMATCH " + line)
+        case line if (line `startsWith` "Project") => println("NOMATCH " + line)
         case _ => // ignore
       }
 

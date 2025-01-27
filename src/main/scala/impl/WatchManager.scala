@@ -37,14 +37,14 @@ class WatchManager (log :Logger, exec :Executor) extends AbstractService with Wa
     }
   }
 
-  private def addWatch (dir :Path)(cb :WatchEvent[_] => Unit) = byDir.get(dir).signal onValue cb
+  private def addWatch (dir :Path)(cb :WatchEvent[?] => Unit) = byDir.get(dir).signal `onValue` cb
 
   private def pollWatches () :Unit = try {
     // wait for key to be signalled
     val key = service.take()
     val info = byKey.get(key)
     if (info != null) {
-      key.pollEvents() forEach info.dispatch
+      key.pollEvents() `forEach` info.dispatch
       // if we can't reset the key (the dir went away or something), clear it out
       if (!key.reset()) info.close()
     }
@@ -54,15 +54,15 @@ class WatchManager (log :Logger, exec :Executor) extends AbstractService with Wa
   }
 
   private val kinds = Array(ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY).
-    asInstanceOf[Array[WatchEvent.Kind[_]]] // oh Scala, you devil
+    asInstanceOf[Array[WatchEvent.Kind[?]]] // oh Scala, you devil
 
   private case class WatchInfo (dir :Path) {
-    val signal = Signal[WatchEvent[_]](exec.ui)
+    val signal = Signal[WatchEvent[?]](exec.ui)
     val key = dir.register(service, kinds, SensitivityWatchEventModifier.HIGH)
     byKey.put(key, this)
     log.log(s"Created watch: $dir")
 
-    def dispatch (ev :WatchEvent[_]) :Unit = {
+    def dispatch (ev :WatchEvent[?]) :Unit = {
       signal.emit(ev)
       if (!signal.hasConnections) close()
     }

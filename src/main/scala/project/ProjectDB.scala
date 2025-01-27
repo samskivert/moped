@@ -72,7 +72,7 @@ class ProjectDB (exec :Executor, wsroot :Path, log :Logger) {
     * @return true if added, false if project was already added. */
   def add (proj :Project) :Boolean = if (toInfo.containsKey(proj.root)) false else {
     // if this project's name is already in use by another project, tack -N onto it
-    val names = toInfo.values.asScala.map(_.name).filter(_ startsWith proj.name).toSet
+    val names = toInfo.values.asScala.map(_.name).filter(_ `startsWith` proj.name).toSet
     val name = if (!names(proj.name)) proj.name else {
       var ext = 1
       while (names(proj.name + s"-$ext")) ext += 1

@@ -363,8 +363,8 @@ object KeyPress {
     case (code, str) if (str != "") => (str, code)
   }
 
-  private val IsLinux = System.getProperty("os.name") equalsIgnoreCase "linux"
-  private val IsWindows = System.getProperty("os.name") startsWith "Windows"
+  private val IsLinux = System.getProperty("os.name") `equalsIgnoreCase` "linux"
+  private val IsWindows = System.getProperty("os.name") `startsWith` "Windows"
   // on Linux & Windows, Emacs assigns Alt to Meta and Windows to Super (not that we ever get those
   // keystrokes); Meta is super important so we want to be Emacs-like there
   private val SwapAltMeta = IsLinux || IsWindows

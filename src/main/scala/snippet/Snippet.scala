@@ -152,10 +152,10 @@ object Snippet {
     val includes = Set.newBuilder[String]
     var ll = lines.toList ; while (!ll.isEmpty) {
       val tline = ll.head
-      if (tline startsWith NameKey) ll = parseSnippet(ll, into += _)
+      if (tline `startsWith` NameKey) ll = parseSnippet(ll, into += _)
       else {
-        if (tline startsWith IncludeKey) includes ++= getval(tline, IncludeKey).split(" ")
-        else if ({ val tt = tline.trim ; (tt startsWith "#") || (tt.length == 0)}) () // skip
+        if (tline `startsWith` IncludeKey) includes ++= getval(tline, IncludeKey).split(" ")
+        else if ({ val tt = tline.trim ; (tt `startsWith` "#") || (tt.length == 0)}) () // skip
         ll = ll.tail
       }
     }
@@ -185,10 +185,10 @@ object Snippet {
     // first parse the parameters
     var cont = true ; while (cont && !ll.isEmpty) {
       val tline = ll.head
-      if (tline startsWith NameKey) name = getval(tline, NameKey)
-      else if (tline startsWith KeysKey) triggers = Set.from(getval(tline, KeysKey).split(" "))
-      else if (tline startsWith SynsKey) syntaxes = parseSyntaxes(getval(tline, SynsKey))
-      else if (tline startsWith LineKey) line = parseLine(getval(tline, LineKey))
+      if (tline `startsWith` NameKey) name = getval(tline, NameKey)
+      else if (tline `startsWith` KeysKey) triggers = Set.from(getval(tline, KeysKey).split(" "))
+      else if (tline `startsWith` SynsKey) syntaxes = parseSyntaxes(getval(tline, SynsKey))
+      else if (tline `startsWith` LineKey) line = parseLine(getval(tline, LineKey))
       // else complain if line looks like %foo:?
       else cont = false
       if (cont) ll = ll.tail
@@ -197,7 +197,7 @@ object Snippet {
     // next parse the body
     cont = true ; while (cont && !ll.isEmpty) {
       val tline = ll.head
-      if (tline startsWith NameKey) cont = false
+      if (tline `startsWith` NameKey) cont = false
       else bbuf += ll.head
       if (cont) ll = ll.tail
     }

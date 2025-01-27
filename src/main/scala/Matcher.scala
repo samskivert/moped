@@ -47,12 +47,12 @@ class RegexpMatcher (pattern :String) extends Matcher {
   // matcher looking for the last match in the region, so we store the last successful match here
   // to avoid having to recompute it after we learn that it was the last match by failing a
   // subsequent match
-  private var result :MatchResult = _
+  private var result :MatchResult = null
 
   // java's Matcher wants to operate on CharSequence, but we have an array, so we create use this
   // reusable facade to avoid creating garbage on every match (assuming java's Matcher doesn't
   // create garbage itself; probably wishful thinking...)
-  private var current :Array[Char] = _
+  private var current :Array[Char] = null
   private val curseq = new CharSequence() {
     def length = current.length
     def charAt (ii :Int) = current(ii)

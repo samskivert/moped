@@ -84,7 +84,7 @@ class LineViewImpl (_line :LineV) extends TextFlow with LineView {
       def finish () :Unit = {
         // if there's trailing unstyled text, add that
         if (last < _line.length) add(last, _line.length, Seq.empty)
-        if (!kids.isEmpty) getChildren.addAll(kids.toArray :_*)
+        if (!kids.isEmpty) getChildren.addAll(kids.toArray*)
       }
     }
     _valid = true // mark ourselves valid now to avoid looping if freakoutery

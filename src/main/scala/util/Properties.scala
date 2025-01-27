@@ -23,9 +23,9 @@ object Properties {
     */
   def read (log :Logger, name :String, lines :Iterable[String])
            (accum :(String, String) => Unit) :Unit = {
-    def isComment (l :String) = (l startsWith "#") || (l.length == 0)
+    def isComment (l :String) = (l `startsWith` "#") || (l.length == 0)
     // TODO: make this handle all the proper .properties files bits (escapes, multilines, etc.)
-    lines map(_.trim) filterNot(isComment) foreach { _ split(":", 2) match {
+    lines map(_.trim) filterNot(isComment) foreach { _ `split`(":", 2) match {
       case Array(key, value) => accum(key.trim, value.trim)
       case other => log.log(s"$name contains invalid line:\n${other.mkString(":")}")
     }}

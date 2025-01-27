@@ -89,7 +89,7 @@ class MarkdownMode (env :Env) extends GrammarTextMode(env) {
       // now prepend the appropriate prefix back onto each filled line and create lines
       val lines = Seq.newBuilder[Line]
       val filled = filler.filled
-      lines += first.view(0, prefixLen) merge Line(filled.head)
+      lines += first.view(0, prefixLen) `merge` Line(filled.head)
       // subsequent lines get whitespace as a prefix
       var repeatPre = " " * prefixLen
       filled.drop(1) foreach { f => lines += Line(f.insert(0, repeatPre)) }

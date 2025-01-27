@@ -71,11 +71,11 @@ class WorkspaceManager (app :Moped) extends AbstractService with WorkspaceServic
       val ws2paths = (paths groupBy workspaceFor).toSeq
       // the first workspace (chosen arbitrarily) gets the default stage
       ws2paths.take(1) foreach { case (ws, paths) =>
-        paths foreach { ws.open(stage).visitPath _ }
+        paths foreach ws.open(stage).visitPath
       }
       // the remaining workspaces (if any) create new stages
       ws2paths.drop(1) foreach { case (ws, paths) =>
-        paths foreach { ws.open().visitPath _ }
+        paths foreach ws.open().visitPath
       }
       // if we have no arguments, open the default workspace with a scratch buffer
       if (ws2paths.isEmpty) defaultWS.open(stage).visitScratchIfEmpty()
@@ -99,7 +99,7 @@ class WorkspaceManager (app :Moped) extends AbstractService with WorkspaceServic
 
   override def list = try {
     Files.list(wsdir).collect(Collectors.toList[Path]).asScala.filter(Files.isDirectory(_)).
-      map(_.getFileName.toString).filterNot(_ startsWith ".").toSeq
+      map(_.getFileName.toString).filterNot(_ `startsWith` ".").toSeq
   } catch {
     case e :IOException => log.log("Failed to list $wsdir", e) ; Seq.empty
   }
@@ -134,7 +134,7 @@ class WorkspaceManager (app :Moped) extends AbstractService with WorkspaceServic
     def latest (ws :Iterable[WorkspaceImpl]) =
       if (ws.isEmpty) None else Some(ws.maxBy(_.lastOpened))
     val hintWSs = wshints().asMap.asScala collect {
-      case (w, ps) if (ps.asScala.exists(path startsWith _)) => wscache.get(w) }
+      case (w, ps) if (ps.asScala.exists(path `startsWith` _)) => wscache.get(w) }
     latest(hintWSs.filter(isOpen)) orElse latest(hintWSs) getOrElse defaultWS
   }
 }
@@ -209,7 +209,7 @@ class WorkspaceImpl (val app  :Moped, val mgr  :WorkspaceManager,
   override val config = app.cfgMgr.editorConfig(Config.Scope(state, app.state))
   override val bufferOpened :Signal[RBuffer] = Utils.safeSignal[RBuffer](app.logger)
 
-  override def createBuffer (store :Store, state :List[State.Init[_]],
+  override def createBuffer (store :Store, state :List[State.Init[?]],
                              reuse :Boolean) :BufferImpl = {
     def create (store :Store) = {
       val parent = _buffers.headOption.map(b => Paths.get(b.store.parent)) || cwd
@@ -239,7 +239,7 @@ class WorkspaceImpl (val app  :Moped, val mgr  :WorkspaceManager,
     tagToWindowId.clear()
     infoGeometry.clear()
     Properties.read(log, file) { (key, value) =>
-      val (name, ekey) = key split("\\.", 2) match {
+      val (name, ekey) = key `split`("\\.", 2) match {
         case Array(name, ekey) => (name, ekey)
         case _                 => (key, "")
       }
@@ -418,7 +418,7 @@ class WorkspaceImpl (val app  :Moped, val mgr  :WorkspaceManager,
       val swidth = stage.getWidth()
       if (!swidth.isNaN) stage.setX(getOffset(viewLeft, swidth, sbounds.getMinX, sbounds.getMaxX))
     }
-    config.value(EditorConfig.viewLeft) onValueNotify setStageLeft
+    config.value(EditorConfig.viewLeft) `onValueNotify` setStageLeft
     stage.widthProperty.addListener(
       (obs, ov, nv) => setStageLeft(config(EditorConfig.viewLeft)))
 
@@ -427,7 +427,7 @@ class WorkspaceImpl (val app  :Moped, val mgr  :WorkspaceManager,
       val sheight = stage.getHeight()
       if (!sheight.isNaN) stage.setY(getOffset(viewTop, sheight, sbounds.getMinY, sbounds.getMaxY))
     }
-    config.value(EditorConfig.viewTop) onValueNotify setStageTop
+    config.value(EditorConfig.viewTop) `onValueNotify` setStageTop
     stage.heightProperty.addListener(
       (obs, ov, nv) => setStageTop(config(EditorConfig.viewTop)))
 

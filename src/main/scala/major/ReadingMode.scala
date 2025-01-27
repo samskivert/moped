@@ -143,7 +143,7 @@ abstract class ReadingMode (env :Env) extends MajorMode(env) {
   @Fn("""Saves the text between the point and the mark as if killed, but doesn't kill it.
          The point and mark remain unchanged.""")
   def killRingSave () = withRegion { (start, end) =>
-    editor.killRing add buffer.region(start, end)
+    editor.killRing `add` buffer.region(start, end)
     window.emitStatus("Region added to kill ring.")
   }
 
@@ -229,7 +229,7 @@ abstract class ReadingMode (env :Env) extends MajorMode(env) {
   // track the current column; we'll use that to track our "desired column" in situations where
   // we move vertically through lines that are not wide enough to accommodate our desired column
   // and then back into lines that are
-  private[this] var desiredColumn = 0
+  private var desiredColumn = 0
   view.point.onValue { p => desiredColumn = p.col }
 
   @Fn("Moves the point down one line.")

@@ -83,7 +83,7 @@ abstract class Workspace {
     * unexpected buffer in this case). Otherwise in the event of name collision, a fresh buffer
     * name will be generated from `name` by appending <N> to the name with increasing values of N
     * until an unused name is obtained. */
-  def createBuffer (store :Store, state :List[State.Init[_]] = Nil, reuse :Boolean = false) :Buffer
+  def createBuffer (store :Store, state :List[State.Init[?]] = Nil, reuse :Boolean = false) :Buffer
 
   /** Opens a buffer for `file` in this workspace. If a buffer is already open for `file` it will
     * be returned instead. */

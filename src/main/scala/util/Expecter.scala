@@ -62,5 +62,5 @@ abstract class Expecter (exec :Executor, config :SubProcess.Config) {
   def kill () :Unit = proc.kill()
   def waitFor () :Int = proc.waitFor()
 
-  private var _responder :(String, Boolean) => Boolean = _
+  private var _responder :(String, Boolean) => Boolean = null
 }

@@ -57,7 +57,7 @@ class BufferBuilder (val fillWidth :Int) {
 
   /** Appends `text` to the buffer, filling it at this builder's fill width. */
   @varargs def addFilled (text :String, styles :String*) :this.type =
-    addPreFilled("", text, styles :_*)
+    addPreFilled("", text, styles*)
 
   /** Appends `text` to the buffer, prefixing every line with `prefix`, and filling it at this
     * builder's fill width (minus the width of the prefix). */

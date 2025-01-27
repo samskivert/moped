@@ -78,7 +78,7 @@ object NDF {
       case h :: t =>
         def merge (l1 :String, l2 :String) = l1.dropRight(1) + "\n" + l2
         if (t.isEmpty) { acc += h ; acc.toList }
-        else if (h endsWith "\\") unbreak(merge(h, t.head) :: t.tail, acc)
+        else if (h `endsWith` "\\") unbreak(merge(h, t.head) :: t.tail, acc)
         else { acc += h ; unbreak(t, acc) }
     }
     def split (line :String, pre :String) = line.indexOf(':') match {

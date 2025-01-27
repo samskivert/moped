@@ -46,7 +46,7 @@ class LangFindUsesMode (env :Env, ctx :LangFindUsesConfig.Context, client :LangC
     buffer.line(view.point()).lineTag(noUse)(window)
   }
 
-  var visitList :Visit.List = _
+  var visitList :Visit.List = null
 
   // look up our uses in the background and append them to the buffer
   if (buffer.start == buffer.end) {
@@ -81,8 +81,8 @@ class LangFindUsesMode (env :Env, ctx :LangFindUsesConfig.Context, client :LangC
       })
     }
 
-    buffer append lines.result
-    buffer split buffer.end
+    buffer `append` lines.result
+    buffer `split` buffer.end
 
     if (locs.isEmpty) {
       buffer.append(Seq(Line("No uses found.")))

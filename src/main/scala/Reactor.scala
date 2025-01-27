@@ -93,6 +93,6 @@ class Reactor {
   // always called while lock is held on this reactor
   private final def isDispatching :Boolean = (_listeners eq DISPATCHING)
 
-  private[this] var _listeners :Link = _
-  private[this] var _pendingRuns :Runs = _
+  private var _listeners :Link = null
+  private var _pendingRuns :Runs = null
 }

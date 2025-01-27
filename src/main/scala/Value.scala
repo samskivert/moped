@@ -40,7 +40,7 @@ class Value[T] (init :T) extends ValueV[T] with Property[T] {
     oldValue
   }
 
-  private[this] var _value :T = init
+  private var _value :T = init
 }
 
 /** Helper methods for values. */

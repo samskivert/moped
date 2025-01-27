@@ -103,7 +103,7 @@ trait Window {
       case Nil => close()
       case buf :: tail =>
         val prompt = s"${buf.store} is modified. Save?"
-        mini.readOpt(prompt, opts) onSuccess(_ match {
+        mini.readOpt(prompt, opts) `onSuccess`(_ match {
           case "y" => buf.save() ; saveLoop(tail)
           case "n" => saveLoop(tail)
           case "q" => saveLoop(Nil)

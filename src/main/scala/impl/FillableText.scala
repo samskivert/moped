@@ -71,7 +71,7 @@ object FillableText {
     override def getStyleableProperty (n :FillableText) = n.bgFill
   }
 
-  val classCssMetaData :JList[CssMetaData[_ <: Styleable, _]] = {
+  val classCssMetaData :JList[CssMetaData[? <: Styleable, ?]] = {
     val styleables = new ArrayList(Text.getClassCssMetaData())
     styleables.add(BgStroke)
     styleables.add(BgFill)

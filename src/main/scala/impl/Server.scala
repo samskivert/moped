@@ -31,7 +31,7 @@ class Server (app :Moped) extends Thread {
   }
 
   private def process (cmd :String) :Unit = {
-    if (cmd startsWith "open ") onMainThread {
+    if (cmd `startsWith` "open ") onMainThread {
       app.wspMgr.visit(app.wspMgr.resolve(cmd.substring(5).trim))
     }
     else app.logger.log(s"Unknown command: '$cmd'")

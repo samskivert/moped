@@ -130,7 +130,7 @@ abstract class BufferV extends Region {
 
   /** Returns all tags on the character at `loc`.
     * @throws IndexOutOfBoundsException if `loc.row` is not a valid line index. */
-  def tagsAt (loc :Loc) :List[Tag[_]] = line(loc.row).tagsAt(loc.col)
+  def tagsAt (loc :Loc) :List[Tag[?]] = line(loc.row).tagsAt(loc.col)
 
   /** Returns the CSS style classes of the character at `loc`.
     * @throws IndexOutOfBoundsException if `loc.row` is not a valid line index. */
@@ -421,12 +421,12 @@ abstract class Buffer extends BufferV {
     *
     * @return the buffer location just after the end of the inserted region.
     */
-  def insert (loc :Loc, region :Iterable[_ <: LineV]) :Loc
+  def insert (loc :Loc, region :Iterable[? <: LineV]) :Loc
 
   /** Appends `region` to the end of this buffer.
     * @return the buffer location just after the end of the appended region.
     */
-  def append (region :Iterable[_ <: LineV]) :Loc = insert(end, region)
+  def append (region :Iterable[? <: LineV]) :Loc = insert(end, region)
 
   /** Deletes `count` characters from the line at `loc`.
     * @return the deleted chars as a line. */
@@ -442,10 +442,10 @@ abstract class Buffer extends BufferV {
   def replace (loc :Loc, count :Int, line :LineV) :Line
   /** Replaces the region between `[start, until)` with `lines`.
     * @return the buffer location just after the replaced region. */
-  def replace (start :Loc, until :Loc, lines :Iterable[_ <: LineV]) :Loc
+  def replace (start :Loc, until :Loc, lines :Iterable[? <: LineV]) :Loc
   /** Replaces the region `r` with `lines`.
     * @return the buffer location just after the replaced region. */
-  def replace (r :Region, lines :Iterable[_ <: LineV]) :Loc = replace(r.start, r.end, lines)
+  def replace (r :Region, lines :Iterable[? <: LineV]) :Loc = replace(r.start, r.end, lines)
 
   /** Transforms the characters between `[start, until)` using `fn`.
     * @return the buffer location just after the transformed region. */
@@ -549,7 +549,7 @@ object Buffer {
   }
 
   /** Returns true if `name` is a temporary buffer name. */
-  def isScratch (name :String) = (name startsWith "*") && (name endsWith "*")
+  def isScratch (name :String) = (name `startsWith` "*") && (name `endsWith` "*")
 
   /** Returns a blank buffer to be used by scratch views (e.g. the minibuffer). */
   def scratch (name :String) :Buffer = BufferImpl.scratch(name)

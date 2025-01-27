@@ -60,7 +60,7 @@ class Tags {
   import Tags._
 
   // a dummy element at the root of our node linked list simplifies logic
-  private val _root :Node[_] = rootNode()
+  private val _root :Node[?] = rootNode()
 
   /** Returns true if this tags set contains no tags. */
   def isEmpty :Boolean = _root.isEmpty
@@ -71,7 +71,7 @@ class Tags {
   }
 
   /** Returns the tags in this collection as a list. They are sorted by increasing `start`. */
-  def tags :List[Tag[_]] = _root.toListTail
+  def tags :List[Tag[?]] = _root.toListTail
 
   /** Returns the first tag found at `idx` which matches `tclass`. */
   def tagAt[T] (tclass :Class[T], idx :Int, dflt :T) :T = {
@@ -92,8 +92,8 @@ class Tags {
   }
 
   /** Returns all tags that intersect `idx`. */
-  def tagsAt (idx :Int) :List[Tag[_]] = {
-    var rs = Nil :List[Tag[_]] ; var node = _root.next ; while (node != null) {
+  def tagsAt (idx :Int) :List[Tag[?]] = {
+    var rs = Nil :List[Tag[?]] ; var node = _root.next ; while (node != null) {
       if (node.contains(idx)) rs = node :: rs
       node = node.next
     }
@@ -238,7 +238,7 @@ class Tags {
   private def delete (pred :Any => Boolean, start :Int, end :Int, shift :Int) :Boolean = {
     // val where = s"delete($pred, [$start,$end), shift=$shift)"
     // checkInvariant(where)
-    @inline @tailrec def loop (pnode :Node[_], mod :Boolean) :Boolean = {
+    @inline @tailrec def loop (pnode :Node[?], mod :Boolean) :Boolean = {
       val node = pnode.next
       if (node == null) mod
       else if (pred != null && !pred(node.tag)) loop(node, mod)
@@ -302,22 +302,22 @@ object Tags {
   private def rootNode () = Node(null, Int.MinValue, Int.MaxValue)
 
   private case class Node[T] (tag :T, start :Int, end :Int) extends Tag[T] {
-    var next :Node[_] = _
+    var next :Node[?] = null
 
     def isEmpty = (next == null)
-    def toList :List[Tag[_]] = this :: toListTail
-    def toListTail :List[Tag[_]] = if (next == null) Nil else next.toList
+    def toList :List[Tag[?]] = this :: toListTail
+    def toListTail :List[Tag[?]] = if (next == null) Nil else next.toList
 
-    def insert (node :Node[_]) :Unit = {
+    def insert (node :Node[?]) :Unit = {
       if (next == null || node.start < next.start) next = node.setNext(next)
       else next.insert(node)
     }
 
-    def setNext (node :Node[_]) :this.type = { next = node ; this }
-    def replaceNext (node :Node[_]) :node.type = { node.next = next.next ; next = node ; node }
+    def setNext (node :Node[?]) :this.type = { next = node ; this }
+    def replaceNext (node :Node[?]) :node.type = { node.next = next.next ; next = node ; node }
   }
 
-  private def chaineq (a :Node[_], b :Node[_]) :Boolean = a match {
+  private def chaineq (a :Node[?], b :Node[?]) :Boolean = a match {
     case null => b == null
     case a    => (a == b) && chaineq(a.next, b.next)
   }

@@ -181,7 +181,7 @@ class Commenter {
     val firstPre = {
       val pre = firstLine.view(start.col, firstCol)
       if (pre.length == 0 || isWhitespace(pre.charAt(pre.length-1))) pre
-      else pre merge Line(" ")
+      else pre `merge` Line(" ")
     }
     val repeatPre = {
       // if we have more than one row in our comment block, just use the second line's prefix as
@@ -210,7 +210,7 @@ class Commenter {
     // now prepend the appropriate prefix back onto each filled line and create lines
     val result = Seq.newBuilder[Line]
     val filled = filler.filled
-    result += firstPre merge Line(filled.head)
+    result += firstPre `merge` Line(filled.head)
     // subsequent lines get the repeatPre
     filled.drop(1) foreach { f => result += Line(f.insert(0, repeatPre)) }
     result.result()

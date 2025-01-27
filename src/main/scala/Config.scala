@@ -91,13 +91,13 @@ object Config {
   object BoolC extends Converter[Boolean] {
     override def show (value :Boolean) = value.toString
     override def read (value :String) =
-      (value equalsIgnoreCase "true") || (value equalsIgnoreCase "t")
+      (value `equalsIgnoreCase` "true") || (value `equalsIgnoreCase` "t")
     override def toString = "Boolean"
   }
   object JBoolC extends Converter[JBoolean] {
     override def show (value :JBoolean) = value.toString
     override def read (value :String) =
-      (value equalsIgnoreCase "true") || (value equalsIgnoreCase "t")
+      (value `equalsIgnoreCase` "true") || (value `equalsIgnoreCase` "t")
     override def toString = "Boolean"
   }
   object JIntC extends Converter[JInteger] {
@@ -136,7 +136,7 @@ object Config {
   abstract class Defs () {
 
     /** All config vars defined by this defs instance. */
-    lazy val vars :Seq[Var[_]] = getClass.getDeclaredFields.foldLeft(Seq[Var[_]]())({ (b, f) =>
+    lazy val vars :Seq[Var[?]] = getClass.getDeclaredFields.foldLeft(Seq[Var[?]]())({ (b, f) =>
       val vara = f.getAnnotation(classOf[moped.Var])
       if (vara != null) {
         f.setAccessible(true)
@@ -229,7 +229,7 @@ object Config {
     def toList :List[Scope] = this :: (next.map(_.toList) getOrElse Nil)
     override def toString :String = s"Scope($name, $root) :: " + next.fold("Nil")(_.toString)
     // used by Scope.apply to concatenate scope sub-stacks
-    private def concat (t :Option[Scope]) :Scope = copy(next = next.fold(t)(n => Some(n concat t)))
+    private def concat (t :Option[Scope]) :Scope = copy(next = next.fold(t)(n => Some(n `concat` t)))
   }
   /** [[Scope]] helpers. */
   object Scope {
@@ -237,7 +237,7 @@ object Config {
       * @throws NoSuchElementException if no scope is defined in any of the supplied states. */
     def apply (states :StateV*) :Scope = {
       val ss = states.map(_.get[Scope]).dropWhile(!_.isDefined)
-      ss.tail.foldLeft(ss.head.get)(_ concat _)
+      ss.tail.foldLeft(ss.head.get)(_ `concat` _)
     }
   }
 

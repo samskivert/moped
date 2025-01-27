@@ -95,7 +95,7 @@ class Executions (pspace :ProjectSpace) {
 
   private def readConfig (file :Path) :Unit = if (Files.exists(file)) {
     val configs = MMap[String,ArrayListMultimap[String,String]]()
-    Properties.read(pspace.log, file) { (key, value) => key split("\\.", 2) match {
+    Properties.read(pspace.log, file) { (key, value) => key `split`("\\.", 2) match {
       case Array(name, ekey) => configs.getOrElseUpdate(
         name, ArrayListMultimap.create[String,String]()).put(ekey, value)
       case _ => pspace.log.log(s"$file contains invalid execution key '$key' (value = $value)")

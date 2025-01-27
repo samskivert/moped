@@ -140,7 +140,7 @@ object Project {
 class Project (val pspace :ProjectSpace, val root :Project.Root) {
   import Project._
 
-  private val components = new HashMap[Class[_ <: Component],Component]()
+  private val components = new HashMap[Class[? <: Component],Component]()
   private val activeBuffers = ArrayBuffer[RBuffer]()
   private val bufferNotes = new TreeMap[Store, Value[Seq[Lang.Note]]]()
 
@@ -220,20 +220,20 @@ class Project (val pspace :ProjectSpace, val root :Project.Root) {
 
   /** Creates the buffer state for a buffer with mode `mode` and mode arguments `args`, which is
     * configured to be a part of this project. */
-  def bufferState (mode :String, args :Any*) :List[State.Init[_]] = List(
-    State.init(Mode.Hint(mode, args :_*)),
+  def bufferState (mode :String, args :Any*) :List[State.Init[?]] = List(
+    State.init(Mode.Hint(mode, args*)),
     State.init(classOf[Project], this))
 
   /** Creates a simple buffer configured to be part of this project. A buffer with the same name
     * will be reused. This is useful for incidental buffers related to the project like compiler
     * output, test output, etc. */
   def createBuffer (name :String, mode :String, args :Any*) :Buffer =
-    pspace.wspace.createBuffer(Store.scratch(name, root.path), bufferState(mode, args :_*), true)
+    pspace.wspace.createBuffer(Store.scratch(name, root.path), bufferState(mode, args*), true)
 
   /** Creates a simple buffer configured to be part of this project. A buffer with the same name
     * will be reused. This is useful for incidental buffers related to the project like compiler
     * output, test output, etc. */
-  def createBuffer (name :String, initState :List[State.Init[_]]) :Buffer =
+  def createBuffer (name :String, initState :List[State.Init[?]]) :Buffer =
     pspace.wspace.createBuffer(Store.scratch(name, root.path), initState, true)
 
   /** Returns a buffer to which incidental log output relating to this project can be sent
@@ -372,7 +372,7 @@ class Project (val pspace :ProjectSpace, val root :Project.Root) {
   }
 
   lazy val DefaultFiler = {
-    def isZip (name :String) = (name endsWith ".zip") || (name endsWith ".jar")
+    def isZip (name :String) = (name `endsWith` ".zip") || (name `endsWith` ".jar")
     if (isZip(root.path.getFileName.toString)) new ZipFiler(Seq(root.path))
     else new DirectoryFiler(this, Ignorer.stockIgnores)
   }

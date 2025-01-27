@@ -13,7 +13,7 @@ import moped._
 
 class ServiceManager (app :Moped) extends AbstractService with MetaService {
 
-  private var services = Mutable.cacheMap { (iclass :Class[_]) =>
+  private var services = Mutable.cacheMap { (iclass :Class[?]) =>
     startService(iclass.asInstanceOf[Class[AbstractService]]) }
 
   // we provide MetaService, so stick ourselves in the cache directly; meta!
@@ -52,7 +52,7 @@ class ServiceManager (app :Moped) extends AbstractService with MetaService {
           else throw new InstantiationException(
             s"Unable to resolve mode arg: $p (args: $args, remargs: $remargs")
       }}
-      ctor.newInstance(params.asInstanceOf[Array[Object]] :_*).asInstanceOf[T]
+      ctor.newInstance(params.asInstanceOf[Array[Object]]*).asInstanceOf[T]
     } catch {
       case ite :InvocationTargetException => fail(ite.getCause)
       case t :Throwable => fail(t)
@@ -83,7 +83,7 @@ class ServiceManager (app :Moped) extends AbstractService with MetaService {
     }
   }
 
-  private def resolveService (sclass :Class[_]) :AbstractService = {
+  private def resolveService (sclass :Class[?]) :AbstractService = {
     if (!sclass.getName.endsWith("Service")) throw new InstantiationException(
       s"Service classes must be named FooService: $sclass")
     else if (sclass.getName == "moped.MetaService") return this

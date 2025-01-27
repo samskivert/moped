@@ -106,7 +106,7 @@ class BufferArea (val bview :BufferViewImpl, val disp :DispatcherImpl) extends R
   }
 
   // forward key events to the control for dispatching
-  private[this] val keyEventListener = new EventHandler[KeyEvent]() {
+  private val keyEventListener = new EventHandler[KeyEvent]() {
     override def handle (e :KeyEvent) = if (!e.isConsumed) disp.keyPressed(e)
   }
   addEventHandler(KeyEvent.ANY, keyEventListener)
@@ -158,9 +158,9 @@ class BufferArea (val bview :BufferViewImpl, val disp :DispatcherImpl) extends R
     getStyleClass.add("popwin")
     setPadding(new Insets(3))
 
-    private[this] var _ax = 0d
-    private[this] var _ay = 0d
-    private[this] var _pos :Popup.Pos = _
+    private var _ax = 0d
+    private var _ay = 0d
+    private var _pos :Popup.Pos = null
 
     def display (pop :Popup) :Unit = {
       getChildren.clear() // clear any previous bits
@@ -230,7 +230,7 @@ class BufferArea (val bview :BufferViewImpl, val disp :DispatcherImpl) extends R
     // if our content node is not currently laid out, it will recheck the popup when it's done
     case Some(pop) => if (!contentNode.isNeedsLayout || force) mainPopup.display(pop)
   }
-  bview.popup onValue checkPopup(false)
+  bview.popup `onValue` checkPopup(false)
 
   bview.popupAdded.onValue { popopt =>
     val win = new PopWin()
@@ -402,7 +402,7 @@ class BufferArea (val bview :BufferViewImpl, val disp :DispatcherImpl) extends R
   getChildren.add(contentNode)
 
   // move the cursor when the point is updated
-  bview.point onValueNotify contentNode.updateCursor
+  bview.point `onValueNotify` contentNode.updateCursor
 
   // display the lines visible at the top of the buffer
   contentNode.updateVizLines()
@@ -467,21 +467,21 @@ object BufferArea {
       override def getStyleableProperty (n :BufferArea) :StyleableProperty[Font] = n.font
     }
 
-    val STYLEABLES :JList[CssMetaData[_ <: Styleable, _]] = {
-      val styleables = new ArrayList[CssMetaData[_ <: Styleable, _]](
+    val STYLEABLES :JList[CssMetaData[? <: Styleable, ?]] = {
+      val styleables = new ArrayList[CssMetaData[? <: Styleable, ?]](
         Region.getClassCssMetaData())
       styleables.add(FONT)
       Collections.unmodifiableList(styleables)
     }
   }
 
-  def getClassCssMetaData :JList[CssMetaData[_ <: Styleable, _]] =
+  def getClassCssMetaData :JList[CssMetaData[? <: Styleable, ?]] =
     StyleableProperties.STYLEABLES
 
   // HACK: terrible hack to work around JavaFX bug or my misunderstanding + misuse
   def resetStyleHelper (area :BufferArea) :Unit = StyleHelperField.set(area, null)
   private val StyleHelperField = find(classOf[BufferArea], "styleHelper")
-  private def find (cl :Class[_], nm :String) :java.lang.reflect.Field = {
+  private def find (cl :Class[?], nm :String) :java.lang.reflect.Field = {
     cl.getDeclaredFields.find(_.getName == nm) match {
       case Some(field) => field.setAccessible(true) ; field
       case None => find(cl.getSuperclass, nm)

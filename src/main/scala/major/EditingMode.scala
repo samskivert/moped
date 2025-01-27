@@ -113,13 +113,13 @@ abstract class EditingMode (env :Env) extends ReadingMode(env) {
       val region = buffer.delete(from, to)
       // if the previous fn was any sort of kill fn, we append instead of add
       if ((disp.prevFn != null) && isKillFn(disp.prevFn)) {
-        if (isBackwardKill(disp.curFn)) editor.killRing prepend region
-        else                            editor.killRing append  region
+        if (isBackwardKill(disp.curFn)) editor.killRing `prepend` region
+        else                            editor.killRing `append`  region
       }
       // otherwise create a new kill ring entry
-      else editor.killRing add region
+      else editor.killRing `add` region
     }
-    from lesser to
+    from `lesser` to
   }
 
   /** Used by [[kill]] to determine if the previous fn was a kill fn, in which case the kill will be
@@ -130,14 +130,14 @@ abstract class EditingMode (env :Env) extends ReadingMode(env) {
     * scheme, but wish for them to participate in kill accumulation.
     */
   def isKillFn (name :String) :Boolean =
-    (name startsWith "kill-") || (name endsWith "-kill") || (name contains "-kill-")
+    (name `startsWith` "kill-") || (name `endsWith` "-kill") || (name `contains` "-kill-")
 
   /** Used by [[kill]] to determine if a fn kills backwards instead of forwards.
     *
     * Defaults to checking whether `name` starts with `backward-`. Modes may wish to customize this
     * behavior if they introduce backwards kill commands that do not follow this naming scheme.
     */
-  def isBackwardKill (name :String) = name startsWith "backward-"
+  def isBackwardKill (name :String) = name `startsWith` "backward-"
 
   /** Converts the characters in `[from, to)` to upper case. If `to` is earlier than `from` the
     * arguments are automatically swapped.
@@ -332,8 +332,8 @@ abstract class EditingMode (env :Env) extends ReadingMode(env) {
     // otherwise we have a normal transpose: swap the char under the point with the prev char
     else {
       val swap = tp.prevC
-      buffer.replace(swap, 2, new Line(Array(buffer charAt tp, buffer charAt swap),
-                                       Array(buffer syntaxAt tp, buffer syntaxAt swap)))
+      buffer.replace(swap, 2, new Line(Array(buffer `charAt` tp, buffer `charAt` swap),
+                                       Array(buffer `syntaxAt` tp, buffer `syntaxAt` swap)))
       view.point() = tp.nextC
     }
   }
@@ -460,7 +460,7 @@ abstract class EditingMode (env :Env) extends ReadingMode(env) {
         case Some(region) =>
           // since the last command was a yank, the mark must be set
           val mark = buffer.mark.get
-          buffer.mark = view.point() lesser mark
+          buffer.mark = view.point() `lesser` mark
           view.point() = buffer.replace(view.point(), mark, region)
       }
     }
@@ -504,7 +504,7 @@ abstract class EditingMode (env :Env) extends ReadingMode(env) {
       val end = math.min(line.length, start.col+length)
       pad(buffer.delete(start, end-start.col), length-end)
     }
-    editor.rectKillRing add killed
+    editor.rectKillRing `add` killed
   }
 
   @Fn("Yanks the last killed rectangle with upper left corner at the point.")
@@ -544,7 +544,7 @@ abstract class EditingMode (env :Env) extends ReadingMode(env) {
       val end = math.min(line.length, start.col+length)
       pad(buffer.line(start).slice(start.col, end-start.col), length-end)
     }
-    editor.rectKillRing add killed
+    editor.rectKillRing `add` killed
   }
 
   private def insertRectAt (loc :Loc, region :Iterable[LineV]) :Unit = {

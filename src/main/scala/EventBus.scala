@@ -24,5 +24,5 @@ class EventBus {
   def signal[T] (implicit tag :ClassTag[T]) :Signal[T] =
     signal(tag.runtimeClass.asInstanceOf[Class[T]])
 
-  private val _sigs = Mutable.cacheMap { (_ :Class[_]) => Signal.apply[Object]() }
+  private val _sigs = Mutable.cacheMap { (_ :Class[?]) => Signal.apply[Object]() }
 }

@@ -57,14 +57,18 @@ class DirectoryFiler (root :Path, exec :Executor, ignores :Seq[Ignorer]) extends
       val lm = Files.getLastModifiedTime(dir)
       if (lm.compareTo(lastRefresh) > 0) {
         lastRefresh = lm
-        val fs = { val stream = Files.list(dir)
-                   try stream.iterator.asScala finally stream.close() }
-        val (nd, nf) = fs.partition(Files.isDirectory(_, LinkOption.NOFOLLOW_LINKS))
-        val nfiles = nf.filterNot(ignore).filter(Files.isRegularFile(_)).toSet
+        val stream = Files.list(dir)
+        val (nfiles, ndirs) = try {
+          val fs = stream.iterator.asScala
+          val (nd, nf) = fs.partition(Files.isDirectory(_, LinkOption.NOFOLLOW_LINKS))
+          (nf.filterNot(ignore).filter(Files.isRegularFile(_)).toSet,
+           nd.filterNot(ignore).map(_.toRealPath()).toSet)
+        } finally {
+          stream.close()
+        }
         if (files != nfiles) {
           files = nfiles
         }
-        val ndirs = nd.filterNot(ignore).map(_.toRealPath()).toSet
         if (ndirs != dirs) {
           // remove directories that have gone away
           (dirs -- ndirs) foreach dirMap.remove

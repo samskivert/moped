@@ -50,9 +50,9 @@ class LangFindUsesMode (env :Env, ctx :LangFindUsesConfig.Context, client :LangC
 
   // look up our uses in the background and append them to the buffer
   if (buffer.start == buffer.end) {
-    println(s"Finding uses of ${ctx.name}")
-    LSP.adapt(client.server.getTextDocumentService.references(ctx.req), project.exec).onSuccess {
-      res => showLocations(res.asScala) }
+    LSP.adapt(client.server.getTextDocumentService.references(ctx.req), project.exec).
+      onSuccess({ res => showLocations(res.asScala) }).
+      onFailure(window.emitError)
   }
   // reinstate our visit list if our buffer is already generated
   else if (visitList != null) window.visits() = visitList
@@ -83,6 +83,10 @@ class LangFindUsesMode (env :Env, ctx :LangFindUsesConfig.Context, client :LangC
 
     buffer append lines.result
     buffer split buffer.end
+
+    if (locs.isEmpty) {
+      buffer.append(Seq(Line("No uses found.")))
+    }
 
     window.exec.runOnUI {
       visitList = new Visit.List("use", visits.result)

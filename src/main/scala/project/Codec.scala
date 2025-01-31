@@ -20,7 +20,6 @@ class CodecImpl (private val idSep :String, private val rootSep :String) {
     case SrcURL(vcs, url)                      => deflate("s", vcs, url)
     case PlatformId(platform, version)         => deflate("p", platform, version)
     case RootId(path, module)                  => deflate("t", path.toString, module)
-    case _ => throw new IllegalArgumentException(s"Unknown id: $id")
   }
 
   /** Reads an [[Project.Id]] from `string`. `string` must be the result of a call to [[showId]]. */

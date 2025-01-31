@@ -163,7 +163,7 @@ abstract class LangClient (
   serverPort.match {
     case Some(port) =>
       import javax.websocket._
-      import org.eclipse.lsp4j.websocket._
+      import org.eclipse.lsp4j.websocket.jakarta._
       debugRead(serverProc.getInputStream, "STDOUT")
       val endpoint = new WebSocketEndpoint[LanguageServer] {
         override protected def configure (launcher :Launcher.Builder[LanguageServer]) =

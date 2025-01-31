@@ -174,7 +174,7 @@ trait WorkspaceService {
   def list :Seq[String]
 
   /** Creates and [[open]]s a new concrete workspace named `name`.
-    * @throws `FeedbackException` if a workspace named `name` already exists. */
+    * @throws util.Errors.FeedbackException if a workspace named `name` already exists. */
   def create (name :String) :Unit
 
   /** Resolves the specified workspace and creates a new editor with it as the active workspace.

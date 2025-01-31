@@ -10,9 +10,9 @@ import moped.util.Errors
 
 import ch.usi.si.seart.treesitter._
 
-/** Extends [[CodeMode]] with support for using TreeSitter parsers for code highlighting. Code
+/** Extends [[code.CodeMode]] with support for using TreeSitter parsers for code highlighting. Code
   * major modes which intend to use TreeSitter parsers for code highlighting and other purposes
-  * should extend this class rather than [[CodeMode]].
+  * should extend this class rather than [[code.CodeMode]].
   */
 abstract class SitterCodeMode (env :Env) extends CodeMode(env) {
   Sitter.loadLibrary()

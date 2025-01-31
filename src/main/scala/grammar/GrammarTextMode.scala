@@ -8,9 +8,9 @@ import moped._
 import moped.major.TextMode
 import moped.util.Errors
 
-/** Extends [[TextMode]] with support for using TextMate grammars for code highlighting.
+/** Extends [[major.TextMode]] with support for using TextMate grammars for code highlighting.
   * Non-code major modes which intend to use TextMate grammars for code highlighting and other
-  * purposes should extend this class rather than [[TextMode]].
+  * purposes should extend this class rather than [[major.TextMode]].
   */
 abstract class GrammarTextMode (env :Env) extends TextMode(env) {
 

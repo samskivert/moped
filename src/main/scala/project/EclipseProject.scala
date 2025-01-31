@@ -34,7 +34,7 @@ object JDTLS {
 
   // from whence we download the Eclipse JDT language server
   val JdtFile = "jdt-language-server-latest.tar.gz"
-  val JdtUrl = new URL(s"https://download.eclipse.org/jdtls/snapshots/$JdtFile")
+  val JdtUrl = new URI(s"https://download.eclipse.org/jdtls/snapshots/$JdtFile").toURL
 
   /** Downloads and unpacks the JDTLS, if needed. */
   def resolve (metaSvc :MetaService, root :Project.Root) :Future[Path] = {

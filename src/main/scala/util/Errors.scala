@@ -11,7 +11,7 @@ import moped._
 object Errors {
 
   /** An exception reported to provide error feedback rather than indicate catastrophic failure.
-    * [[Editor.emitError]] will report such exceptions to the user but not dump their stack trace
+    * [[Window.emitError]] will report such exceptions to the user but not dump their stack trace
     * for debugging.
     */
   class FeedbackException (msg :String) extends RuntimeException(msg)

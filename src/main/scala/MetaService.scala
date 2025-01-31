@@ -27,11 +27,11 @@ trait MetaService {
 
   /** Resolves and returns the Moped service identified by `clazz`. `clazz` is a [[Service]]
     * annotated class, which will be created and initialized if it has not yet been so.
-    * @throws InstantiationException if there is an error creating the service. */
+    * @throws java.lang.InstantiationException if there is an error creating the service. */
   def service[T] (clazz :Class[T]) :T
 
   /** A `service` variant that uses class tags to allow usage like: `service[Foo]`.
-    * @throws InstantiationException if there is an error creating the service. */
+    * @throws java.lang.InstantiationException if there is an error creating the service. */
   def service[T] (implicit tag :ClassTag[T]) :T = service(tag.runtimeClass.asInstanceOf[Class[T]])
 
   /** Creates a process whose object is created by `thunk`. The creation of the process object takes

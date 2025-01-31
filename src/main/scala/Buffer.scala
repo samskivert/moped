@@ -24,7 +24,7 @@ import moped.util.Chars
   * idea. Don't do it. Consider yourself warned.
   *
   * @define RNLNOTE Note: the last line does not conceptually include a trailing newline, and
-  * [[insert(Loc,Iterable[LineV])]] takes this into account.
+  * `insert(Loc,Iterable)` takes this into account.
   */
 abstract class BufferV extends Region {
 
@@ -174,7 +174,7 @@ abstract class BufferV extends Region {
   def region (r :Region) :Seq[Line] = region(r.start, r.end)
 
   /** Returns the largest region around `loc` which matches the supplied `category`.
-    * For example, supply [[Chars.Word]] to obtain the "word" at `loc`. */
+    * For example, supply [[util.Chars.Word]] to obtain the "word" at `loc`. */
   def regionAt (loc :Loc, category :Chars.Category) :Seq[Line] = {
     val lstart = scanBackward(category.isNot, loc)
     val start = if (category.is(charAt(lstart))) lstart else forward(lstart, 1)

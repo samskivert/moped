@@ -34,7 +34,7 @@ object ConfigFile {
     groups.result
   }
 
-  /** Writes the config `data` to `path` in a way that can be recovered by [[readConfig]]. */
+  /** Writes the config `data` to `path` in a way that can be recovered by [[read]]. */
   def write (path :Path, data :Iterable[Seq[String]]) :Unit = {
     val out = Files.newBufferedWriter(path)
     var first = true

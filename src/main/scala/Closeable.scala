@@ -4,7 +4,7 @@
 
 package moped
 
-/** A "refinement" of [[AutoCloseable]] that does not throw exceptions on [[close]]. */
+/** A "refinement" of [[java.lang.AutoCloseable]] that does not throw exceptions on [[close]]. */
 trait Closeable extends AutoCloseable {
 
   /** Performs the deferred close operation. */

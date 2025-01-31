@@ -26,7 +26,7 @@ abstract class StateV extends Describable {
   def req[T] (implicit tag :ClassTag[T]) :T = req(tag.runtimeClass.asInstanceOf[Class[T]])
 
   /** Returns the current state value associated with `key`.
-    * @throws FeedbackException with `msg` no value is associated with `key`. */
+    * @throws util.Errors.FeedbackException with `msg` no value is associated with `key`. */
   def req[T] (key :Class[T], msg :String) :T
 
   /** A `req` variant that uses class tags to allow usage like: `req[Foo](msg)`. */

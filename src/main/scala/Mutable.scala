@@ -10,7 +10,7 @@ import java.util.{Map => JMap}
 /** Utilities for making life easier when mutability is needed. */
 object Mutable {
 
-  /** Creates a [[Cache]] configured to fill empty mappings via `filler`. */
+  /** Creates a cache configured to fill empty mappings via `filler`. */
   def cacheMap[K,V] (filler :K => V) :LoadingCache[K,V] =
     CacheBuilder.newBuilder().asInstanceOf[CacheBuilder[Any,Any]].build(new CacheLoader[K,V]() {
       override def load (key :K) = filler(key)

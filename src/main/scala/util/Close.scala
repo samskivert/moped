@@ -8,10 +8,10 @@ import collection.mutable.ArrayBuffer
 
 import moped._
 
-/** Contains [[AutoCloseable]]-related helpers. */
+/** Contains `AutoCloseable`-related helpers. */
 object Close {
 
-  /** Maintains a bag of [[AutoCloseable]]s and simplifies the process of closing them all at once.
+  /** Maintains a bag of `AutoCloseable`s and simplifies the process of closing them all at once.
     * Note: this class is not thread-safe.
     */
   class Bag extends AutoCloseable {

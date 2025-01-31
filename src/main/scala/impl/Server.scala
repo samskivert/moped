@@ -7,7 +7,7 @@ package moped.impl
 import java.net.ServerSocket
 import scala.io.Source
 
-/** Hosts a simple server on localhost:[[Port]]. Currently accepts only a single command:
+/** Hosts a simple server on localhost:[[Moped.Port]]. Currently accepts only a single command:
   * `open PATH` which causes `PATH` to be opened in the most recently used editor on the currently
   * active desktop (if Moped can figure out what desktop is active).
   */

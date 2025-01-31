@@ -29,7 +29,7 @@ abstract class Completion[+T] (
   def apply (index :Int) :Option[T]
 
   /** Refines this completion with the longer prefix `prefix`. This generally means filtering
-    * `comps` to contain only those elements which [[FuzzyMatch]] `prefix`. */
+    * `comps` to contain only those elements which [[util.FuzzyMatch]] `prefix`. */
   def refine (prefix :String) :Completion[T]
 
   /** Returns the first completion, if any. */

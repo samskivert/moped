@@ -158,7 +158,7 @@ trait Window {
     })
 }
 
-/** Describes the geometry of a [[Window]] or [[Frame]].
+/** Describes the geometry of a [[Window]] or [[Window.Frame]].
   * @param width the width in characters of the referent.
   * @param height the height in characters of the referent.
   * @param x in the case of a window, this is the number of pixels from the left side of the
@@ -172,7 +172,7 @@ case class Geometry (width :Int, height :Int, x :Int, y :Int) {
   override def toString = s"${width}x$height+$x+$y"
 }
 
-/** Describes the pixel size of a [[Window]] or [[Frame]]. */
+/** Describes the pixel size of a [[Window]] or [[Window.Frame]]. */
 case class Size (width :Int, height :Int) {
   override def toString = s"{width}x{height}"
 }

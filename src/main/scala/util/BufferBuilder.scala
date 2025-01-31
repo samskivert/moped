@@ -79,7 +79,7 @@ class BufferBuilder (val fillWidth :Int) {
 
   /** Adds a header to the accumulating buffer. If the preceding line is not blank, a blank line
     * will be inserted before the header. The header text will be styled with
-    * [[TextConfig.headerStyle]] and followed by a line of `===`s. */
+    * [[major.TextConfig.headerStyle]] and followed by a line of `===`s. */
   def addHeader (text :String) :this.type = addHeader(Line.builder(text))
   /** Adds a header to the accumulating buffer. See [[addHeader(String)]]. */
   def addHeader (lb :Line.Builder) :this.type = {
@@ -90,7 +90,7 @@ class BufferBuilder (val fillWidth :Int) {
 
   /** Adds a subheader to the accumulating buffer. If the preceding line is not blank, a blank line
     * will be inserted before the subheader. The text will be styled with
-    * [[TextConfig.subHeaderStyle]] and followed by a line of `---`s. */
+    * [[major.TextConfig.subHeaderStyle]] and followed by a line of `---`s. */
   def addSubHeader (text :String) :this.type  = addSubHeader(Line.builder(text))
   /** Adds a subheader to the accumulating buffer. See [[addSubHeader(String)]]. */
   def addSubHeader (lb :Line.Builder) :this.type  = {
@@ -102,7 +102,7 @@ class BufferBuilder (val fillWidth :Int) {
 
   /** Adds a section header to the accumulating buffer. If the preceding line is not blank, a blank
     * line will be inserted before the section header. The text will be styled with
-    * [[TextConfig.sectionStyle]]. */
+    * [[major.TextConfig.sectionStyle]]. */
   def addSection (text :String) :this.type  = addSection(Line.builder(text))
   /** Adds a section header to the accumulating buffer. See [[addSection(String)]]. */
   def addSection (lb :Line.Builder) :this.type  = {
@@ -110,10 +110,10 @@ class BufferBuilder (val fillWidth :Int) {
     add(lb.withStyle(TextConfig.sectionStyle).build())
   }
 
-  /** Adds `keyvalue` with `key` styled in [[TextConfig.prefixStyle]]. The caller is expected to
-    * include the separator and whitespace in `key` (i.e. `foo: ` or `bar = `). `value` will be
-    * wrapped to the builder's fill width minus the width of the key (wrapped lines will be prefixed
-    * with `key.length` spaces). */
+  /** Adds `keyvalue` with `key` styled in [[major.TextConfig.prefixStyle]]. The caller is expected
+    * to include the separator and whitespace in `key` (i.e. `foo: ` or `bar = `). `value` will be
+    * wrapped to the builder's fill width minus the width of the key (wrapped lines will be
+    * prefixed with `key.length` spaces). */
   def addKeyValue (key :String, value :Any) :this.type = {
     def simple (value :CharSequence) = Line.builder(s"$key$value").withStyle(
       TextConfig.prefixStyle, 0, key.length).build()
@@ -131,11 +131,11 @@ class BufferBuilder (val fillWidth :Int) {
   }
 
   /** Adds `keyvalue` for each key/value pair in `kvs`, where `key` is styled in
-    * [[TextConfig.prefixStyle]] and all keys are padded to the width of the widest key. */
+    * [[major.TextConfig.prefixStyle]] and all keys are padded to the width of the widest key. */
   def addKeysValues (kvs :(String,Any)*) :this.type = addKeysValues(kvs)
 
   /** Adds `keyvalue` for each key/value pair in `kvs`, where `key` is styled in
-    * [[TextConfig.prefixStyle]] and all keys are padded to the width of the widest key. */
+    * [[major.TextConfig.prefixStyle]] and all keys are padded to the width of the widest key. */
   def addKeysValues (kvs :Iterable[(String,Any)]) :this.type = {
     val padWidth = kvs.foldLeft(0)((m, kv) => math.max(m, kv._1.length))
     def pad (key :String) = key + (" " * (padWidth-key.length))

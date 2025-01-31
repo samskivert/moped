@@ -12,7 +12,7 @@ import moped._
 
 /** Simplifies the process of "filling" text. Filling is Emacsese for wrapping text at a particular
   * line width. Simply create a filler with your desired width, [[append]] the lines (or sublines)
-  * that you wish to be filled, then do what you will with the [[result]].
+  * that you wish to be filled, then do what you will with the [[filled]].
   *
   * Note: styles are currently not preserved. Most modes automatically restyle the buffer when it
   * changes anyway, so that's usually not an issue.

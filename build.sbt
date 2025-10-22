@@ -28,7 +28,7 @@ lazy val root = project.in(file(".")).settings(
   libraryDependencies += "ch.usi.si.seart" % "java-tree-sitter" % "1.13.0-SNAPSHOT",
 
   libraryDependencies ++= Seq("base", "controls").map(
-    m => "org.openjfx" % s"javafx-$m" % "19" classifier osName),
+    m => "org.openjfx" % s"javafx-$m" % "25" classifier osName),
   libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test",
 
   Compile / mainClass := Some("moped.impl.MopedLauncher"),

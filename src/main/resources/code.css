@@ -11,12 +11,12 @@
 }
 
 .codeCommentFace {
-  -fx-fill: #AA44DD;
+  -fx-fill: #C5A7F2;
   -fx-font-style: italic;
 }
 
 .codeConstantFace {
-  -fx-fill: LightSteelBlue;
+  -fx-fill: #92B3F4;
 }
 
 .codeDocFace {
@@ -24,23 +24,23 @@
 }
 
 .codeKeywordFace {
-  -fx-fill: #FFCC00;
+  -fx-fill: #F2E294;
 }
 
 .codeStringFace {
-  -fx-fill: #62FA00;
+  -fx-fill: #B3E1A7;
 }
 
 .codeModuleFace {
-  -fx-fill: LightSteelBlue;
+  -fx-fill: #92B3F4;
 }
 
 .codeTypeFace {
-  -fx-fill: #ED4600;
+  -fx-fill: #E590A8;
 }
 
 .codeVariableFace {
-  -fx-fill: #F2E294;
+  -fx-fill: #EFB68E;
 }
 
 .codeFunctionFace {

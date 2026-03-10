@@ -33,7 +33,7 @@ import java.nio.file.Path
 
 @Major(name="html",
        tags=Array("code", "project", "html"),
-       pats=Array(".*\\.html", ".*\\.shtml"),
+       pats=Array(".*\\.html", ".*\\.shtml", ".*\\.wm"),
        desc="A major mode for editing HTML files.")
 class HtmlMode (env :Env) extends GrammarCodeMode(env) {
 

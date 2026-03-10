@@ -1,0 +1,703 @@
+name: Groovy
+scopeName: source.groovy
+foldStart: (\{\s*$|^\s*// \{\{\{)
+foldStop: ^\s*(\}|// \}\}\}$)
+repository:
+ annotations:
+  multi:
+   name: meta.declaration.annotation.groovy
+   begin: (?<!\.)(@[^ (]+)(\()
+   bcaps: 1=storage.type.annotation.groovy 2=punctuation.definition.annotation-arguments.begin.groovy
+   end: (\))
+   ecaps: 1=punctuation.definition.annotation-arguments.end.groovy
+   patterns:
+    single:
+     pattern: (\w*)\s*(=)
+     caps: 1=constant.other.key.groovy 2=keyword.operator.assignment.groovy
+    include: #values
+    single:
+     name: punctuation.definition.seperator.groovy
+     pattern: ,
+  single:
+   name: storage.type.annotation.groovy
+   pattern: (?<!\.)@\S+
+ anonymous-classes-and-new:
+  multi:
+   begin: \bnew\b
+   bcaps: 0=keyword.control.new.groovy
+   end: (?<=\)|\])(?!\s*\{)|(?<=})|(?=[;])|$
+   patterns:
+    multi:
+     begin: (\w+)\s*(?=\[)
+     bcaps: 1=storage.type.groovy
+     end: }|(?=\s*(?:,|;|\)))|$
+     patterns:
+      multi:
+       begin: \[
+       end: \]
+       patterns:
+        include: #groovy
+      multi:
+       begin: \{
+       end: (?=})
+       patterns:
+        include: #groovy
+    multi:
+     begin: (?=\w.*\(?)
+     end: (?<=\))|$
+     patterns:
+      include: #object-types
+      multi:
+       begin: \(
+       bcaps: 0=storage.type.groovy
+       end: \)
+       patterns:
+        include: #groovy
+    multi:
+     name: meta.inner-class.groovy
+     begin: \{
+     end: }
+     patterns:
+      include: #class-body
+ braces:
+  multi:
+   begin: \{
+   end: \}
+   patterns:
+    include: #groovy-code
+ class:
+  multi:
+   name: meta.definition.class.groovy
+   begin: (?=\w?[\w\s]*(?:class|(?:@)?interface|enum)\s+\w+)
+   end: }
+   ecaps: 0=punctuation.section.class.end.groovy
+   patterns:
+    include: #storage-modifiers
+    include: #comments
+    single:
+     name: meta.class.identifier.groovy
+     pattern: (class|(?:@)?interface|enum)\s+(\w+)
+     caps: 1=storage.modifier.groovy 2=entity.name.type.class.groovy
+    multi:
+     name: meta.definition.class.inherited.classes.groovy
+     begin: extends
+     bcaps: 0=storage.modifier.extends.groovy
+     end: (?=\{|implements)
+     patterns:
+      include: #object-types-inherited
+      include: #comments
+    multi:
+     name: meta.definition.class.implemented.interfaces.groovy
+     begin: (implements)\s
+     bcaps: 1=storage.modifier.implements.groovy
+     end: (?=\s*extends|\{)
+     patterns:
+      include: #object-types-inherited
+      include: #comments
+    multi:
+     name: meta.class.body.groovy
+     begin: \{
+     end: (?=})
+     patterns:
+      include: #class-body
+ class-body:
+  include: #enum-values
+  include: #constructors
+  include: #groovy
+ closures:
+  multi:
+   begin: \{(?=.*?->)
+   end: \}
+   patterns:
+    multi:
+     begin: (?<=\{)(?=[^\}]*?->)
+     end: ->
+     ecaps: 0=keyword.operator.groovy
+     patterns:
+      multi:
+       name: meta.closure.parameters.groovy
+       begin: (?!->)
+       end: (?=->)
+       patterns:
+        multi:
+         name: meta.closure.parameter.groovy
+         begin: (?!,|->)
+         end: (?=,|->)
+         patterns:
+          multi:
+           name: meta.parameter.default.groovy
+           begin: =
+           bcaps: 0=keyword.operator.assignment.groovy
+           end: (?=,|->)
+           patterns:
+            include: #groovy-code
+          include: #parameters
+    multi:
+     begin: (?=[^}])
+     end: (?=\})
+     patterns:
+      include: #groovy-code
+ comment-block:
+  multi:
+   name: comment.block.groovy
+   begin: /\*
+   bcaps: 0=punctuation.definition.comment.groovy
+   end: \*/
+   ecaps: 0=punctuation.definition.comment.groovy
+ comments:
+  single:
+   name: comment.block.empty.groovy
+   pattern: /\*\*/
+   caps: 0=punctuation.definition.comment.groovy
+  include: text.html.javadoc
+  include: #comment-block
+  single:
+   name: comment.line.double-slash.groovy
+   pattern: (//).*$\n?
+   caps: 1=punctuation.definition.comment.groovy
+ constants:
+  single:
+   name: constant.other.groovy
+   pattern: \b([A-Z][A-Z0-9_]+)\b
+  single:
+   name: constant.language.groovy
+   pattern: \b(true|false|null)\b
+ constructors:
+  multi:
+   begin: (?<=;|^)(?=\s*(?:(?:private|protected|public|native|synchronized|abstract|threadsafe|transient|static|final)\s+)*[A-Z]\w*\()
+   end: }
+   patterns:
+    include: #method-content
+ enum-values:
+  multi:
+   begin: (?<=;|^)\s*\b([A-Z0-9_]+)(?=\s*(?:,|;|}|\(|$))
+   bcaps: 1=constant.enum.name.groovy
+   end: ,|;|(?=})|^(?!\s*\w+\s*(?:,|$))
+   patterns:
+    multi:
+     name: meta.enum.value.groovy
+     begin: \(
+     end: \)
+     patterns:
+      single:
+       name: punctuation.definition.seperator.parameter.groovy
+       pattern: ,
+      include: #groovy-code
+ groovy:
+  include: #comments
+  include: #class
+  include: #variables
+  include: #methods
+  include: #annotations
+  include: #groovy-code
+ groovy-code:
+  include: #groovy-code-minus-map-keys
+  include: #map-keys
+ groovy-code-minus-map-keys:
+  include: #comments
+  include: #annotations
+  include: #support-functions
+  include: #keyword-language
+  include: #values
+  include: #anonymous-classes-and-new
+  include: #keyword-operator
+  include: #types
+  include: #storage-modifiers
+  include: #parens
+  include: #closures
+  include: #braces
+ keyword:
+  include: #keyword-operator
+  include: #keyword-language
+ keyword-language:
+  single:
+   name: keyword.control.exception.groovy
+   pattern: \b(try|catch|finally|throw)\b
+  single:
+   name: keyword.control.groovy
+   pattern: \b((?<!\.)(?:return|break|continue|default|do|while|for|switch|if|else))\b
+  multi:
+   name: meta.case.groovy
+   begin: \bcase\b
+   bcaps: 0=keyword.control.groovy
+   end: :
+   ecaps: 0=punctuation.definition.case-terminator.groovy
+   patterns:
+    include: #groovy-code-minus-map-keys
+  multi:
+   name: meta.declaration.assertion.groovy
+   begin: \b(assert)\s
+   bcaps: 1=keyword.control.assert.groovy
+   end: $|;|}
+   patterns:
+    single:
+     name: keyword.operator.assert.expression-seperator.groovy
+     pattern: :
+    include: #groovy-code-minus-map-keys
+  single:
+   name: keyword.other.throws.groovy
+   pattern: \b(throws)\b
+ keyword-operator:
+  single:
+   name: keyword.operator.as.groovy
+   pattern: \b(as)\b
+  single:
+   name: keyword.operator.in.groovy
+   pattern: \b(in)\b
+  single:
+   name: keyword.operator.elvis.groovy
+   pattern: \?\:
+  single:
+   name: keyword.operator.spreadmap.groovy
+   pattern: \*\:
+  single:
+   name: keyword.operator.range.groovy
+   pattern: \.\.
+  single:
+   name: keyword.operator.arrow.groovy
+   pattern: \->
+  single:
+   name: keyword.operator.leftshift.groovy
+   pattern: <<
+  single:
+   name: keyword.operator.navigation.groovy
+   pattern: (?<=\S)\.(?=\S)
+  single:
+   name: keyword.operator.safe-navigation.groovy
+   pattern: (?<=\S)\?\.(?=\S)
+  multi:
+   name: meta.evaluation.ternary.groovy
+   begin: \?
+   bcaps: 0=keyword.operator.ternary.groovy
+   end: (?=$|\)|}|])
+   patterns:
+    single:
+     name: keyword.operator.ternary.expression-seperator.groovy
+     pattern: :
+    include: #groovy-code-minus-map-keys
+  single:
+   name: keyword.operator.match.groovy
+   pattern: ==~
+  single:
+   name: keyword.operator.find.groovy
+   pattern: =~
+  single:
+   name: keyword.operator.instanceof.groovy
+   pattern: \b(instanceof)\b
+  single:
+   name: keyword.operator.comparison.groovy
+   pattern: (===|==|!=|<=|>=|<=>|<>|<|>|<<)
+  single:
+   name: keyword.operator.assignment.groovy
+   pattern: =
+  single:
+   name: keyword.operator.increment-decrement.groovy
+   pattern: (\-\-|\+\+)
+  single:
+   name: keyword.operator.arithmetic.groovy
+   pattern: (\-|\+|\*|\/|%)
+  single:
+   name: keyword.operator.logical.groovy
+   pattern: (!|&&|\|\|)
+ language-variables:
+  single:
+   name: variable.language.groovy
+   pattern: \b(this|super)\b
+ map-keys:
+  single:
+   pattern: (\w+)\s*(:)
+   caps: 1=constant.other.key.groovy 2=punctuation.definition.seperator.key-value.groovy
+ method-call:
+  multi:
+   name: meta.method-call.groovy
+   begin: ([\w$]+)(\()
+   bcaps: 1=meta.method.groovy 2=punctuation.definition.method-parameters.begin.groovy
+   end: \)
+   ecaps: 0=punctuation.definition.method-parameters.end.groovy
+   patterns:
+    single:
+     name: punctuation.definition.seperator.parameter.groovy
+     pattern: ,
+    include: #groovy-code
+ method-content:
+  single:
+   pattern: \s
+  include: #annotations
+  multi:
+   name: meta.method.return-type.java
+   begin: (?=(?:\w|<)[^\(]*\s+(?:[\w$]|<)+\s*\()
+   end: (?=[\w$]+\s*\()
+   patterns:
+    include: #storage-modifiers
+    include: #types
+  multi:
+   name: meta.definition.method.signature.java
+   begin: ([\w$]+)\s*\(
+   bcaps: 1=entity.name.function.java
+   end: \)
+   patterns:
+    multi:
+     name: meta.method.parameters.groovy
+     begin: (?=[^)])
+     end: (?=\))
+     patterns:
+      multi:
+       name: meta.method.parameter.groovy
+       begin: (?=[^,)])
+       end: (?=,|\))
+       patterns:
+        single:
+         name: punctuation.definition.separator.groovy
+         pattern: ,
+        multi:
+         name: meta.parameter.default.groovy
+         begin: =
+         bcaps: 0=keyword.operator.assignment.groovy
+         end: (?=,|\))
+         patterns:
+          include: #groovy-code
+        include: #parameters
+  multi:
+   name: meta.method.paramerised-type.groovy
+   begin: (?=<)
+   end: (?=\s)
+   patterns:
+    multi:
+     name: storage.type.parameters.groovy
+     begin: <
+     end: >
+     patterns:
+      include: #types
+      single:
+       name: punctuation.definition.seperator.groovy
+       pattern: ,
+  multi:
+   name: meta.throwables.groovy
+   begin: throws
+   bcaps: 0=storage.modifier.groovy
+   end: (?=\{|;)|^(?=\s*(?:[^{\s]|$))
+   patterns:
+    include: #object-types
+  multi:
+   name: meta.method.body.java
+   begin: \{
+   end: (?=})
+   patterns:
+    include: #groovy-code
+ methods:
+  multi:
+   name: meta.definition.method.groovy
+   begin: (?x:(?<=;|^|\{)(?=\s*\
+                (?:\
+                    (?:private|protected|public|native|synchronized|abstract|threadsafe|transient|static|final) # visibility/modifier\
+                        |\
+                    (?:def)\
+                        |\
+                    (?:\
+                        (?:\
+                            (?:void|boolean|byte|char|short|int|float|long|double)\
+                                |\
+                            (?:@?(?:[a-zA-Z]\w*\.)*[A-Z]+\w*) # object type\
+                        )\
+                        [\[\]]*\
+                        (?:<.*>)?\
+                    ) \
+                    \
+                )\
+                \s+\
+                ([^=]+\s+)?\w+\s*\(\
+   ))
+   end: }|(?=[^{])
+   patterns:
+    include: #method-content
+ nest_curly:
+  multi:
+   begin: \{
+   bcaps: 0=punctuation.section.scope.groovy
+   end: \}
+   ecaps: 0=punctuation.section.scope.groovy
+   patterns:
+    include: #nest_curly
+ numbers:
+  single:
+   name: constant.numeric.groovy
+   pattern: ((0(x|X)[0-9a-fA-F]*)|(\+|-)?\b(([0-9]+\.?[0-9]*)|(\.[0-9]+))((e|E)(\+|-)?[0-9]+)?)([LlFfUuDdg]|UL|ul)?\b
+ object-types:
+  multi:
+   name: storage.type.generic.groovy
+   begin: \b((?:[a-z]\w*\.)*(?:[A-Z]+\w*[a-z]+\w*|UR[LI]))<
+   end: >|[^\w\s,\?<\[\]]
+   patterns:
+    include: #object-types
+    multi:
+     name: storage.type.generic.groovy
+     begin: <
+     end: >|[^\w\s,\[\]<]
+  multi:
+   name: storage.type.object.array.groovy
+   begin: \b((?:[a-z]\w*\.)*[A-Z]+\w*[a-z]+\w*)(?=\[)
+   end: (?=[^\]\s])
+   patterns:
+    multi:
+     begin: \[
+     end: \]
+     patterns:
+      include: #groovy
+  single:
+   name: storage.type.groovy
+   pattern: \b(?:[a-zA-Z]\w*\.)*(?:[A-Z]+\w*[a-z]+\w*|UR[LI])\b
+ object-types-inherited:
+  multi:
+   name: entity.other.inherited-class.groovy
+   begin: \b((?:[a-zA-Z]\w*\.)*[A-Z]+\w*[a-z]+\w*)<
+   end: >|[^\w\s,\?<\[\]]
+   patterns:
+    include: #object-types-inherited
+    multi:
+     name: storage.type.generic.groovy
+     begin: <
+     end: >|[^\w\s,\[\]<]
+  single:
+   name: entity.other.inherited-class.groovy
+   pattern: \b(?:[a-zA-Z]\w*(\.))*[A-Z]+\w*[a-z]+\w*\b
+   caps: 1=keyword.operator.dereference.groovy
+ parameters:
+  include: #annotations
+  include: #storage-modifiers
+  include: #types
+  single:
+   name: variable.parameter.method.groovy
+   pattern: \w+
+ parens:
+  multi:
+   begin: \(
+   end: \)
+   patterns:
+    include: #groovy-code
+ primitive-arrays:
+  single:
+   name: storage.type.primitive.array.groovy
+   pattern: \b(?:void|boolean|byte|char|short|int|float|long|double)(\[\])*\b
+ primitive-types:
+  single:
+   name: storage.type.primitive.groovy
+   pattern: \b(?:void|boolean|byte|char|short|int|float|long|double)\b
+ regexp:
+  multi:
+   name: string.regexp.groovy
+   begin: /(?=[^/]+/([^>]|$))
+   bcaps: 0=punctuation.definition.string.regexp.begin.groovy
+   end: /
+   ecaps: 0=punctuation.definition.string.regexp.end.groovy
+   patterns:
+    single:
+     name: constant.character.escape.groovy
+     pattern: \\.
+  multi:
+   name: string.regexp.compiled.groovy
+   begin: ~"
+   bcaps: 0=punctuation.definition.string.regexp.begin.groovy
+   end: "
+   ecaps: 0=punctuation.definition.string.regexp.end.groovy
+   patterns:
+    single:
+     name: constant.character.escape.groovy
+     pattern: \\.
+ storage-modifiers:
+  single:
+   name: storage.modifier.access-control.groovy
+   pattern: \b(private|protected|public)\b
+  single:
+   name: storage.modifier.static.groovy
+   pattern: \b(static)\b
+  single:
+   name: storage.modifier.final.groovy
+   pattern: \b(final)\b
+  single:
+   name: storage.modifier.other.groovy
+   pattern: \b(native|synchronized|abstract|threadsafe|transient)\b
+ string-quoted-double:
+  multi:
+   name: string.quoted.double.groovy
+   begin: "
+   bcaps: 0=punctuation.definition.string.begin.groovy
+   end: "
+   ecaps: 0=punctuation.definition.string.end.groovy
+   patterns:
+    include: #string-quoted-double-contents
+ string-quoted-double-contents:
+  single:
+   name: constant.character.escape.groovy
+   pattern: \\.
+  multi:
+   name: variable.other.interpolated.groovy
+   begin: \$\w
+   end: (?=\W)
+   patterns:
+    single:
+     name: variable.other.interpolated.groovy
+     pattern: \w
+    single:
+     name: keyword.other.dereference.groovy
+     pattern: \.
+  multi:
+   name: source.groovy.embedded.source
+   begin: \$\{
+   bcaps: 0=punctuation.section.embedded.groovy
+   end: \}
+   ecaps: 0=punctuation.section.embedded.groovy
+   patterns:
+    include: #nest_curly
+ string-quoted-double-multiline:
+  multi:
+   name: string.quoted.double.multiline.groovy
+   begin: """
+   bcaps: 0=punctuation.definition.string.begin.groovy
+   end: """
+   ecaps: 0=punctuation.definition.string.end.groovy
+   patterns:
+    include: #string-quoted-double-contents
+ string-quoted-single:
+  multi:
+   name: string.quoted.single.groovy
+   begin: '
+   bcaps: 0=punctuation.definition.string.begin.groovy
+   end: '
+   ecaps: 0=punctuation.definition.string.end.groovy
+   patterns:
+    include: #string-quoted-single-contents
+ string-quoted-single-contents:
+  single:
+   name: constant.character.escape.groovy
+   pattern: \\.
+ string-quoted-single-multiline:
+  multi:
+   name: string.quoted.single.multiline.groovy
+   begin: '''
+   bcaps: 0=punctuation.definition.string.begin.groovy
+   end: '''
+   ecaps: 0=punctuation.definition.string.end.groovy
+   patterns:
+    include: #string-quoted-single-contents
+ strings:
+  include: #string-quoted-double-multiline
+  include: #string-quoted-single-multiline
+  include: #string-quoted-double
+  include: #string-quoted-single
+  include: #regexp
+ structures:
+  multi:
+   name: meta.structure.groovy
+   begin: \[
+   bcaps: 0=punctuation.definition.structure.begin.groovy
+   end: \]
+   ecaps: 0=punctuation.definition.structure.end.groovy
+   patterns:
+    include: #groovy-code
+    single:
+     name: punctuation.definition.separator.groovy
+     pattern: ,
+ support-functions:
+  single:
+   name: support.function.print.groovy
+   pattern: (?x)\b(?:sprintf|print(?:f|ln)?)\b
+  single:
+   name: support.function.testing.groovy
+   pattern: (?x)\b(?:shouldFail|fail(?:NotEquals)?|ass(?:ume|ert(?:S(?:cript|ame)|N(?:ot(?:Same|\
+     Null)|ull)|Contains|T(?:hat|oString|rue)|Inspect|Equals|False|Length|\
+     ArrayEquals)))\b
+ types:
+  single:
+   name: storage.type.def.groovy
+   pattern: \b(def)\b
+  include: #primitive-types
+  include: #primitive-arrays
+  include: #object-types
+ values:
+  include: #language-variables
+  include: #strings
+  include: #numbers
+  include: #constants
+  include: #types
+  include: #structures
+  include: #method-call
+ variables:
+  multi:
+   name: meta.definition.variable.groovy
+   begin: (?x:(?=\
+                        (?:\
+                            (?:private|protected|public|native|synchronized|abstract|threadsafe|transient|static|final) # visibility/modifier\
+                                |\
+                            (?:def)\
+                                |\
+                            (?:void|boolean|byte|char|short|int|float|long|double)\
+                                |\
+                            (?:(?:[a-z]\w*\.)*[A-Z]+\w*) # object type\
+                        )\
+                        \s+\
+                        [\w\d_<>\[\],\s]+\
+                        (?:=|$)\
+                        \
+           ))
+   end: ;|$
+   patterns:
+    single:
+     pattern: \s
+    single:
+     pattern: ([A-Z_0-9]+)\s+(?=\=)
+     caps: 1=constant.variable.groovy
+    single:
+     pattern: (\w[^\s,]*)\s+(?=\=)
+     caps: 1=meta.definition.variable.name.groovy
+    multi:
+     begin: =
+     bcaps: 0=keyword.operator.assignment.groovy
+     end: $
+     patterns:
+      include: #groovy-code
+    single:
+     pattern: (\w[^\s=]*)(?=\s*($|;))
+     caps: 1=meta.definition.variable.name.groovy
+    include: #groovy-code
+patterns:
+ single:
+  name: comment.line.hashbang.groovy
+  pattern: ^(#!).+$\n
+  caps: 1=punctuation.definition.comment.groovy
+ single:
+  name: meta.package.groovy
+  pattern: ^\s*(package)\b(?:\s*([^ ;$]+)\s*(;)?)?
+  caps: 1=keyword.other.package.groovy 2=storage.modifier.package.groovy 3=punctuation.terminator.groovy
+ multi:
+  name: meta.import.groovy
+  contentName: storage.modifier.import.groovy
+  begin: (import static)\b\s*
+  bcaps: 1=keyword.other.import.static.groovy
+  end: \s*(?:$|(?=%>)(;))
+  ecaps: 1=punctuation.terminator.groovy
+  patterns:
+   single:
+    name: punctuation.separator.groovy
+    pattern: \.
+   single:
+    name: invalid.illegal.character_not_allowed_here.groovy
+    pattern: \s
+ multi:
+  name: meta.import.groovy
+  contentName: storage.modifier.import.groovy
+  begin: (import)\b\s*
+  bcaps: 1=keyword.other.import.groovy
+  end: \s*(?:$|(?=%>)|(;))
+  ecaps: 1=punctuation.terminator.groovy
+  patterns:
+   single:
+    name: punctuation.separator.groovy
+    pattern: \.
+   single:
+    name: invalid.illegal.character_not_allowed_here.groovy
+    pattern: \s
+ single:
+  name: meta.import.groovy
+  pattern: ^\s*(import)(?:\s+(static)\s+)\b(?:\s*([^ ;$]+)\s*(;)?)?
+  caps: 1=keyword.other.import.groovy 2=keyword.other.import.static.groovy 3=storage.modifier.import.groovy 4=punctuation.terminator.groovy
+ include: #groovy

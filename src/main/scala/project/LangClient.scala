@@ -647,6 +647,29 @@ abstract class LangClient (
 
   override def logTrace (params :LogTraceParams) = trace(params.getMessage)
 
+  // NOTE: these overrides exist solely to keep Scala 3 from synthesizing mixin forwarders for
+  // LanguageClient's default methods; those forwarders copy the @JsonRequest/@JsonNotification
+  // annotations from the interface onto the forwarder, and lsp4j's RPC method scanner then finds
+  // the same RPC method twice (once on the interface, once on the forwarder) and throws
+  // "Duplicate RPC method". Providing our own bodies avoids the synthesized, annotated forwarder.
+  override def showDocument (params :ShowDocumentParams) :CompletableFuture[ShowDocumentResult] =
+    CompletableFuture.completedFuture(new ShowDocumentResult(true))
+
+  override def refreshSemanticTokens () :CompletableFuture[Void] =
+    CompletableFuture.completedFuture(null)
+
+  override def refreshCodeLenses () :CompletableFuture[Void] =
+    CompletableFuture.completedFuture(null)
+
+  override def refreshInlayHints () :CompletableFuture[Void] =
+    CompletableFuture.completedFuture(null)
+
+  override def refreshInlineValues () :CompletableFuture[Void] =
+    CompletableFuture.completedFuture(null)
+
+  override def refreshDiagnostics () :CompletableFuture[Void] =
+    CompletableFuture.completedFuture(null)
+
   protected def trace (msg :Any) :Unit = {
     if (debugMode) println(s"$name langserver: $msg")
   }

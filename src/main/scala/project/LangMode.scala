@@ -96,13 +96,22 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
       if (contents == null || (contents.isLeft && contents.getLeft.isEmpty))
         view.window.popStatus("No info available.")
       else {
-        val buffer = Buffer.scratch("*popup*")
+        val popbuf = Buffer.scratch("*popup*")
         val wrapWidth = view.width()-4
         LSP.toScala(contents) match {
-          case Left(segs) => for (seg <- segs.asScala) client.format(buffer, wrapWidth, seg)
-          case Right(markup) => client.format(buffer, wrapWidth, markup)
+          case Left(segs) => for (seg <- segs.asScala) client.format(popbuf, wrapWidth, seg)
+          case Right(markup) => client.format(popbuf, wrapWidth, markup)
         }
-        view.popup() = Popup.buffer(buffer, Popup.UpRight(view.point()))
+        // if the formatted docs are too tall to show comfortably in a popup, open them in a real
+        // buffer instead of an overlay that would spill off the bottom of the view
+        if (popbuf.lines.length > view.height()/2) {
+          val docbuf = wspace.createBuffer(
+            Store.scratch(s"*doc: ${wordAt(view.point())}*", buffer.store),
+            State.inits(Mode.Hint("help")))
+          docbuf.insert(docbuf.start, popbuf.lines)
+          window.focus.visit(docbuf)
+        }
+        else view.popup() = Popup.buffer(popbuf, Popup.UpRight(view.point()))
       }
     })
   }

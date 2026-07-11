@@ -135,6 +135,136 @@ class SitterTest {
     assertFalse(hasCmt(Loc(3, 4)))
   }
 
+  val typescript = """export class Widget extends Base implements Named {
+                     |  private count: number = 0;
+                     |
+                     |  get size(): number {
+                     |    return this.count;
+                     |  }
+                     |}
+                     |
+                     |interface Named { name: string }
+                     |""".stripMargin
+
+  @Test def testTypeScript () :Unit = {
+    val parser = new TSParser()
+    parser.setLanguage(new org.treesitter.TreeSitterTypescript())
+    try {
+      val tree = parser.parseString(null, typescript)
+      try {
+        val root = tree.getRootNode()
+        // dump(typescript, root)
+        assertEquals("program", root.getType)
+        val exportStmt = root.getChild(0)
+        assertEquals("export_statement", exportStmt.getType)
+        val classDecl = exportStmt.getNamedChild(0)
+        assertEquals("class_declaration", classDecl.getType)
+        // confirm the class name node type that TypeScriptMode's styler keys off of
+        assertEquals("type_identifier", classDecl.getChildByFieldName("name").getType)
+        // confirm `extends Base` types Base as a plain identifier, not type_identifier (the
+        // quirk TypeScriptMode's "extends_clause" case in its identifier styler exists for)
+        val heritage = classDecl.getNamedChild(1)
+        assertEquals("class_heritage", heritage.getType)
+        val extendsClause = heritage.getNamedChild(0)
+        assertEquals("extends_clause", extendsClause.getType)
+        assertEquals("identifier", extendsClause.getChildByFieldName("value").getType)
+      } finally tree.close()
+    } finally parser.close()
+  }
+
+  @Test def testFunctionAndMethodCallScoping () :Unit = {
+    val source = """function isChunkMismatchError(error: Error) {
+  return error?.message?.includes("x") || error.name === 'ChunkLoadError';
+}
+
+export default function ErrorPage({ error }: { error: Error }) {
+  posthog.capture('x', { error_message: error.message });
+  window.location.reload();
+}
+"""
+    val parser = new TSParser()
+    parser.setLanguage(new org.treesitter.TreeSitterTsx())
+    try {
+      val tree = parser.parseString(null, source)
+      try {
+        val root = tree.getRootNode()
+        // dump(source, root)
+
+        // function declaration name: identifier under function_declaration (styled functionStyle)
+        val decl = findFirst(root, "function_declaration").get
+        assertEquals("identifier", decl.getChildByFieldName("name").getType)
+
+        def propNamed (n :String) :TSNode = {
+          def find (node :TSNode) :Option[TSNode] =
+            if (node.getType == "property_identifier" &&
+                source.substring(node.getStartByte, node.getEndByte) == n) Some(node)
+            else (0 until node.getChildCount).view.flatMap(ii => find(node.getChild(ii))).headOption
+          find(root).getOrElse(throw new AssertionError(s"couldn't find property_identifier '$n'"))
+        }
+
+        // plain property read `error.name` (used in a binary_expression, not called) must NOT be
+        // treated as a method call: its member_expression's parent must not be call_expression
+        val nameRead = propNamed("name")
+        assertEquals("member_expression", nameRead.getParent.getType)
+        assertNotEquals("call_expression", nameRead.getParent.getParent.getType)
+
+        // `error?.message?.includes(...)`: "includes" is a method call (member_expression whose
+        // parent is call_expression) via optional chaining; "message" along the way is not
+        val includes = propNamed("includes")
+        assertEquals("member_expression", includes.getParent.getType)
+        assertEquals("call_expression", includes.getParent.getParent.getType)
+        val message = propNamed("message")
+        assertEquals("member_expression", message.getParent.getType)
+        assertNotEquals("call_expression", message.getParent.getParent.getType)
+
+        // `posthog.capture(...)`: same shape as above, without optional chaining
+        val capture = propNamed("capture")
+        assertEquals("member_expression", capture.getParent.getType)
+        assertEquals("call_expression", capture.getParent.getParent.getType)
+
+        // `window.location.reload()`: "reload" is the call; "location" (nested member access on
+        // the way to it) is not
+        val reload = propNamed("reload")
+        assertEquals("member_expression", reload.getParent.getType)
+        assertEquals("call_expression", reload.getParent.getParent.getType)
+        val location = propNamed("location")
+        assertEquals("member_expression", location.getParent.getType)
+        assertNotEquals("call_expression", location.getParent.getParent.getType)
+      } finally tree.close()
+    } finally parser.close()
+  }
+
+  def findFirst (node :TSNode, typ :String) :Option[TSNode] =
+    if (node.getType == typ) Some(node)
+    else (0 until node.getChildCount).view.flatMap(ii => findFirst(node.getChild(ii), typ)).headOption
+
+  @Test def testTsx () :Unit = {
+    val source = """export const App = () => <div className="app">Hello</div>;"""
+    val parser = new TSParser()
+    parser.setLanguage(new org.treesitter.TreeSitterTsx())
+    try {
+      val tree = parser.parseString(null, source)
+      try {
+        val root = tree.getRootNode()
+        // dump(source, root)
+        assertEquals("program", root.getType)
+        assertFalse(root.hasError())
+
+        // confirm the node types/scoping that TypeScriptMode's JSX stylers key off of
+        val jsxElement = findFirst(root, "jsx_element").get
+        val openTag = jsxElement.getChildByFieldName("open_tag")
+        assertEquals("jsx_opening_element", openTag.getType)
+        assertEquals("identifier", openTag.getChildByFieldName("name").getType)
+        val closeTag = jsxElement.getChildByFieldName("close_tag")
+        assertEquals("jsx_closing_element", closeTag.getType)
+        assertEquals("identifier", closeTag.getChildByFieldName("name").getType)
+
+        val attr = findFirst(root, "jsx_attribute").get
+        assertEquals("property_identifier", attr.getNamedChild(0).getType)
+      } finally tree.close()
+    } finally parser.close()
+  }
+
   def dump (source :String, node :TSNode, indent :String = "") :Unit = {
     val text = source.substring(node.getStartByte, node.getEndByte)
     println(s"$indent$text :: ${node.getType}")

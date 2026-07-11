@@ -52,6 +52,14 @@
   -fx-font-weight: bold;
 }
 
+.codeMarkupTagFace {
+  -fx-fill: #E88388;
+}
+
+.codeMarkupAttributeFace {
+  -fx-fill: #66C2CD;
+}
+
 .blockDelimFace {
   -fx-underline: true;
 }

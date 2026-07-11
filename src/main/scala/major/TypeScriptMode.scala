@@ -69,12 +69,101 @@ object TypeScriptConfig extends Config.Defs {
        pats=Array(".*\\.ts", ".*\\.tsx"),
        ints=Array("typescript"),
        desc="A major editing mode for the TypeScript language.")
-class TypeScriptMode (env :Env) extends GrammarCodeMode(env) {
+class TypeScriptMode (env :Env) extends SitterCodeMode(env) {
   import CodeConfig._
   import moped.util.Chars._
 
-  override def langScope = "source.typescript"
+  // .tsx files use a distinct (JSX-aware) grammar from plain .ts files
+  override def langId =
+    if (buffer.store.name.endsWith(".tsx")) new org.treesitter.TreeSitterTsx()
+    else new org.treesitter.TreeSitterTypescript()
+
   override def configDefs = TypeScriptConfig :: super.configDefs
+
+  override def styles = {
+    // bare keyword tokens (i.e. those not better described as a type, constant, etc. below); local
+    // to this method (rather than class-level vals) because SitterCodeMode's constructor calls
+    // `styles` as part of building its `Sitter`, which runs *before* this class's own field
+    // initializers, so a class-level val here would still be null when this is first invoked
+    val keywords = Set(
+      "abstract", "as", "assert", "asserts", "async", "await", "break", "case", "catch", "class",
+      "const", "continue", "debugger", "declare", "default", "delete", "do", "else", "enum",
+      "export", "extends", "finally", "for", "from", "function", "get", "if", "implements",
+      "import", "in", "infer", "instanceof", "interface", "is", "keyof", "let", "module",
+      "namespace", "new", "of", "override", "private", "protected", "public", "readonly", "return",
+      "satisfies", "set", "static", "super", "switch", "this", "throw", "try", "typeof", "unique",
+      "using", "var", "while", "with", "yield")
+
+    // primitive type keywords; unlike "number"/"string" these don't double as literal-value node
+    // types elsewhere in the grammar, so they can be styled unconditionally
+    val predefinedTypes = Set("any", "unknown", "never", "object", "symbol", "boolean", "void")
+
+    keywords.map(_ -> always(keywordStyle)).toMap ++
+    predefinedTypes.map(_ -> always(typeStyle)).toMap ++ Map(
+    "comment" -> always(commentStyle),
+    "html_comment" -> always(commentStyle),
+
+    "true" -> always(constantStyle),
+    "false" -> always(constantStyle),
+    "null" -> always(constantStyle),
+    "undefined" -> always(constantStyle),
+    "regex" -> always(stringStyle),
+    "template_string" -> always(stringStyle),
+    // "number" and "string" are used both for literal values (`0`, `"foo"`) *and* (confusingly)
+    // for the primitive type keywords `number`/`string` (as the sole child of a `predefined_type`
+    // node), so we have to look at the parent scope to tell which is which
+    "number" -> (scopes => scopes.head match {
+      case "predefined_type" => typeStyle
+      case _ => constantStyle
+    }),
+    "string" -> (scopes => scopes.head match {
+      case "predefined_type" => typeStyle
+      case _ => stringStyle
+    }),
+
+    "type_identifier" -> always(typeStyle),
+
+    "identifier" -> (scopes => scopes.head match {
+      case "extends_clause" => typeStyle // `class Foo extends Base`: Base is typed identifier
+      case "enum_declaration" => typeStyle // enum names are typed identifier, not type_identifier
+      // function declarations/expressions, same color as a call/invocation of that function
+      case "function_declaration" | "function_expression" |
+           "generator_function_declaration" | "generator_function" => functionStyle
+      case "call_expression" | "new_expression" => functionStyle
+      case "import_specifier" | "namespace_import" => moduleStyle
+      // JSX tag names (both the opening `<Foo` and closing `</Foo>` identifier): `<div>`,
+      // `<MyComponent>`, etc. (tsx only; harmless to match in plain .ts, which never has these)
+      case "jsx_opening_element" | "jsx_closing_element" | "jsx_self_closing_element" =>
+        markupTagStyle
+      case _ => variableStyle
+    }),
+    "property_identifier" -> (scopes => scopes match {
+      case "method_definition" :: _ => functionStyle
+      case "method_signature" :: _ => functionStyle
+      // `obj.method(...)`, including chained/optional access like `a?.b?.method()`: the method
+      // name's *direct* parent is always member_expression (never call_expression directly), and
+      // it's only a method *call* (as opposed to a plain property read like `obj.field`) when
+      // that member_expression is itself the callee of a call_expression
+      case "member_expression" :: "call_expression" :: _ => functionStyle
+      // JSX attribute name: <div className="app">
+      case "jsx_attribute" :: _ => markupAttributeStyle
+      case _ => variableStyle
+    }),
+    "shorthand_property_identifier" -> always(variableStyle),
+    "shorthand_property_identifier_pattern" -> always(variableStyle),
+    "private_property_identifier" -> always(variableStyle),
+    "statement_identifier" -> always(variableStyle),
+    )
+  }
+
+  override def syntaxes = Map(
+    "comment" -> (_ => Syntax.LineComment),
+    "html_comment" -> (_ => Syntax.LineComment),
+    "string" -> (_ => Syntax.StringLiteral),
+    "template_string" -> (_ => Syntax.StringLiteral),
+    "regex" -> (_ => Syntax.StringLiteral),
+    "number" -> (_ => Syntax.OtherLiteral),
+  )
 
   override protected def createIndenter () = new BlockIndenter(config, Seq(
     // bump extends/implements in two indentation levels

@@ -54,6 +54,10 @@ object CodeConfig extends Config.Defs {
   val variableStyle = "codeVariableFace"
   /** The CSS style applied to `invalid` syntax. */
   val invalidStyle = "codeInvalidFace"
+  /** The CSS style applied to markup (e.g. JSX/HTML) tag names. */
+  val markupTagStyle = "codeMarkupTagFace"
+  /** The CSS style applied to markup (e.g. JSX/HTML) attribute names. */
+  val markupAttributeStyle = "codeMarkupAttributeFace"
 
   /** The CSS style applied to the current block delimiters. */
   val blockDelimStyle = "blockDelimFace"

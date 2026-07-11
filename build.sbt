@@ -33,6 +33,8 @@ lazy val root = project.in(file(".")).settings(
   libraryDependencies += "org.apache.commons" % "commons-compress" % "1.28.0",
   libraryDependencies += "io.github.bonede" % "tree-sitter" % "0.26.6",
   libraryDependencies += "io.github.bonede" % "tree-sitter-python" % "0.25.0",
+  libraryDependencies += "io.github.bonede" % "tree-sitter-typescript" % "0.23.2",
+  libraryDependencies += "io.github.bonede" % "tree-sitter-tsx" % "0.23.2",
 
   libraryDependencies ++= Seq("base", "controls").map(
     m => "org.openjfx" % s"javafx-$m" % "26" classifier osName),

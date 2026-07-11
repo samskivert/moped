@@ -14,6 +14,10 @@ lazy val osName = System.getProperty("os.name") match {
 lazy val buildTreeSitterGrammars = taskKey[Seq[File]](
   "Builds the tree-sitter-swift and tree-sitter-prisma native grammar libraries.")
 
+// packages the staged distribution into a macOS .app (and .dmg) via jpackage; see macapp/ (the
+// icon, Info.plist bits, and file association definitions live there)
+lazy val macapp = taskKey[File]("Stages the app and packages it into a macOS .app/.dmg via jpackage.")
+
 lazy val root = project.in(file(".")).settings(
   name := "Moped",
   version := "0.1.0-SNAPSHOT",
@@ -96,8 +100,51 @@ lazy val root = project.in(file(".")).settings(
   Compile / compile := Def.uncached((Compile / compile).dependsOn(buildTreeSitterGrammars).value),
 
   // include the built tree-sitter native libraries alongside the jars in the staged/packaged
-  // distribution (same dir as the jars, so update.sh's `cp lib/*` and macapp/create.sh both pick
+  // distribution (same dir as the jars, so update.sh's `cp lib/*` and the macapp task both pick
   // them up naturally; see grammar.Sitter.loadNative for how they're found at runtime)
   Universal / mappings ++= buildTreeSitterGrammars.value.map(f =>
-    fileConverter.value.toVirtualFile(f.toPath) -> s"lib/${f.getName}")
+    fileConverter.value.toVirtualFile(f.toPath) -> s"lib/${f.getName}"),
+
+  macapp := Def.uncached {
+    import scala.sys.process.Process
+    if (osName != "mac") sys.error("The macapp task only works on macOS.")
+
+    val log = streams.value.log
+    val stageDir = (Universal / stage).value
+    val macappDir = baseDirectory.value / "macapp"
+
+    // includes the jars as well as the native tree-sitter grammar libraries (.dylib) that
+    // Universal/mappings places alongside them in stageDir/lib
+    val inputDir = macappDir / "input"
+    IO.delete(inputDir)
+    IO.createDirectory(inputDir)
+    (stageDir / "lib").listFiles().foreach(f => IO.copyFile(f, inputDir / f.getName))
+
+    val assocArgs = (macappDir / "assocs").listFiles().filter(_.getName.endsWith(".properties")).
+      toSeq.flatMap(f => Seq("--file-associations", s"assocs/${f.getName}"))
+
+    val javaHome = Process(Seq("/usr/libexec/java_home")).!!.trim
+    val cmd = Seq(
+      s"$javaHome/bin/jpackage",
+      "--input", "input",
+      "--icon", "package/macosx/Moped.icns",
+      "--name", "Moped",
+      "--main-jar", "moped.moped-0.1.0-SNAPSHOT.jar",
+      "--main-class", "moped.impl.MopedLauncher",
+      "--add-modules", "java.base,java.naming,java.datatransfer,java.desktop,java.compiler," +
+        "java.sql,jdk.management,jdk.unsupported,jdk.unsupported.desktop,jdk.charsets",
+      "--mac-package-identifier", "com.samskivert.moped",
+      // gives the packaged app a distinct debug-socket port from any `sbt run` dev instance
+      // (which uses the default port); see impl/Moped.scala and CLAUDE.md
+      "--java-options", "-Dmoped.port=32325",
+    ) ++ assocArgs ++ Seq("--verbose")
+
+    log.info(s"Running (in $macappDir): ${cmd.mkString(" ")}")
+    try { if (Process(cmd, macappDir).! != 0) sys.error("jpackage failed") }
+    finally IO.delete(inputDir)
+
+    // jpackage's default --type on macOS is dmg; report the one it just produced, if we can find it
+    macappDir.listFiles().filter(_.getName.endsWith(".dmg")).sortBy(-_.lastModified).
+      headOption.getOrElse(macappDir)
+  }
 )

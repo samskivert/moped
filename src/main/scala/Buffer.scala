@@ -226,6 +226,38 @@ abstract class BufferV extends Region {
     seek(loc.row, loc.col, count)
   }
 
+  /** Returns the loc one character forward of `loc`, or [[end]] if we're already there. A
+    * "character" here means a single Unicode codepoint: a UTF-16 surrogate pair (used by any
+    * codepoint outside the Basic Multilingual Plane, which includes most emoji) is stepped over as
+    * one unit rather than split into two positions.
+    *
+    * This is a stepping stone toward full extended grapheme cluster (UAX #29) support: some
+    * user-perceived "characters" (skin-tone-modified or ZWJ-joined emoji, base characters plus
+    * combining accents) are made of multiple codepoints, and this method does not yet treat those
+    * as a single unit. Callers that use `nextChar`/`prevChar` (rather than raw `forward`/
+    * `backward`) for single-character motion will pick up that improvement transparently if/when
+    * this method grows grapheme cluster awareness. */
+  def nextChar (loc :Loc) :Loc = forward(loc, codepointWidthAt(loc))
+
+  /** Returns the loc one character backward of `loc`, or [[start]] if we're already there. See
+    * [[nextChar]] for what "character" means here. */
+  def prevChar (loc :Loc) :Loc = backward(loc, codepointWidthBefore(loc))
+
+  // the number of UTF-16 code units occupied by the codepoint starting at `loc` (2 if it's a
+  // surrogate pair, 1 otherwise, including when `loc` is at or past the end of its line)
+  private def codepointWidthAt (loc :Loc) :Int =
+    if (Character.isHighSurrogate(charAt(loc)) && Character.isLowSurrogate(charAt(loc.atCol(loc.col+1))))
+      2
+    else 1
+
+  // the number of UTF-16 code units occupied by the codepoint ending at `loc` (2 if it's a
+  // surrogate pair, 1 otherwise, including when `loc` is at or before the start of its line)
+  private def codepointWidthBefore (loc :Loc) :Int =
+    if (Character.isLowSurrogate(charAt(loc.atCol(loc.col-1))) &&
+        Character.isHighSurrogate(charAt(loc.atCol(loc.col-2))))
+      2
+    else 1
+
   /** Scans forward from `start` for a character that matches `pred`. If `start` matches, it will be
     * returned. If `stop` is reached before finding a match, `stop` is returned. Note that end of
     * line characters are included in the scan.

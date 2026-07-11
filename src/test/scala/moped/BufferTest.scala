@@ -48,4 +48,28 @@ class BufferTest {
     test(Matcher.exact("match"))
     test(Matcher.regexp("\\bmatch\\b"))
   }
+
+  @Test def testNextPrevCharSurrogatePairs () :Unit = {
+    // 😀 (U+1F600) is outside the Basic Multilingual Plane, so it's a UTF-16 surrogate pair (two
+    // Java chars); "hi 😀 bye" is thus 9 buffer columns long, not 8
+    val line = "hi 😀 bye"
+    val buf = Buffer("test", Seq(Line(line)))
+    assertEquals(9, buf.lineLength(0))
+
+    val beforeEmoji = Loc(0, 3) // just before the emoji's high surrogate
+    val afterEmoji = Loc(0, 5) // just after the emoji's low surrogate
+
+    // stepping forward over the emoji lands after both surrogates in one hop, not in the middle
+    assertEquals(afterEmoji, buf.nextChar(beforeEmoji))
+    // and stepping backward from there lands right back before it
+    assertEquals(beforeEmoji, buf.prevChar(afterEmoji))
+
+    // plain ASCII characters still step by exactly one column, as before
+    assertEquals(Loc(0, 1), buf.nextChar(Loc(0, 0)))
+    assertEquals(Loc(0, 0), buf.prevChar(Loc(0, 1)))
+
+    // stepping forward/backward at the very start/end of the buffer is a safe no-op
+    assertEquals(buf.start, buf.prevChar(buf.start))
+    assertEquals(buf.end, buf.nextChar(buf.end))
+  }
 }

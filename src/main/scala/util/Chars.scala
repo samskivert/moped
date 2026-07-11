@@ -9,6 +9,14 @@ import moped._
 
 /** Provides functions for efficiently testing the nature of characters. Specifically, whether they
   * are whitespace, word or punctuation characters.
+  *
+  * Note: these predicates classify individual UTF-16 code units (`Char`), not Unicode codepoints,
+  * so a codepoint outside the Basic Multilingual Plane (most emoji, some rare scripts) is tested
+  * one surrogate half at a time. This happens to be harmless for emoji (neither half is ever a
+  * "word" character), but a supplementary-plane *letter* would not be recognized as a word
+  * character by either half alone. Fixing this (and extending it to full grapheme clusters) is
+  * tracked alongside `Buffer.nextChar`/`prevChar`, which already step over a surrogate pair as one
+  * unit when scanning past a single non-word character (see `wordBoundsAt` below).
   */
 object Chars {
 
@@ -78,7 +86,7 @@ object Chars {
     * backward and forward from `pos` for all characters that match the [[isWord]] predicate. */
   def wordBoundsAt (buffer :Buffer, pos :Loc) :(Loc, Loc) = {
     val pstart = buffer.scanBackward(isNotWord, pos)
-    val start = if (isWord(buffer.charAt(pstart))) pstart else buffer.forward(pstart, 1)
+    val start = if (isWord(buffer.charAt(pstart))) pstart else buffer.nextChar(pstart)
     val end = if (!isWord(buffer.charAt(start))) start
               else buffer.scanForward(isNotWord, pos)
     (start, end)

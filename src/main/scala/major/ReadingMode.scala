@@ -204,7 +204,7 @@ abstract class ReadingMode (env :Env) extends MajorMode(env) {
   def forwardChar () :Unit = {
     val old = view.point()
     // if we're at the end of the current line, move to the next line
-    view.point() = buffer.forward(old, 1)
+    view.point() = buffer.nextChar(old)
     // if the point didn't change, that means we tried to move past the end of the buffer
     if (old == view.point()) window.emitStatus("End of buffer.")
   }
@@ -212,7 +212,7 @@ abstract class ReadingMode (env :Env) extends MajorMode(env) {
   @Fn("Moves the point backward one character.")
   def backwardChar () :Unit = {
     val old = view.point()
-    view.point() = buffer.backward(old, 1)
+    view.point() = buffer.prevChar(old)
     if (old == view.point()) window.emitStatus("Beginning of buffer.")
   }
 

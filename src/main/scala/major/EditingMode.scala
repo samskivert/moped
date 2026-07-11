@@ -242,7 +242,7 @@ abstract class EditingMode (env :Env) extends ReadingMode(env) {
   @Fn("Deletes the character immediately previous to the point.")
   def deleteBackwardChar () :Unit = {
     val vp = view.point()
-    val prev = buffer.backward(vp, 1)
+    val prev = buffer.prevChar(vp)
     if (prev == vp) window.emitStatus("Beginning of buffer.")
     else buffer.delete(prev, vp)
   }
@@ -250,7 +250,7 @@ abstract class EditingMode (env :Env) extends ReadingMode(env) {
   @Fn("Deletes the character at the point.")
   def deleteForwardChar () :Unit = {
     val del = view.point()
-    val next = buffer.forward(del, 1)
+    val next = buffer.nextChar(del)
     if (del == next) window.emitStatus("End of buffer.")
     else buffer.delete(del, next)
   }
@@ -358,7 +358,7 @@ abstract class EditingMode (env :Env) extends ReadingMode(env) {
          This gives the word a first character in upper case and the rest in lower case.""")
   def capitalizeWord () :Unit = {
     val first = buffer.scanForward(isWord, view.point())
-    val start = buffer.forward(first, 1)
+    val start = buffer.nextChar(first)
     val until = buffer.scanForward(isNotWord, start)
     upcase(first, start)
     downcase(start, until)

@@ -20,7 +20,7 @@ class SwiftMode (env :Env) extends SitterCodeMode(env) {
   import Syntax.{HereDocLiteral => HD}
   import Selector._
 
-  override def langId = ch.usi.si.seart.treesitter.Language.SWIFT
+  override def langId = Sitter.loadNative("swift", "tree_sitter_swift")
 
   override def styles = Map(
     "comment" -> always(commentStyle),

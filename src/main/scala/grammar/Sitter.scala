@@ -4,22 +4,50 @@
 
 package moped.grammar
 
+import java.nio.file.{Files, Paths}
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 import moped._
 import moped.grammar.Matcher
 
-import ch.usi.si.seart.treesitter._
+import org.treesitter._
 
 object Sitter {
-  private var loaded = false
+  case class Scopes (scopes :List[String])
 
-  def loadLibrary () = {
-    if (!loaded) LibraryLoader.load()
-    loaded = true
+  /** Loads a tree-sitter grammar built by the `buildTreeSitterGrammars` sbt task (see
+    * build.sbt) for a language that has no published tree-sitter-ng Java artifact (e.g. Swift,
+    * Prisma). `name` is the grammar's build name (e.g. "swift") and `symbol` is the exported C
+    * symbol from its generated parser.c (e.g. "tree_sitter_swift"). */
+  def loadNative (name :String, symbol :String) :TSLanguage = {
+    val ext = System.getProperty("os.name") match {
+      case n if n.startsWith("Mac") => "dylib"
+      case n if n.startsWith("Windows") => "dll"
+      case _ => "so"
+    }
+    val fileName = s"libtree-sitter-$name.$ext"
+    val path = nativeLibCandidates(fileName).find(Files.exists(_)).getOrElse(throw
+      new IllegalStateException(
+        s"Missing native tree-sitter grammar library: $fileName\n" +
+        "Run `sbt buildTreeSitterGrammars` (or just `sbt compile`) to build it."))
+    TSLanguage.load(path.toString, symbol)
   }
 
-  case class Scopes (scopes :List[String])
+  // candidate locations for a built native grammar library, most-likely-first:
+  //  - alongside whatever jar/classes this code itself loaded from: covers both the staged/
+  //    packaged distribution (where build.sbt's Universal/mappings puts native libs in the same
+  //    "lib" dir as the jars) and a jpackage'd .app (same layout, see macapp/create.sh)
+  //  - native/build relative to the cwd: covers `sbt run`/`sbt test` during development, where
+  //    code runs from an exploded classes dir, not a jar, and cwd is the project root
+  private def nativeLibCandidates (fileName :String) :Seq[java.nio.file.Path] = {
+    val besideCode = try {
+      val codeLoc = Paths.get(getClass.getProtectionDomain.getCodeSource.getLocation.toURI)
+      val dir = if (Files.isRegularFile(codeLoc)) codeLoc.getParent else codeLoc
+      Some(dir.resolve(fileName))
+    } catch { case _ :Throwable => None }
+    val devBuild = Paths.get(System.getProperty("user.dir"), "native", "build", fileName)
+    besideCode.toSeq :+ devBuild
+  }
 }
 
 type Styler = (List[String]) => String
@@ -33,7 +61,7 @@ type Syntaxer = (List[String]) => Syntax
   * parts of the buffer that are rescoped due to the buffer being edited.
   */
 class Sitter (
-  lang :Language, buf :Buffer, stylers :Map[String, Styler], syntaxers :Map[String, Syntaxer]
+  lang :TSLanguage, buf :Buffer, stylers :Map[String, Styler], syntaxers :Map[String, Syntaxer]
 ) {
 
   /** Returns the scope names applied to `loc` in outer- to inner-most order. */
@@ -110,47 +138,30 @@ class Sitter (
   // rethinks row; if end of row state changed, rethinks the next row as well; &c
   private def cascadeRethink (row :Int, stopRow :Int, firstRow :Int, force :Boolean) :Unit = {
     // TEMP rethink whole buffer
-    val parser = Parser.getFor(lang)
+    val parser = new TSParser()
+    parser.setLanguage(lang)
     try {
       val source = Line.toText(buf.lines)
-      val tree = parser.parse(source)
-
-      // val states = buf.lines.map(_ => new Span.State(Nil))
-      // def process (node :Node, scopes :List[String]) :Unit = {
-      //   val children = node.getChildCount
-      //   if (children == 0) {
-      //     val sloc = buf.loc(node.getStartByte)
-      //     val eloc = buf.loc(node.getEndByte)
-      //     if (sloc.row != eloc.row) println("Dropping multi-line terminal node ${node.getType}")
-      //     else {
-      //       states(sloc.row).spans += Span(nscopes, sloc.col, eloc.col)
-      //     }
-      //   } else for (ii <- 0 until node.getChildCount) process(node.getChild(ii), nscopes)
-      // }
-      // process(tree.getRootNode, Nil)
-      // buf.lines.indices.foreach(row => {
-      //   val state = states(row)
-      //   setState(row, state)
-      //   state.apply(procs, buf, row)
-      // })
-      buf.removeTags(classOf[String], isModeStyle, buf) // TOOD: row/stopRow
-      buf.removeTags(classOf[Sitter.Scopes], _ => true, buf) // TOOD: row/stopRow
-      def process (node :Node, scopes :List[String]) :Unit = {
-        val sloc = buf.loc(node.getStartByte)
-        val eloc = buf.loc(node.getEndByte)
-        stylers.get(node.getType).flatMap(styler => Option(styler(scopes))).
-          foreach(style => buf.addStyle(style, sloc, eloc))
-        syntaxers.get(node.getType).flatMap(taxer => Option(taxer(scopes))).
-          foreach(tax => buf.setSyntax(tax, sloc, eloc))
-        val nscopes = node.getType :: scopes
-        if (node.getChildCount > 0) {
-          for (ii <- 0 until node.getChildCount) process(node.getChild(ii), nscopes)
+      val tree = parser.parseString(null, source)
+      try {
+        buf.removeTags(classOf[String], isModeStyle, buf) // TOOD: row/stopRow
+        buf.removeTags(classOf[Sitter.Scopes], _ => true, buf) // TOOD: row/stopRow
+        def process (node :TSNode, scopes :List[String]) :Unit = {
+          val sloc = buf.loc(node.getStartByte)
+          val eloc = buf.loc(node.getEndByte)
+          stylers.get(node.getType).flatMap(styler => Option(styler(scopes))).
+            foreach(style => buf.addStyle(style, sloc, eloc))
+          syntaxers.get(node.getType).flatMap(taxer => Option(taxer(scopes))).
+            foreach(tax => buf.setSyntax(tax, sloc, eloc))
+          val nscopes = node.getType :: scopes
+          if (node.getChildCount > 0) {
+            for (ii <- 0 until node.getChildCount) process(node.getChild(ii), nscopes)
+          }
+          // uncomment to add scopes to every node; costly but needed when setting up a new language
+          // else buf.addTag(Sitter.Scopes(nscopes), sloc, eloc)
         }
-        // uncomment to add scopes to every node; costly but needed when setting up a new language
-        // else buf.addTag(Sitter.Scopes(nscopes), sloc, eloc)
-      }
-      process(tree.getRootNode, Nil)
-
+        process(tree.getRootNode, Nil)
+      } finally tree.close()
     } finally {
       parser.close()
     }

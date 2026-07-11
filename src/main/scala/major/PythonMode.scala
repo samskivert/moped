@@ -19,7 +19,7 @@ class PythonMode (env :Env) extends SitterCodeMode(env) {
 
   override def dispose () :Unit = {} // nada for now
 
-  override def langId = ch.usi.si.seart.treesitter.Language.PYTHON
+  override def langId = new org.treesitter.TreeSitterPython()
 
   override def styles = Map(
     "comment" -> always(commentStyle),

@@ -1,0 +1,6 @@
+[submodule "native/tree-sitter-swift"]
+	path = native/tree-sitter-swift
+	url = https://github.com/alex-pinkus/tree-sitter-swift.git
+[submodule "native/tree-sitter-prisma"]
+	path = native/tree-sitter-prisma
+	url = https://github.com/victorhqc/tree-sitter-prisma.git

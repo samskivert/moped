@@ -5,38 +5,30 @@
 package moped.grammar
 
 import org.junit.Assert._
-import org.junit.{Test, Before}
+import org.junit.Test
 import moped._
 
-import ch.usi.si.seart.treesitter._
-
-object Hack {
-  var libLoaded = false
-}
+import org.treesitter._
 
 class SitterTest {
 
-  @Before def loadLibrary () :Unit = {
-    if (!Hack.libLoaded) {
-      LibraryLoader.load()
-      Hack.libLoaded = true
-    }
-  }
-
   @Test def testPython () :Unit = {
-    val parser = Parser.getFor(Language.PYTHON)
+    val parser = new TSParser()
+    parser.setLanguage(new TreeSitterPython())
     try {
       val source = "def foo(bar, baz):\n  print(bar)\n  print(baz)"
-      val tree = parser.parse(source)
-      val root = tree.getRootNode()
-      // dump(source, root)
-      assertEquals(1, root.getChildCount())
-      assertEquals("module",  root.getType)
-      assertEquals(0, root.getStartByte)
-      assertEquals(44,  root.getEndByte)
-      val function = root.getChild(0)
-      assertEquals("function_definition", function.getType);
-      assertEquals(5,  function.getChildCount)
+      val tree = parser.parseString(null, source)
+      try {
+        val root = tree.getRootNode()
+        // dump(source, root)
+        assertEquals(1, root.getChildCount())
+        assertEquals("module",  root.getType)
+        assertEquals(0, root.getStartByte)
+        assertEquals(44,  root.getEndByte)
+        val function = root.getChild(0)
+        assertEquals("function_definition", function.getType);
+        assertEquals(5,  function.getChildCount)
+      } finally tree.close()
     } finally {
       parser.close()
     }
@@ -54,23 +46,57 @@ class SitterTest {
                 |}""".stripMargin
 
   @Test def testSwift () :Unit = {
-    val parser = Parser.getFor(Language.SWIFT)
+    val parser = new TSParser()
+    parser.setLanguage(Sitter.loadNative("swift", "tree_sitter_swift"))
     try {
-      val tree = parser.parse(swift)
-      val root = tree.getRootNode()
-      // dump(swift, root)
-      assertEquals("source_file",  root.getType)
-      assertEquals(2, root.getChildCount())
-      val function = root.getChild(0)
-      assertEquals("function_declaration", function.getType);
-      val for_loop = root.getChild(1)
-      assertEquals("for_statement", for_loop.getType);
+      val tree = parser.parseString(null, swift)
+      try {
+        val root = tree.getRootNode()
+        // dump(swift, root)
+        assertEquals("source_file",  root.getType)
+        assertEquals(2, root.getChildCount())
+        val function = root.getChild(0)
+        assertEquals("function_declaration", function.getType);
+        val for_loop = root.getChild(1)
+        assertEquals("for_statement", for_loop.getType);
+      } finally tree.close()
     } finally {
       parser.close()
     }
   }
 
-  def dump (source :String, node :Node, indent :String = "") :Unit = {
+  val prismaSchema = """datasource db {
+                       |  provider = "postgresql"
+                       |  url      = env("DATABASE_URL")
+                       |}
+                       |
+                       |model User {
+                       |  id    Int     @id @default(autoincrement())
+                       |  email String  @unique
+                       |  name  String?
+                       |}""".stripMargin
+
+  @Test def testPrisma () :Unit = {
+    val parser = new TSParser()
+    parser.setLanguage(Sitter.loadNative("prisma", "tree_sitter_prisma"))
+    try {
+      val tree = parser.parseString(null, prismaSchema)
+      try {
+        val root = tree.getRootNode()
+        // dump(prismaSchema, root)
+        assertEquals("program",  root.getType)
+        assertEquals(2, root.getChildCount())
+        val datasource = root.getChild(0)
+        assertEquals("datasource_declaration", datasource.getType)
+        val model = root.getChild(1)
+        assertEquals("model_declaration", model.getType)
+      } finally tree.close()
+    } finally {
+      parser.close()
+    }
+  }
+
+  def dump (source :String, node :TSNode, indent :String = "") :Unit = {
     val text = source.substring(node.getStartByte, node.getEndByte)
     println(s"$indent$text :: ${node.getType}")
     val nindent = s"$indent  "

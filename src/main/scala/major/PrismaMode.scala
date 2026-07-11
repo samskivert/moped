@@ -20,7 +20,7 @@ class PrismaMode (env :Env) extends SitterCodeMode(env) {
   import Syntax.{HereDocLiteral => HD}
   import Selector._
 
-  override def langId = ch.usi.si.seart.treesitter.Language.PRISMA
+  override def langId = Sitter.loadNative("prisma", "tree_sitter_prisma")
 
   override def styles = Map(
     "comment" -> always(commentStyle),

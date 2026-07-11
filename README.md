@@ -23,16 +23,33 @@ designed to use LSP from the start.
 
 ## Try it
 
+Moped uses git submodules to vendor a couple of tree-sitter grammars (see the tree-sitter note
+below), so after cloning you'll need to fetch those first:
+
+```
+git submodule update --init
+```
+
 Moped is built with [SBT]. You can build and package it by running:
 
 ```
 sbt stage
 ```
 
-Which will create a distribution in `target/universal/stage`.
+Which will create a distribution in `target/out/jvm/scala-3.8.4/moped/universal/stage`.
 
 You can run it from there via the `bin/moped` or `bin/moped.bat` files, optionally passing the names
 of files to open. Or you can run it and open files via the usual Emacs `C-x C-f`.
+
+### tree-sitter note
+
+Moped uses [tree-sitter-ng](https://github.com/bonede/tree-sitter-ng) for some of its language
+modes. Most grammars (e.g. Python) come as prebuilt Java artifacts pulled in as normal `sbt`
+dependencies, but a couple (Swift, Prisma) aren't published that way, so they're vendored as git
+submodules under `native/` and compiled from source as part of the `sbt` build
+(`sbt compile`/`sbt stage` will do this automatically). That compilation step requires
+`tree-sitter-cli` (e.g. `brew install tree-sitter-cli` on macOS) and a C compiler to be installed,
+in addition to the `git submodule update --init` above.
 
 ## Using Moped
 

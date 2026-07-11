@@ -51,16 +51,22 @@ hand-writing a client each time:
 
 ```
 ./moped-cmd.sh point                          # report point as "row,col"
+./moped-cmd.sh mark                           # report mark as "row,col", or "none"
 ./moped-cmd.sh invoke forward-char            # invoke any registered Fn by name
 ./moped-cmd.sh invoke backward-word
 ./moped-cmd.sh type "hello world"              # insert literal text at point, as if typed
-./moped-cmd.sh click 120 45                   # simulate a mouse click at pixel (x, y)
+./moped-cmd.sh click 120 45                   # simulate a mouse press at pixel (x, y)
+./moped-cmd.sh drag 200 45                    # simulate dragging to pixel (x, y)
+./moped-cmd.sh release 200 45                 # simulate releasing the mouse button
 ./moped-cmd.sh screenshot /tmp/shot.png        # PNG of the whole window
 ./moped-cmd.sh screenshot /tmp/shot.png 0 0 400 200   # PNG cropped to a pixel region
 ```
 
-`click`'s coordinates are in the same pixel space `screenshot` captures, so the usual loop is:
-screenshot, eyeball (or pixel-measure) where you want to click, then `click` there.
+`click`/`drag`/`release` coordinates are in the same pixel space `screenshot` captures, so the
+usual loop is: screenshot, eyeball (or pixel-measure) where you want to click/drag, then send the
+gesture. A click-drag-release sequence sets the mark and point and shows the ephemeral
+mouse-selection highlight, same as a real mouse gesture (see `BufferArea.mousePressed`/
+`mouseDragged`/`mouseReleased` and `BufferView.dragSelection`).
 
 `MOPED_PORT` (env var) overrides the port the script targets, if you need to reach a non-default
 instance.

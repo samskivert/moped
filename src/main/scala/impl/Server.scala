@@ -27,13 +27,16 @@ import moped._
   *     window's focused frame, as if triggered by a keybinding.
   *   - `type TEXT`: inserts `TEXT` at the point of some open window's focused buffer, as if typed.
   *   - `point`: reports the point (as `row,col`) of some open window's focused buffer.
+  *   - `mark`: reports the mark (as `row,col`, or `none`) of some open window's focused buffer.
   *   - `click X Y`: simulates a primary-button mouse press at pixel position `(X, Y)` (relative to
   *     the buffer content, i.e. the same coordinate space `screenshot` captures) in some open
   *     window's focused frame.
+  *   - `drag X Y`: simulates dragging the (already-pressed, per `click`) mouse to `(X, Y)`.
+  *   - `release X Y`: simulates releasing the mouse button at `(X, Y)`.
   *   - `screenshot PATH`: renders some open window to a PNG file at `PATH`.
   *   - `screenshot PATH X Y W H`: as above, but cropped to the pixel region `[X,Y,X+W,Y+H)`.
   *
-  * The last five exist to let an external script drive the editor and inspect its rendered output
+  * The last seven exist to let an external script drive the editor and inspect its rendered output
   * (e.g. for debugging) without needing OS-level input-injection or screen-capture permissions,
   * since the screenshot is rendered in-process via JavaFX's own snapshot mechanism.
   */
@@ -93,16 +96,22 @@ class Server (app :Moped) extends Thread {
           case None => "error: no open window"
         }
       })
-      case c if c `startsWith` "click " => Some(onUIBlocking {
-        app.wspMgr.anyWindow match {
-          case Some(win) =>
-            arg("click ").split(" ").filter(_.nonEmpty) match {
-              case Array(x, y) =>
-                win.focusedArea.mousePressed(mouseEvent(x.toDouble, y.toDouble)) ; "ok"
-              case _ => "error: usage: click X Y"
-            }
+      case "mark" => Some(onUIBlocking {
+        focusedFrame match {
+          case Some(f) if f.view != null =>
+            f.view.buffer.mark.map(p => s"${p.row},${p.col}").getOrElse("none")
+          case Some(_) => "error: no buffer"
           case None => "error: no open window"
         }
+      })
+      case c if c `startsWith` "click " => Some(onUIBlocking {
+        withXY(arg("click "), MouseEvent.MOUSE_PRESSED)((win, mev) => win.focusedArea.mousePressed(mev))
+      })
+      case c if c `startsWith` "drag " => Some(onUIBlocking {
+        withXY(arg("drag "), MouseEvent.MOUSE_DRAGGED)((win, mev) => win.focusedArea.mouseDragged(mev))
+      })
+      case c if c `startsWith` "release " => Some(onUIBlocking {
+        withXY(arg("release "), MouseEvent.MOUSE_RELEASED)((win, mev) => win.focusedArea.mouseReleased(mev))
       })
       case c if c `startsWith` "screenshot " => Some(onUIBlocking(doScreenshot(arg("screenshot "))))
       case _ => Some(s"error: unknown command '$cmd'")
@@ -115,11 +124,28 @@ class Server (app :Moped) extends Thread {
   // finds the focused frame of some open window; must be called on the JavaFX application thread
   private def focusedFrame = app.wspMgr.anyWindow.map(_.focus)
 
-  // builds a synthetic primary-button-press MouseEvent at (x, y); passed directly to
-  // BufferArea.mousePressed (bypassing the real event-dispatch chain, since we're calling it
-  // programmatically), which only reads getX/getY, so the other fields are inert placeholders
-  private def mouseEvent (x :Double, y :Double) :MouseEvent = new MouseEvent(
-    MouseEvent.MOUSE_PRESSED, x, y, x, y, MouseButton.PRIMARY, 1,
+  // parses "X Y" out of `argStr` and, if there's an open window, invokes `fn` with it and a
+  // synthetic MouseEvent of type `evType` at that position; used by `click`/`drag`/`release`
+  private def withXY (
+    argStr :String, evType :javafx.event.EventType[MouseEvent]
+  )(fn :(WindowImpl, MouseEvent) => Unit) :String = {
+    app.wspMgr.anyWindow match {
+      case Some(win) =>
+        argStr.split(" ").filter(_.nonEmpty) match {
+          case Array(x, y) => fn(win, mouseEvent(evType, x.toDouble, y.toDouble)) ; "ok"
+          case _ => "error: usage: X Y"
+        }
+      case None => "error: no open window"
+    }
+  }
+
+  // builds a synthetic MouseEvent at (x, y); passed directly to BufferArea.mousePressed/
+  // mouseDragged/mouseReleased (bypassing the real event-dispatch chain, since we're calling it
+  // programmatically), which only read getX/getY, so the other fields are inert placeholders
+  private def mouseEvent (
+    evType :javafx.event.EventType[MouseEvent], x :Double, y :Double
+  ) :MouseEvent = new MouseEvent(
+    evType, x, y, x, y, MouseButton.PRIMARY, 1,
     false, false, false, false, // shift/control/alt/meta down
     true, false, false, // primary/middle/secondary button down
     false, false, false, // synthesized, popupTrigger, stillSincePress

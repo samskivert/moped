@@ -99,9 +99,9 @@ class TypeScriptMode (env :Env) extends SitterCodeMode(env) {
       "satisfies", "set", "static", "super", "switch", "this", "throw", "try", "typeof", "unique",
       "using", "var", "while", "with", "yield")
 
-    // primitive type keywords; unlike "number"/"string" these don't double as literal-value node
-    // types elsewhere in the grammar, so they can be styled unconditionally
-    val predefinedTypes = Set("any", "unknown", "never", "object", "symbol", "boolean", "void")
+    // primitive type keywords; unlike "number"/"string"/"object" these don't double as some other
+    // node type elsewhere in the grammar, so they can be styled unconditionally
+    val predefinedTypes = Set("any", "unknown", "never", "symbol", "boolean", "void")
 
     keywords.map(_ -> always(keywordStyle)).toMap ++
     predefinedTypes.map(_ -> always(typeStyle)).toMap ++ Map(
@@ -124,6 +124,14 @@ class TypeScriptMode (env :Env) extends SitterCodeMode(env) {
     "string" -> (scopes => scopes.head match {
       case "predefined_type" => typeStyle
       case _ => stringStyle
+    }),
+    // "object" is used both for the `object` primitive type keyword *and* (far more commonly) for
+    // every plain object literal expression (`{ foo: 1 }`), which is not something we style at all;
+    // conflating the two used to slap typeStyle across every object literal's entire (often multi-
+    // line) span, which then visually leaked through/competed with its children's own styling
+    "object" -> (scopes => scopes.head match {
+      case "predefined_type" => typeStyle
+      case _ => null
     }),
 
     "type_identifier" -> always(typeStyle),
@@ -152,6 +160,9 @@ class TypeScriptMode (env :Env) extends SitterCodeMode(env) {
       case "member_expression" :: "call_expression" :: _ => functionStyle
       // JSX attribute name: <div className="app">
       case "jsx_attribute" :: _ => markupAttributeStyle
+      // object literal key (`{ display: "flex" }`): more akin to a symbol/keyword-literal than a
+      // variable reference, since it's not bound to anything, just a fixed property name
+      case "pair" :: _ => constantStyle
       case _ => variableStyle
     }),
     "shorthand_property_identifier" -> always(variableStyle),

@@ -219,6 +219,76 @@ class SitterTest {
     assertFalse(hasCmt(Loc(3, 4)))
   }
 
+  @Test def testObjectLiteralNotStyledAsType () :Unit = {
+    // "object" is tree-sitter-typescript's node type for *both* the `object` primitive type
+    // keyword (`let x: object`) and every plain object literal expression (`{ foo: "bar" }`); a
+    // styler that treats "object" as unconditionally a type (the way "any"/"void"/etc. safely can)
+    // ends up slapping typeStyle across every object literal's entire span, stacking with (and, per
+    // code.css's cascade order, visually beating) whatever style its children (e.g. a string
+    // property value) correctly receive on their own
+    val source = """const x: object = {};
+const style = { display: "inline-flex" };
+"""
+    val buffer = moped.impl.BufferImpl.scratch("test.tsx")
+    buffer.append(source.split("\n", -1).toSeq.map(Line.apply))
+
+    val stylers = Map[String, Styler](
+      "object" -> (scopes => scopes.head match {
+        case "predefined_type" => "type"
+        case _ => null
+      }),
+      "string" -> (scopes => scopes.head match {
+        case "predefined_type" => "type"
+        case _ => "str"
+      }))
+    val syntaxers = Map[String, Syntaxer]()
+    val sitter = new Sitter(new org.treesitter.TreeSitterTsx(), buffer, stylers, syntaxers)
+    sitter.connect(buffer, Signal[String]())
+
+    // the `object` *type keyword* on row 0 is still correctly styled as a type
+    val objTypeCol = source.split("\n")(0).indexOf("object")
+    assertTrue(buffer.stylesAt(Loc(0, objTypeCol)).contains("type"))
+
+    // the object *literal* `{}` on row 0 gets no style of its own
+    val emptyBraceCol = source.split("\n")(0).indexOf("{}")
+    assertFalse(buffer.stylesAt(Loc(0, emptyBraceCol)).contains("type"))
+
+    // the string inside the row-1 object literal is styled as a string only, not also as a type
+    val flexCol = source.split("\n")(1).indexOf("inline-flex")
+    assertTrue(buffer.stylesAt(Loc(1, flexCol)).contains("str"))
+    assertFalse(buffer.stylesAt(Loc(1, flexCol)).contains("type"))
+  }
+
+  @Test def testObjectLiteralKeyStyledAsConstant () :Unit = {
+    val source = """const color = "blue"
+const style = { display: "flex", color: color }
+"""
+    val buffer = moped.impl.BufferImpl.scratch("test.tsx")
+    buffer.append(source.split("\n", -1).toSeq.map(Line.apply))
+
+    val stylers = Map[String, Styler](
+      "property_identifier" -> (scopes => scopes match {
+        case "pair" :: _ => "const"
+        case _ => "var"
+      }),
+      "identifier" -> (_ => "var"))
+    val syntaxers = Map[String, Syntaxer]()
+    val sitter = new Sitter(new org.treesitter.TreeSitterTsx(), buffer, stylers, syntaxers)
+    sitter.connect(buffer, Signal[String]())
+
+    // `display` and the *first* `color` (the key) are object-literal keys: styled as a constant
+    val displayCol = source.split("\n")(1).indexOf("display")
+    assertTrue(buffer.stylesAt(Loc(1, displayCol)).contains("const"))
+    val keyColorCol = source.split("\n")(1).indexOf("color:")
+    assertTrue(buffer.stylesAt(Loc(1, keyColorCol)).contains("const"))
+
+    // the *second* `color` (the value, a reference to the `const color` declared on row 0) is a
+    // plain identifier, not a property_identifier, so it's still styled as a variable
+    val valColorCol = source.split("\n")(1).lastIndexOf("color")
+    assertTrue(buffer.stylesAt(Loc(1, valColorCol)).contains("var"))
+    assertFalse(buffer.stylesAt(Loc(1, valColorCol)).contains("const"))
+  }
+
   val typescript = """export class Widget extends Base implements Named {
                      |  private count: number = 0;
                      |

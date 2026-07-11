@@ -152,6 +152,15 @@ class BufferArea (val bview :BufferViewImpl, val disp :DispatcherImpl) extends R
   // TODO: handle deletion of lines that include the point? that will probably result in the point
   // being moved, so maybe we don't need to worry about it
 
+  // stylesheets needed by formatted popup content (doc comments rendered as markdown, code
+  // snippets), attached explicitly to each popup's BufferArea since popups have no mode of their
+  // own to attach them the normal way (see PopWin.display)
+  private def popupStylesheets = Seq("/code.css", "/lang.css", "/text.css").map(path =>
+    getClass.getResource(path) match {
+      case null => throw new java.io.FileNotFoundException(s"Unable to find stylesheet '$path'")
+      case rsrc => rsrc.toExternalForm
+    })
+
   // wire up the display of popups
   class PopWin extends VBox() {
     setManaged(false)
@@ -171,7 +180,15 @@ class BufferArea (val bview :BufferViewImpl, val disp :DispatcherImpl) extends R
       val pbuffer = pop.buffer.asInstanceOf[BufferImpl]
       val pview = new BufferViewImpl(
         bview.window, pbuffer, pbuffer.lines.map(_.length).max, pbuffer.lines.size)
-      getChildren.add(new BufferArea(pview, disp))
+      val parea = new BufferArea(pview, disp)
+      // popup buffers have no mode/dispatcher of their own, so they never get mode-specific
+      // stylesheets attached the normal way (DispatcherImpl.addSheets); they otherwise only pick
+      // up styles that happen to already be loaded by whatever buffer/mode hosts the popup (e.g.
+      // code.css/lang.css if you're hovering in a source buffer). Formatted popup content (doc
+      // comments rendered as markdown, code snippets) needs those styles regardless of the host
+      // buffer's mode, so attach them explicitly here.
+      popupStylesheets.foreach(parea.getStylesheets.add)
+      getChildren.add(parea)
 
       val line = bview.lines(math.min(pop.pos.y, bview.lines.size-1))
       _ax = line.charX(pop.pos.x, charWidth)

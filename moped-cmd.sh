@@ -7,6 +7,7 @@
 #   ./moped-cmd.sh point
 #   ./moped-cmd.sh invoke forward-char
 #   ./moped-cmd.sh type "hello world"
+#   ./moped-cmd.sh click 120 45
 #   ./moped-cmd.sh screenshot /tmp/shot.png
 #   ./moped-cmd.sh screenshot /tmp/shot.png 0 0 400 200
 #

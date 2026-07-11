@@ -13,6 +13,7 @@ import javafx.application.Platform
 import javafx.embed.swing.SwingFXUtils
 import javafx.geometry.Rectangle2D
 import javafx.scene.SnapshotParameters
+import javafx.scene.input.{MouseButton, MouseEvent}
 import javax.imageio.ImageIO
 
 import moped._
@@ -26,10 +27,13 @@ import moped._
   *     window's focused frame, as if triggered by a keybinding.
   *   - `type TEXT`: inserts `TEXT` at the point of some open window's focused buffer, as if typed.
   *   - `point`: reports the point (as `row,col`) of some open window's focused buffer.
+  *   - `click X Y`: simulates a primary-button mouse press at pixel position `(X, Y)` (relative to
+  *     the buffer content, i.e. the same coordinate space `screenshot` captures) in some open
+  *     window's focused frame.
   *   - `screenshot PATH`: renders some open window to a PNG file at `PATH`.
   *   - `screenshot PATH X Y W H`: as above, but cropped to the pixel region `[X,Y,X+W,Y+H)`.
   *
-  * The last four exist to let an external script drive the editor and inspect its rendered output
+  * The last five exist to let an external script drive the editor and inspect its rendered output
   * (e.g. for debugging) without needing OS-level input-injection or screen-capture permissions,
   * since the screenshot is rendered in-process via JavaFX's own snapshot mechanism.
   */
@@ -89,6 +93,17 @@ class Server (app :Moped) extends Thread {
           case None => "error: no open window"
         }
       })
+      case c if c `startsWith` "click " => Some(onUIBlocking {
+        app.wspMgr.anyWindow match {
+          case Some(win) =>
+            arg("click ").split(" ").filter(_.nonEmpty) match {
+              case Array(x, y) =>
+                win.focusedArea.mousePressed(mouseEvent(x.toDouble, y.toDouble)) ; "ok"
+              case _ => "error: usage: click X Y"
+            }
+          case None => "error: no open window"
+        }
+      })
       case c if c `startsWith` "screenshot " => Some(onUIBlocking(doScreenshot(arg("screenshot "))))
       case _ => Some(s"error: unknown command '$cmd'")
     } catch {
@@ -99,6 +114,16 @@ class Server (app :Moped) extends Thread {
 
   // finds the focused frame of some open window; must be called on the JavaFX application thread
   private def focusedFrame = app.wspMgr.anyWindow.map(_.focus)
+
+  // builds a synthetic primary-button-press MouseEvent at (x, y); passed directly to
+  // BufferArea.mousePressed (bypassing the real event-dispatch chain, since we're calling it
+  // programmatically), which only reads getX/getY, so the other fields are inert placeholders
+  private def mouseEvent (x :Double, y :Double) :MouseEvent = new MouseEvent(
+    MouseEvent.MOUSE_PRESSED, x, y, x, y, MouseButton.PRIMARY, 1,
+    false, false, false, false, // shift/control/alt/meta down
+    true, false, false, // primary/middle/secondary button down
+    false, false, false, // synthesized, popupTrigger, stillSincePress
+    null)
 
   // must be called on the JavaFX application thread
   private def doScreenshot (spec :String) :String = app.wspMgr.anyWindow match {

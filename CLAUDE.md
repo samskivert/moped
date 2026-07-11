@@ -54,9 +54,13 @@ hand-writing a client each time:
 ./moped-cmd.sh invoke forward-char            # invoke any registered Fn by name
 ./moped-cmd.sh invoke backward-word
 ./moped-cmd.sh type "hello world"              # insert literal text at point, as if typed
+./moped-cmd.sh click 120 45                   # simulate a mouse click at pixel (x, y)
 ./moped-cmd.sh screenshot /tmp/shot.png        # PNG of the whole window
 ./moped-cmd.sh screenshot /tmp/shot.png 0 0 400 200   # PNG cropped to a pixel region
 ```
+
+`click`'s coordinates are in the same pixel space `screenshot` captures, so the usual loop is:
+screenshot, eyeball (or pixel-measure) where you want to click, then `click` there.
 
 `MOPED_PORT` (env var) overrides the port the script targets, if you need to reach a non-default
 instance.

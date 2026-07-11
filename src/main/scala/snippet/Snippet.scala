@@ -59,7 +59,7 @@ case class Snippet (
     val holes = Seq.newBuilder[(Int,Int,Loc)]
     var end = loc ; var exit = Loc.None
     val iter = template.iterator ; while (iter.hasNext) {
-      val text = iter.next
+      val text = iter.next()
       val m = Snippet.HolePat.matcher(text) ; var pos = 0
       var lb :Line.Builder = null
       while (m.find(pos)) {
@@ -92,7 +92,7 @@ case class Snippet (
     if (exit == Loc.None) exit = end
 
     // now group the holes by id and figure out which are mirrors
-    val hmap = holes.result.groupBy(_._1)
+    val hmap = holes.result().groupBy(_._1)
     val sb = Seq.newBuilder[Hole] // (hmap.size+1)
     hmap foreach { (_, holes) =>
       // determine which is the primary hole:
@@ -101,7 +101,7 @@ case class Snippet (
       sb += Hole(main._3, main._2, holes.filterNot(_ == main).map(_._3))
     }
     sb += Hole(exit, 0, Seq()) // add the faux "exit" hole
-    (sb.result, end)
+    (sb.result(), end)
   }
 
   override def toString = s"Snippet($name, $triggers)\n${template.mkString("\n")}"
@@ -159,7 +159,7 @@ object Snippet {
         ll = ll.tail
       }
     }
-    includes.result
+    includes.result()
   }
 
   private def getval (line :String, key :String) = line.substring(key.length).trim

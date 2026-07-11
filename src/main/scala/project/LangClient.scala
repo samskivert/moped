@@ -290,7 +290,7 @@ abstract class LangClient (
 
   /** Formats a markdown `text` block, appending it to `buffer`. */
   def formatMarkdown (buffer :Buffer, wrapWidth :Int, text :String) :Buffer = {
-     def format (
+    def format (
       buffer :Buffer, wrapWidth :Int, lines :Seq[String], iter :Int
     ) :Unit = {
       if (lines.size > 0) {

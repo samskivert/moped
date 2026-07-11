@@ -167,7 +167,7 @@ abstract class EditingMode (env :Env) extends ReadingMode(env) {
   def sortLinesIn (start :Loc, end :Loc) :Unit = {
     val r = trimRegion(start, end)
     val lines = buffer.region(r)
-    val sorted = lines.sorted(LineV.ordering)
+    val sorted = lines.sorted(using LineV.ordering)
     if (lines != sorted) buffer.replace(r, sorted)
     else window.popStatus("Region already sorted.")
   }

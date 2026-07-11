@@ -98,7 +98,10 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
       else {
         val popbuf = Buffer.scratch("*popup*")
         val wrapWidth = view.width()-4
-        LSP.toScala(contents) match {
+        // Hover.getContents() can still return the deprecated MarkedString variant per the LSP
+        // spec (in case a server doesn't send MarkupContent), so we must keep handling it
+        @nowarn val scalaContents = LSP.toScala(contents)
+        scalaContents match {
           case Left(segs) => for (seg <- segs.asScala) client.format(popbuf, wrapWidth, seg)
           case Right(markup) => client.format(popbuf, wrapWidth, markup)
         }
@@ -465,17 +468,17 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
               case Some(ds) => loopDS(ds.getChildren.asScala, ds :: encs)
               case None => encs.map(Symbol(docId, _)).toSeq
             }
-          loopDS(dss.result, Nil)
+          loopDS(dss.result(), Nil)
         }
         // if we have sym infos then we don't have body ranges; so we just find the closest symbol
         // that starts before our location and for which the next symbol ends after our location,
         // then use 'container name' to reconstruct encloser chain...
         else if (sis.knownSize > 0) {
-          def symloc (si :SymbolInformation) = LSP.fromPos(si.getLocation.getRange.getStart)
-          val (before, after) = sis.result.partition(si => symloc(si) <= loc)
+          @nowarn def symloc (si :SymbolInformation) = LSP.fromPos(si.getLocation.getRange.getStart)
+          val (before, after) = sis.result().partition(si => symloc(si) <= loc)
           if (before.isEmpty) Seq()
           else {
-            def outers (si :SymbolInformation, encs :List[SymbolInformation]) :Seq[Symbol] =
+            @nowarn def outers (si :SymbolInformation, encs :List[SymbolInformation]) :Seq[Symbol] =
               before.find(_.getName == si.getContainerName) match {
                 case Some(osi) => outers(osi, si :: encs)
                 case None => (si :: encs).reverse.map(Symbol.apply).toSeq

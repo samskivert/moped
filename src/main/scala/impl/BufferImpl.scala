@@ -193,7 +193,7 @@ class BufferImpl private (initStore :Store) extends RBuffer {
         val orig = Seq.newBuilder[Line] // (lines.length)
         val iter = lines.iterator
         onRows(start, until) { (l, s, c) =>
-          orig += l.replace(s, c-s.col, iter.next)
+          orig += l.replace(s, c-s.col, iter.next())
         }
         noteTransform(start, orig.result())
       } else {

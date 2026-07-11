@@ -243,7 +243,7 @@ object TypeScriptPlugins {
         // TODO: handle glob ignores properly
         igs.asScala.map(_.asString).foreach { ignores += Ignorer.ignoreName(_) }
       }
-      project.addComponent(classOf[Filer], new DirectoryFiler(project, ignores.result))
+      project.addComponent(classOf[Filer], new DirectoryFiler(project, ignores.result()))
 
       // TODO: package.json doesn't define source directories, so we hack some stuff
       // val sourceDirs = Seq("src", "test").map(modPath.resolve(_))

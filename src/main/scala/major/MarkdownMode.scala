@@ -93,7 +93,7 @@ class MarkdownMode (env :Env) extends GrammarTextMode(env) {
       // subsequent lines get whitespace as a prefix
       var repeatPre = " " * prefixLen
       filled.drop(1) foreach { f => lines += Line(f.insert(0, repeatPre)) }
-      var flines = lines.result
+      var flines = lines.result()
 
       if (flines != orig) buffer.replace(r, flines)
       else window.emitStatus("Region already filled.")

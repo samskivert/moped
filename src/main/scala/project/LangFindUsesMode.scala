@@ -81,7 +81,7 @@ class LangFindUsesMode (env :Env, ctx :LangFindUsesConfig.Context, client :LangC
       })
     }
 
-    buffer `append` lines.result
+    buffer `append` lines.result()
     buffer `split` buffer.end
 
     if (locs.isEmpty) {
@@ -89,7 +89,7 @@ class LangFindUsesMode (env :Env, ctx :LangFindUsesConfig.Context, client :LangC
     }
 
     window.exec.runOnUI {
-      visitList = new Visit.List("use", visits.result)
+      visitList = new Visit.List("use", visits.result())
       window.visits() = visitList
       view.point() = Loc.Zero
     }

@@ -31,7 +31,7 @@ object ConfigFile {
     if (end - start > 0) {
       groups += lines.slice(start, end)
     }
-    groups.result
+    groups.result()
   }
 
   /** Writes the config `data` to `path` in a way that can be recovered by [[read]]. */
@@ -56,7 +56,7 @@ object ConfigFile {
     for (group <- read(path)) {
       map += (group(0) -> group.drop(1))
     }
-    map.result
+    map.result()
   }
 
   /** Helper that makes it easy to write files that can be read using [[readMap]]. */

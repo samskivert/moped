@@ -98,7 +98,7 @@ class RState (inits :State.Init[?]*) extends State {
   def keys :Set[Class[?]] = _states.asMap.keySet.asScala.filter(key => apply(key).isDefined).toSet
 
   override def get[T] (key :Class[T]) = apply(key).getOption
-  override def get[T] (implicit tag :ClassTag[T]) = apply(tag).getOption
+  override def get[T] (implicit tag :ClassTag[T]) = apply(using tag).getOption
   override def req[T] (key :Class[T]) = apply(key).get
   override def req[T] (key :Class[T], msg :String) = {
     val opt = apply(key)

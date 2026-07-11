@@ -21,7 +21,7 @@ class Server (app :Moped) extends Thread {
       app.logger.log(s"Listening for commands on localhost:$port")
       while (true) {
         val csock = ssock.accept()
-        try Source.fromInputStream(csock.getInputStream(), "UTF-8").getLines foreach process
+        try Source.fromInputStream(csock.getInputStream(), "UTF-8").getLines() foreach process
         finally csock.close()
       }
 

@@ -151,7 +151,7 @@ class Commenter {
 
   // combines delimiters into a single regexp (longest first)
   private def matchAny (delims :Set[String]) :Matcher = {
-    val pats = delims.toSeq.filter(_ != "").sortBy(_.length)(Ordering.ordered[Int].reverse)
+    val pats = delims.toSeq.filter(_ != "").sortBy(_.length)(using Ordering.ordered[Int].reverse)
     if (pats.isEmpty) optMatcher("")
     else Matcher.regexp(pats.map(Pattern.quote).mkString("|"))
   }

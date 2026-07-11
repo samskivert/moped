@@ -27,7 +27,7 @@ abstract class SitterCodeMode (env :Env) extends CodeMode(env) {
 
   /** Maps a node type that may contain a JSDoc-style doc comment (e.g. "comment") to the
     * (tagStyle, codeStyle, paramStyle) used to additionally highlight `@tag` annotations,
-    * backtick-delimited code, and `@param`/`@property` names within it. See [[Sitter]]. */
+    * backtick-delimited code, and `@param`/`@property` names within it. See `Sitter`. */
   def docStylers :Map[String, (String, String, String)] = Map()
 
   /** Handles parsing the buffer and applying styles and syntaxes. */

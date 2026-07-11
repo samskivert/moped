@@ -39,7 +39,7 @@ object Close {
     def close () :Unit = {
       var exn = null :RuntimeException
       val iter = _acs.iterator ; while (iter.hasNext) {
-        try iter.next.close()
+        try iter.next().close()
         catch {
           case t :Throwable =>
             if (exn == null) exn = new RuntimeException("Close failure(s).")

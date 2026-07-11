@@ -80,7 +80,7 @@ class DispatcherImpl (window :WindowImpl, resolver :ModeResolver, view :BufferVi
     var count = 0
     val activeModes = _metas.map(_.name).toSet
     val iter = minors.iterator ; while (iter.hasNext) {
-      val mode = iter.next
+      val mode = iter.next()
       if (!activeModes.contains(mode)) try {
         resolver.resolveMinor(mode, view, mline, this, major(), Nil) foreach { minst =>
           addMode(false)(minst)

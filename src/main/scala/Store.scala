@@ -171,7 +171,7 @@ class FileStore private (val path :Path) extends Store {
     val out = new BufferedWriter(new FileWriter(temp.toFile))
     try {
       val iter = lines.iterator ; while (iter.hasNext) {
-        iter.next.write(out)
+        iter.next().write(out)
         if (iter.hasNext) out.newLine()
       }
       out.close()

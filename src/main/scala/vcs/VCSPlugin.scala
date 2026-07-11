@@ -80,6 +80,6 @@ object NOOPPlugin extends VCSPlugin {
     sb += cmd.mkString("[", " ", "]")
     sb ++= res.stdout
     sb ++= res.stderr
-    sb.result
+    sb.result()
   }
 }

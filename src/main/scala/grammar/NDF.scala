@@ -4,10 +4,10 @@
 
 package moped.grammar
 
-import com.google.common.base.Charsets
 import com.google.common.io.Resources
 import java.io.{PrintStream}
 import java.net.URL
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 import scala.annotation.tailrec
 import scala.collection.mutable.{Builder, ListBuffer}
@@ -68,7 +68,7 @@ object NDF {
 
   /** Reads the contents of `in`, which must be in NDF format. Closes `in` on completion. */
   def read (url :URL) :Seq[Entry] = {
-    read(List() ++ Resources.readLines(url, Charsets.UTF_8).asScala)
+    read(List() ++ Resources.readLines(url, StandardCharsets.UTF_8).asScala)
   }
 
   /** Parses `lines` into a nested dictionary. */

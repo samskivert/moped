@@ -38,7 +38,7 @@ class SnippetMode (env :Env, major :MajorMode) extends MinorMode(env) {
       // sources are returned in order of precedence, so we want the first one we see
       if (seenTrigs.add(trig)) bb += Trigger(Matcher.exact(trig), trig, snip)
     }
-    bb.result.sortBy(-_.trig.length) // sort by longest to shortest trigger
+    bb.result().sortBy(-_.trig.length) // sort by longest to shortest trigger
   }
 
   /** An activated snippet plus a bunch of useful metadata. */

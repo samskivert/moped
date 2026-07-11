@@ -70,7 +70,7 @@ object Completion {
     val cb = Seq.newBuilder[String]
     val mb = Map.newBuilder[String,T]
     while (viter.hasNext) {
-      val value = viter.next
+      val value = viter.next()
       val comp = format(value)
       cb += comp
       mb += (comp -> value)

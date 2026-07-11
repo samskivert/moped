@@ -278,7 +278,7 @@ class Project (val pspace :ProjectSpace, val root :Project.Root) {
     info += ("Impl: " -> getClass.getName)
     info += ("Root: " -> root.path.toString)
     ids.foreach { id => info += ("ID: " -> id.toString) }
-    bb.addKeysValues(info.result)
+    bb.addKeysValues(info.result())
   }
 
   /** Instructs the project to update its status info. This is generally called by project helpers

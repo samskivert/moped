@@ -224,7 +224,7 @@ object CSharpPlugins {
       // add a sources component with our source directories
       // project.addComponent(classOf[Sources], new Sources(sources.result))
 
-      project.addComponent(classOf[Filer], new DirectoryFiler(project, ignores.result))
+      project.addComponent(classOf[Filer], new DirectoryFiler(project, ignores.result()))
 
       // add a compiler that runs 'dotnet build' and parses the output
       // project.addComponent(classOf[Compiler], new DotNetCompiler(project, sln))

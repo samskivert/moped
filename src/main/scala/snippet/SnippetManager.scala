@@ -27,7 +27,7 @@ class SnippetManager (msvc :MetaService, editor :Editor)
       snips ++= userSnipCache.get((mode, dir))
     }
     // TODO: add snips from any registered "snippet database" directories
-    snips.result
+    snips.result()
   }
 
   override def flushSnippets (mode :String, root :Path) :Unit = {
@@ -47,6 +47,6 @@ class SnippetManager (msvc :MetaService, editor :Editor)
       incls foreach add
     }
     add(mode)
-    snips.result
+    snips.result()
   }
 }

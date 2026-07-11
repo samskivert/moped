@@ -73,14 +73,14 @@ object JDTLS {
   def untargz (path :Path, into :Path) :Unit = {
     using(new GzipCompressorInputStream(Files.newInputStream(path))) { gzin =>
       val tin = new TarArchiveInputStream(gzin)
-      var entry = tin.getNextTarEntry
+      var entry = tin.getNextEntry
       while (entry != null) {
         if (!entry.isDirectory) {
           val file = into.resolve(Paths.get(entry.getName))
           Files.createDirectories(file.getParent)
           Files.copy(tin, file)
         }
-        entry = tin.getNextTarEntry
+        entry = tin.getNextEntry
       }
     }
   }

@@ -72,7 +72,7 @@ class ProjectManager (metaSvc :MetaService, editor :Editor)
     case _ => {
         val iter = rootPlugins.iterator
         while (iter.hasNext) {
-          val root = iter.next.apply(id)
+          val root = iter.next().apply(id)
           if (root.isDefined) return root
         }
         None

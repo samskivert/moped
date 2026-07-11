@@ -1,0 +1,11 @@
+/**
+ * Styles for ack-mode.
+ */
+
+.ackPathStyle {
+  -fx-fill: #AACCFF;
+}
+
+.ackLineNoStyle {
+  -fx-fill: #AAFFFF;
+}

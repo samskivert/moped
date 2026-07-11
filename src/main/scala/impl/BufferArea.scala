@@ -507,36 +507,84 @@ class BufferArea (val bview :BufferViewImpl, val disp :DispatcherImpl) extends R
     Loc(row, bview.lines(row).columnAt(mev.getX, font.get))
   }
 
-  // the location of the mouse-down that started the current click/drag gesture, tracked
-  // internally (distinct from the buffer's mark) so that a plain click (press+release with no
-  // drag in between, meant to just reposition the point, same as ever) doesn't clobber whatever
-  // mark the user may already have set via the keyboard; only promoted to a real mark (in
-  // mouseReleased) if the gesture turns out to actually be a drag
+  // the granularity of the current click/drag gesture, as determined by the click count that
+  // started it (see mousePressed): a plain click selects/drags characters, a double-click
+  // selects/drags whole words, and a triple-(or-more-)click selects/drags whole lines
+  private enum SelectUnit { case Char, Word, Line }
+
+  // returns the bounds of the "unit" (per `unit`) at `loc`; for Char this is just the zero-width
+  // point `loc` itself (no snapping), for Word/Line it's the word/line containing `loc`
+  private def unitAt (loc :Loc, unit :SelectUnit) :moped.Region = unit match {
+    case SelectUnit.Char => moped.Region(loc, loc)
+    case SelectUnit.Word =>
+      val (start, end) = moped.util.Chars.wordBoundsAt(bview.buffer, loc)
+      moped.Region(start, end)
+    case SelectUnit.Line => moped.Region(bview.buffer.lineStart(loc), loc.nextStart)
+  }
+
+  // the location of the mouse-down that started the current click/drag gesture, and the
+  // "anchor" unit at that location (per `_selectUnit`); tracked internally (distinct from the
+  // buffer's mark) so that a plain click (press+release with no drag in between, meant to just
+  // reposition the point, same as ever) doesn't clobber whatever mark the user may already have
+  // set via the keyboard; only promoted to a real mark (in mouseReleased, or immediately in
+  // mousePressed for a word/line-granularity click, which is always a deliberate selection) does
+  // it become the buffer's actual mark
   private var _pressLoc :Option[Loc] = None
+  private var _selectUnit = SelectUnit.Char
+  private var _anchorUnit :moped.Region = moped.Region.Empty
 
   // mouse events are forwarded here by the skin
   def mousePressed (mev :MouseEvent) :Unit = {
     val loc = locFor(mev)
     _pressLoc = Some(loc)
-    bview.point() = loc
+    _selectUnit = if (mev.getClickCount >= 3) SelectUnit.Line
+                  else if (mev.getClickCount == 2) SelectUnit.Word
+                  else SelectUnit.Char
+    _anchorUnit = unitAt(loc, _selectUnit)
+    if (_selectUnit == SelectUnit.Char) bview.point() = loc
+    else {
+      // a double/triple-click is an unambiguous, deliberate request to select a word/line, so
+      // (unlike a plain click) it takes effect immediately, without waiting to see if a drag
+      // follows
+      bview.buffer.mark = _anchorUnit.start
+      bview.point() = _anchorUnit.end
+      bview.dragSelection() = Some(_anchorUnit)
+    }
   }
   def mouseDragged (mev :MouseEvent) :Unit = {
     val loc = locFor(mev)
-    bview.point() = loc
-    // re-derive the (ordered) dragged region from the press location and the current drag
-    // position every time, purely to render the ephemeral highlight
-    bview.dragSelection() = _pressLoc.map { press =>
-      if (press <= loc) moped.Region(press, loc) else moped.Region(loc, press)
+    _selectUnit match {
+      case SelectUnit.Char =>
+        bview.point() = loc
+        // re-derive the (ordered) dragged region from the press location and the current drag
+        // position every time, purely to render the ephemeral highlight
+        bview.dragSelection() = _pressLoc.map { press =>
+          if (press <= loc) moped.Region(press, loc) else moped.Region(loc, press)
+        }
+      case _ =>
+        // extend the selection to the union of the anchor unit and whichever unit is under the
+        // mouse now, snapping the whole selection out by word/line as the mouse moves; the point
+        // (not the mark) tracks whichever edge is the "moving" one, same as dragging normally
+        val curUnit = unitAt(loc, _selectUnit)
+        val lo = if (_anchorUnit.start <= curUnit.start) _anchorUnit.start else curUnit.start
+        val hi = if (_anchorUnit.end >= curUnit.end) _anchorUnit.end else curUnit.end
+        if (curUnit.start < _anchorUnit.start) { bview.buffer.mark = hi ; bview.point() = lo }
+        else { bview.buffer.mark = lo ; bview.point() = hi }
+        bview.dragSelection() = Some(moped.Region(lo, hi))
     }
   }
   def mouseReleased (mev :MouseEvent) :Unit = {
     val loc = locFor(mev)
-    bview.point() = loc
-    // only if the gesture actually dragged out a region (more than the single point where the
-    // mouse went down) do we set the mark, turning it into a real mark/point-defined region that
-    // persists after the drag ends (e.g. for kill-region); a plain click-release leaves whatever
-    // mark already existed untouched
-    _pressLoc.foreach { press => if (press != loc) bview.buffer.mark = press }
+    if (_selectUnit == SelectUnit.Char) {
+      bview.point() = loc
+      // only if the gesture actually dragged out a region (more than the single point where the
+      // mouse went down) do we set the mark, turning it into a real mark/point-defined region
+      // that persists after the drag ends (e.g. for kill-region); a plain click-release leaves
+      // whatever mark already existed untouched
+      _pressLoc.foreach { press => if (press != loc) bview.buffer.mark = press }
+    }
+    // for Word/Line, mark and point were already set (in mousePressed/mouseDragged); nothing more
+    // to do here besides clearing the ephemeral highlight
     _pressLoc = None
     bview.dragSelection() = None
   }

@@ -51,6 +51,17 @@ object Sitter {
     }
   }
 
+  // matches a `@tag` annotation (e.g. `@param`, `@public`, or the `@label` in `{@label Foo}`)
+  private val docTagRe = "@[A-Za-z][A-Za-z0-9]*".r
+  // matches a single-line, single-backtick-delimited inline code span (e.g. `` `selector` ``)
+  private val docInlineCodeRe = "`[^`\n]+`".r
+  // matches a fenced code block (e.g. ```js ... ```), across as many lines as it takes
+  private val docCodeFenceRe = "(?s)```.*?```".r
+  // matches `@param`/`@property`/`@prop` followed by an optional `{Type}` and then the
+  // parameter's name, capturing just the name (e.g. `traceId` in `@param traceId The trace...`)
+  private val docParamNameRe =
+    "@(?:param|property|prop)\\s*(?:\\{[^}]*\\})?\\s*([A-Za-z_$][A-Za-z0-9_$]*)".r
+
   /** Returns the number of UTF-8 bytes needed to encode `cs`. */
   private def utf8Length (cs :CharSequence) :Int = {
     var ii = 0 ; var bytes = 0
@@ -108,7 +119,12 @@ type Syntaxer = (List[String]) => Syntax
   * parts of the buffer that are rescoped due to the buffer being edited.
   */
 class Sitter (
-  lang :TSLanguage, buf :Buffer, stylers :Map[String, Styler], syntaxers :Map[String, Syntaxer]
+  lang :TSLanguage, buf :Buffer, stylers :Map[String, Styler], syntaxers :Map[String, Syntaxer],
+  // maps a node type (e.g. "comment") that may contain a JSDoc-style ("/** ... */") doc comment to
+  // the (tagStyle, codeStyle, paramStyle) to use for `@tag` annotations, backtick-delimited code,
+  // and `@param`/`@property` names within it; nodes whose type isn't a key here (the default: all
+  // of them) get no such sub-styling
+  docStylers :Map[String, (String, String, String)] = Map()
 ) {
 
   /** Returns the scope names applied to `loc` in outer- to inner-most order. */
@@ -221,9 +237,9 @@ class Sitter (
     // character offsets, so we need this mapping to translate node positions back to Locs
     val byteOffsets = new Sitter.ByteOffsets(source)
     try {
-      if (force || oldTree == null) restyle(newTree, byteOffsets, restyleFrom, restyleTo)
+      if (force || oldTree == null) restyle(newTree, source, byteOffsets, restyleFrom, restyleTo)
       else TSTree.getChangedRanges(oldTree, newTree).foreach { range =>
-        restyle(newTree, byteOffsets, range.getStartPoint.getRow, range.getEndPoint.getRow+1)
+        restyle(newTree, source, byteOffsets, range.getStartPoint.getRow, range.getEndPoint.getRow+1)
       }
     } finally {
       if (oldTree != null) oldTree.close()
@@ -235,20 +251,26 @@ class Sitter (
   // span overlaps those rows; nodes entirely outside the range (and their children, which can
   // never extend beyond their parent) are skipped
   private def restyle (
-    tree :TSTree, byteOffsets :Sitter.ByteOffsets, from :Int, to :Int
+    tree :TSTree, source :String, byteOffsets :Sitter.ByteOffsets, from :Int, to :Int
   ) :Unit = if (to > from) {
     val start = Loc(from, 0) ; val until = Loc(to, 0)
     buf.removeTags(classOf[String], isModeStyle, start, until)
     buf.removeTags(classOf[Sitter.Scopes], _ => true, start, until)
 
     def process (node :TSNode, scopes :List[String]) :Unit = {
-      val sloc = buf.loc(byteOffsets.toChar(node.getStartByte))
-      val eloc = buf.loc(byteOffsets.toChar(node.getEndByte))
+      val cs = byteOffsets.toChar(node.getStartByte)
+      val ce = byteOffsets.toChar(node.getEndByte)
+      val sloc = buf.loc(cs)
+      val eloc = buf.loc(ce)
       if (sloc.row < to && eloc.row >= from) {
         stylers.get(node.getType).flatMap(styler => Option(styler(scopes))).
           foreach(style => buf.addStyle(style, sloc, eloc))
         syntaxers.get(node.getType).flatMap(taxer => Option(taxer(scopes))).
           foreach(tax => buf.setSyntax(tax, sloc, eloc))
+        docStylers.get(node.getType).foreach { case (tagStyle, codeStyle, paramStyle) =>
+          val text = source.substring(cs, ce)
+          if (text.startsWith("/**")) styleDocComment(text, cs, tagStyle, codeStyle, paramStyle)
+        }
         val nscopes = node.getType :: scopes
         if (node.getChildCount > 0) {
           for (ii <- 0 until node.getChildCount) process(node.getChild(ii), nscopes)
@@ -258,5 +280,36 @@ class Sitter (
       }
     }
     process(tree.getRootNode, Nil)
+  }
+
+  // additively styles `@tag` annotations, backtick-delimited code, and `@param`/`@property` names
+  // within a JSDoc-style doc comment's text (`csBase` is `text`'s own char offset into the buffer,
+  // used to translate match positions, which are relative to `text`, into absolute buffer Locs)
+  private def styleDocComment (
+    text :String, csBase :Int, tagStyle :String, codeStyle :String, paramStyle :String
+  ) :Unit = {
+    def addStyle (style :String, mstart :Int, mend :Int) :Unit =
+      buf.addStyle(style, buf.loc(csBase+mstart), buf.loc(csBase+mend))
+
+    // fenced ```code blocks``` first, so the inline `code` pass below can skip over them (and not
+    // get confused by the fences' own backticks)
+    val codeRanges = ArrayBuffer[(Int, Int)]()
+    for (m <- Sitter.docCodeFenceRe.findAllMatchIn(text)) {
+      codeRanges += ((m.start, m.end))
+      addStyle(codeStyle, m.start, m.end)
+    }
+    def inFencedBlock (pos :Int) = codeRanges.exists((s, e) => pos >= s && pos < e)
+
+    for (m <- Sitter.docInlineCodeRe.findAllMatchIn(text) if !inFencedBlock(m.start)) {
+      addStyle(codeStyle, m.start, m.end)
+    }
+    // `@tag` annotations, both bare (`@public`) and inside inline tags (`{@label Foo}`)
+    for (m <- Sitter.docTagRe.findAllMatchIn(text) if !inFencedBlock(m.start)) {
+      addStyle(tagStyle, m.start, m.end)
+    }
+    // the parameter name following `@param`/`@property`/`@prop` (and its optional `{Type}`)
+    for (m <- Sitter.docParamNameRe.findAllMatchIn(text) if !inFencedBlock(m.start(1))) {
+      addStyle(paramStyle, m.start(1), m.end(1))
+    }
   }
 }

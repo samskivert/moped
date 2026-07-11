@@ -25,8 +25,13 @@ abstract class SitterCodeMode (env :Env) extends CodeMode(env) {
   /** Used to map tree-sitter node types to Moped syntaxes. */
   def syntaxes :Map[String, Syntaxer] = Map()
 
+  /** Maps a node type that may contain a JSDoc-style doc comment (e.g. "comment") to the
+    * (tagStyle, codeStyle, paramStyle) used to additionally highlight `@tag` annotations,
+    * backtick-delimited code, and `@param`/`@property` names within it. See [[Sitter]]. */
+  def docStylers :Map[String, (String, String, String)] = Map()
+
   /** Handles parsing the buffer and applying styles and syntaxes. */
-  val sitter = Sitter(langId, buffer, styles, syntaxes).connect(buffer, disp.didInvoke)
+  val sitter = Sitter(langId, buffer, styles, syntaxes, docStylers).connect(buffer, disp.didInvoke)
 
   protected def always (style :String) = (scopes :List[String]) => style
 

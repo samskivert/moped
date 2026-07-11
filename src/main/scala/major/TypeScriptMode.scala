@@ -80,6 +80,11 @@ class TypeScriptMode (env :Env) extends SitterCodeMode(env) {
 
   override def configDefs = TypeScriptConfig :: super.configDefs
 
+  // JSDoc-style doc comments (`/** ... */`) are parsed by tree-sitter as a single opaque "comment"
+  // node with no internal structure, so `@tag`/backtick-code highlighting within them is done via
+  // regex rather than grammar-driven styling; see Sitter.styleDocComment
+  override def docStylers = Map("comment" -> (keywordStyle, stringStyle, variableStyle))
+
   override def styles = {
     // bare keyword tokens (i.e. those not better described as a type, constant, etc. below); local
     // to this method (rather than class-level vals) because SitterCodeMode's constructor calls

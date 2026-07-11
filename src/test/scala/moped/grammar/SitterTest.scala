@@ -35,6 +35,67 @@ class SitterTest {
     assertFalse(buffer.stylesAt(Loc(1, 11)).contains("var")) // space just after "after"
   }
 
+  @Test def testDocCommentMarkup () :Unit = {
+    val buffer = moped.impl.BufferImpl.scratch("test.ts")
+    buffer.append(Seq(
+      Line("/**"),
+      Line(" * Does a thing. Use `selector` for this."),
+      Line(" *"),
+      Line(" * @example"),
+      Line(" * ```js"),
+      Line(" * posthog.init('key', { api_host: 'x' })"),
+      Line(" * ```"),
+      Line(" *"),
+      Line(" * {@label Feature flags}"),
+      Line(" * @param token - the api token"),
+      Line(" * @public"),
+      Line(" */"),
+      Line("function foo(token: string) {}")))
+
+    val stylers = Map[String, Styler]("comment" -> (_ => "cmt"))
+    val syntaxers = Map[String, Syntaxer]()
+    val sitter = new Sitter(
+      new org.treesitter.TreeSitterTypescript(), buffer, stylers, syntaxers,
+      Map("comment" -> ("tag", "code", "param")))
+    sitter.connect(buffer, Signal[String]())
+
+    def stylesAt (loc :Loc) = buffer.stylesAt(loc)
+
+    // the whole comment still gets its base "cmt" style throughout
+    assertTrue(stylesAt(Loc(1, 10)).contains("cmt"))
+
+    // inline `selector` on row 1 is additionally styled "code", layered over "cmt"
+    val selCol = "  Does a thing. Use `selector` for this.".indexOf("selector")
+    assertTrue(stylesAt(Loc(1, selCol)).contains("code"))
+    assertTrue(stylesAt(Loc(1, selCol)).contains("cmt"))
+    assertFalse(stylesAt(Loc(1, 5)).contains("code")) // plain prose, not styled as code
+
+    // the fenced ```js ... ``` block (rows 4-6) is styled "code" throughout, including its
+    // interior line, not just the fence delimiters
+    assertTrue(stylesAt(Loc(4, 3)).contains("code")) // the "```js" line itself
+    assertTrue(stylesAt(Loc(5, 10)).contains("code")) // a line inside the fenced block
+    assertTrue(stylesAt(Loc(6, 3)).contains("code")) // the closing "```" line
+
+    // `{@label ...}` and bare `@param`/`@public` tags are styled "tag"; the brace itself is not
+    val labelCol = " * {@label Feature flags}".indexOf("@label")
+    assertTrue(stylesAt(Loc(8, labelCol)).contains("tag"))
+    assertFalse(stylesAt(Loc(8, labelCol-1)).contains("tag")) // the '{' itself
+    val paramCol = " * @param token - the api token".indexOf("@param")
+    assertTrue(stylesAt(Loc(9, paramCol)).contains("tag"))
+    val publicCol = " * @public".indexOf("@public")
+    assertTrue(stylesAt(Loc(10, publicCol)).contains("tag"))
+
+    // the parameter name following `@param` is styled "param", not "tag"
+    val tokenCol = " * @param token - the api token".indexOf("token")
+    assertTrue(stylesAt(Loc(9, tokenCol)).contains("param"))
+    assertFalse(stylesAt(Loc(9, tokenCol)).contains("tag"))
+    assertFalse(stylesAt(Loc(9, paramCol)).contains("param")) // "@param" itself is not "param"
+
+    // plain code outside the doc comment is untouched by doc-comment markup
+    assertFalse(stylesAt(Loc(12, 10)).contains("tag"))
+    assertFalse(stylesAt(Loc(12, 10)).contains("code"))
+  }
+
   @Test def testPython () :Unit = {
     val parser = new TSParser()
     parser.setLanguage(new TreeSitterPython())

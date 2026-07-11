@@ -10,7 +10,7 @@ import collection.{Seq => SeqV}
 import javafx.application.Platform
 import javafx.geometry.VPos
 import javafx.scene.Node
-import javafx.scene.text.{TextFlow, FontSmoothingType}
+import javafx.scene.text.{Font, Text, TextFlow, FontSmoothingType}
 
 import moped._
 
@@ -27,12 +27,15 @@ class LineViewImpl (_line :LineV) extends TextFlow with LineView {
   // line differently due to changing style runs, but it doesn't... sigh
   // setSnapToPixel(false)
 
-  /** Returns the x position of character at the specified column.
-    * @param charWidth the current width of the (fixed) view font.
-    */
-  def charX (col :Int, charWidth :Double) :Double = {
+  /** Returns the x position of character at the specified column. This measures the actual
+    * rendered width of `[0, col)` using `font` rather than assuming every column is the same
+    * width: many characters (most CJK ideographs/kana, fullwidth forms, emoji, etc.) render wider
+    * than a normal fixed-width cell, but not necessarily at any consistent multiple of it (it
+    * depends on the font), so a real text measurement is needed to stay lined up with them. */
+  def charX (col :Int, font :Font) :Double = {
     // TODO: handle tabs, other funny business?
-    getLayoutX + col*charWidth
+    val text = _line.sliceString(0, math.min(col, _line.length))
+    getLayoutX + LineViewImpl.measureWidth(text, font)
   }
 
   /** Updates this line to reflect the supplied style change. */
@@ -104,4 +107,16 @@ class LineViewImpl (_line :LineV) extends TextFlow with LineView {
   }
 
   override def toString = s"$line:${_valid}"
+}
+
+object LineViewImpl {
+  // a scratch (never-added-to-a-scene) Text node reused to measure rendered string widths; JavaFX
+  // computes a Text node's layout bounds from its text+font alone, no live scene graph needed
+  private val measurer = new Text()
+
+  private def measureWidth (text :String, font :Font) :Double = {
+    measurer.setText(text)
+    measurer.setFont(font)
+    measurer.getLayoutBounds.getWidth
+  }
 }

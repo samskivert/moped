@@ -12,6 +12,29 @@ import org.treesitter._
 
 class SitterTest {
 
+  @Test def testNonAsciiOffsets () :Unit = {
+    // a UTF-8 multi-byte character (an em-dash: 3 bytes in UTF-8, 1 UTF-16 code unit) earlier in
+    // the buffer used to throw off every subsequent tree-sitter node position, since
+    // node.getStartByte/getEndByte are UTF-8 byte offsets but Buffer only understands UTF-16
+    // character offsets (see Sitter.ByteOffsets, which fixes this)
+    val buffer = moped.impl.BufferImpl.scratch("test.ts")
+    buffer.append(Seq(
+      Line("// em—dash comment"),
+      Line("const after = 2;")))
+
+    val stylers = Map[String, Styler]("identifier" -> (_ => "var"))
+    val syntaxers = Map[String, Syntaxer]()
+    val sitter = new Sitter(new org.treesitter.TreeSitterTypescript(), buffer, stylers, syntaxers)
+    sitter.connect(buffer, Signal[String]())
+
+    // "after" occupies row 1, columns [6,11); were byte/char offsets confused, the style would
+    // land two columns later (the em-dash's extra UTF-8 bytes), instead styling "ter = " partially
+    assertFalse(buffer.stylesAt(Loc(1, 5)).contains("var")) // space just before "after"
+    assertTrue(buffer.stylesAt(Loc(1, 6)).contains("var")) // 'a' of "after"
+    assertTrue(buffer.stylesAt(Loc(1, 10)).contains("var")) // 'r' of "after"
+    assertFalse(buffer.stylesAt(Loc(1, 11)).contains("var")) // space just after "after"
+  }
+
   @Test def testPython () :Unit = {
     val parser = new TSParser()
     parser.setLanguage(new TreeSitterPython())

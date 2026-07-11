@@ -15,6 +15,53 @@ import org.treesitter._
 object Sitter {
   case class Scopes (scopes :List[String])
 
+  /** Maps tree-sitter's UTF-8 byte offsets (how every `TSNode` position is expressed) back to
+    * Moped's UTF-16 character offsets (how `Buffer`/`Loc` address text, matching how JVM
+    * `String`s are indexed). For pure-ASCII text these coincide, but the moment a buffer contains
+    * any multi-byte character (smart quotes, em-dashes, emoji, etc.) before a given point,
+    * tree-sitter's byte offsets diverge from Moped's character offsets from there on, so this
+    * conversion is needed everywhere a `TSNode`'s position is turned into a `Loc`. */
+  private class ByteOffsets (source :String) {
+    // byteAt(i) is the UTF-8 byte offset corresponding to character index i (0 to source.length)
+    private val byteAt = new Array[Int](source.length+1)
+    locally {
+      var ii = 0 ; var byteOff = 0
+      while (ii < source.length) {
+        val cp = source.codePointAt(ii)
+        val cc = Character.charCount(cp)
+        byteAt(ii) = byteOff
+        if (cc == 2) byteAt(ii+1) = byteOff // mid-surrogate; never a real node boundary
+        byteOff += (
+          if (cp < 0x80) 1 else if (cp < 0x800) 2 else if (cp < 0x10000) 3 else 4)
+        ii += cc
+      }
+      byteAt(source.length) = byteOff
+    }
+
+    /** Converts a tree-sitter (UTF-8) byte offset to a Moped (UTF-16) character offset. Assumes
+      * `byteOffset` falls exactly on a character boundary, which tree-sitter node positions
+      * always do. */
+    def toChar (byteOffset :Int) :Int = {
+      var lo = 0 ; var hi = byteAt.length-1
+      while (lo < hi) {
+        val mid = (lo+hi)/2
+        if (byteAt(mid) < byteOffset) lo = mid+1 else hi = mid
+      }
+      lo
+    }
+  }
+
+  /** Returns the number of UTF-8 bytes needed to encode `cs`. */
+  private def utf8Length (cs :CharSequence) :Int = {
+    var ii = 0 ; var bytes = 0
+    while (ii < cs.length) {
+      val cp = Character.codePointAt(cs, ii)
+      bytes += (if (cp < 0x80) 1 else if (cp < 0x800) 2 else if (cp < 0x10000) 3 else 4)
+      ii += Character.charCount(cp)
+    }
+    bytes
+  }
+
   /** Loads a tree-sitter grammar built by the `buildTreeSitterGrammars` sbt task (see
     * build.sbt) for a language that has no published tree-sitter-ng Java artifact (e.g. Swift,
     * Prisma). `name` is the grammar's build name (e.g. "swift") and `symbol` is the exported C
@@ -104,6 +151,13 @@ class Sitter (
   // reparse can reuse tree-sitter's unchanged subtrees instead of parsing from scratch.
   private var curTree :TSTree = null
 
+  // `TSPoint`'s row is a plain line count (unaffected by UTF-8/UTF-16 encoding, since newlines are
+  // always single bytes), but its column is formally a UTF-8 byte offset within the row, whereas
+  // `loc.col` is a UTF-16 character offset. We deliberately don't convert it: Sitter never reads
+  // `TSNode`/`TSRange`'s column (only `getRow`, e.g. in `reparseAndRestyle`), and computing a true
+  // byte column for the *old* (pre-edit) end of a delete/transform would require reconstructing
+  // buffer content that no longer exists. Byte-accurate offsets are still supplied for the fields
+  // that are actually depended on: the linear `start`/`oldEnd`/`newEnd` byte offsets below.
   private def toPoint (loc :Loc) = new TSPoint(loc.row, loc.col)
 
   // the number of characters spanned by `lines`, per Moped's convention (used by Buffer.offset and
@@ -111,21 +165,36 @@ class Sitter (
   private def textLength (lines :Iterable[LineV]) :Int =
     lines.map(_.length).sum + math.max(0, lines.size-1)
 
+  // the number of UTF-8 bytes spanned by `lines`; mirrors `textLength`, but tree-sitter's
+  // `TSInputEdit` byte-offset fields need a byte count here, not a character count
+  private def utf8TextLength (lines :Iterable[LineV]) :Int =
+    lines.map(Sitter.utf8Length).sum + math.max(0, lines.size-1)
+
+  // converts `loc` (which must currently exist in `buf`) into a UTF-8 byte offset; mirrors
+  // `Buffer.offset`'s character-offset computation, since `TSInputEdit`'s linear fields are byte
+  // offsets but `Buffer` only speaks UTF-16 character offsets
+  private def byteOffset (loc :Loc) :Int = {
+    @tailrec def go (row :Int, off :Int) :Int =
+      if (row < 0) off else go(row-1, Sitter.utf8Length(buf.line(row))+1+off)
+    go(loc.row-1, 0) + Sitter.utf8Length(buf.line(loc.row).view(0, loc.col))
+  }
+
   private def toInputEdit (edit :Buffer.Edit) :TSInputEdit = edit match {
     case Buffer.Insert(start, end) =>
-      val sb = buf.offset(start)
-      new TSInputEdit(sb, sb, buf.offset(end), toPoint(start), toPoint(start), toPoint(end))
+      val sb = byteOffset(start)
+      new TSInputEdit(sb, sb, byteOffset(end), toPoint(start), toPoint(start), toPoint(end))
     case Buffer.Delete(start, end, deleted) =>
       // `end` (== start + deleted) is the *old* (pre-delete) end of the removed text; the buffer
       // has already been mutated by the time this fires, so we can't ask it where `end` used to
       // be, we have to compute the old byte offset from `deleted`'s own length instead
-      val sb = buf.offset(start)
-      new TSInputEdit(sb, sb + textLength(deleted), sb, toPoint(start), toPoint(end), toPoint(start))
+      val sb = byteOffset(start)
+      new TSInputEdit(
+        sb, sb + utf8TextLength(deleted), sb, toPoint(start), toPoint(end), toPoint(start))
     case Buffer.Transform(start, end, orig) =>
       // transforms are length-preserving (`end` is defined as `start + orig`, and per Transform's
       // own undo(), `[start,end)` remains valid in the buffer after the transform is applied), so
       // the old and new end of the edit are the same position
-      val sb = buf.offset(start) ; val eb = buf.offset(end)
+      val sb = byteOffset(start) ; val eb = byteOffset(end)
       new TSInputEdit(sb, eb, eb, toPoint(start), toPoint(end), toPoint(end))
   }
 
@@ -148,10 +217,13 @@ class Sitter (
     val source = Line.toText(buf.lines)
     val oldTree = curTree
     val newTree = parser.parseString(oldTree, source)
+    // tree-sitter reports node positions as UTF-8 byte offsets; Buffer only speaks UTF-16
+    // character offsets, so we need this mapping to translate node positions back to Locs
+    val byteOffsets = new Sitter.ByteOffsets(source)
     try {
-      if (force || oldTree == null) restyle(newTree, restyleFrom, restyleTo)
+      if (force || oldTree == null) restyle(newTree, byteOffsets, restyleFrom, restyleTo)
       else TSTree.getChangedRanges(oldTree, newTree).foreach { range =>
-        restyle(newTree, range.getStartPoint.getRow, range.getEndPoint.getRow+1)
+        restyle(newTree, byteOffsets, range.getStartPoint.getRow, range.getEndPoint.getRow+1)
       }
     } finally {
       if (oldTree != null) oldTree.close()
@@ -162,14 +234,16 @@ class Sitter (
   // clears old styles/scopes from rows [from,to) and reapplies styling for any tree node whose
   // span overlaps those rows; nodes entirely outside the range (and their children, which can
   // never extend beyond their parent) are skipped
-  private def restyle (tree :TSTree, from :Int, to :Int) :Unit = if (to > from) {
+  private def restyle (
+    tree :TSTree, byteOffsets :Sitter.ByteOffsets, from :Int, to :Int
+  ) :Unit = if (to > from) {
     val start = Loc(from, 0) ; val until = Loc(to, 0)
     buf.removeTags(classOf[String], isModeStyle, start, until)
     buf.removeTags(classOf[Sitter.Scopes], _ => true, start, until)
 
     def process (node :TSNode, scopes :List[String]) :Unit = {
-      val sloc = buf.loc(node.getStartByte)
-      val eloc = buf.loc(node.getEndByte)
+      val sloc = buf.loc(byteOffsets.toChar(node.getStartByte))
+      val eloc = buf.loc(byteOffsets.toChar(node.getEndByte))
       if (sloc.row < to && eloc.row >= from) {
         stylers.get(node.getType).flatMap(styler => Option(styler(scopes))).
           foreach(style => buf.addStyle(style, sloc, eloc))

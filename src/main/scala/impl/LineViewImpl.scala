@@ -38,6 +38,21 @@ class LineViewImpl (_line :LineV) extends TextFlow with LineView {
     getLayoutX + LineViewImpl.measureWidth(text, font)
   }
 
+  /** Returns the column whose rendered bounding box contains pixel position `x` (in this line's
+    * own coordinate space, i.e. comparable to what [[charX]] returns), given `font`: a click
+    * anywhere within a character's box (not just its left half) lands on that character. Used to
+    * turn a mouse click's pixel position into a buffer column. */
+  def columnAt (x :Double, font :Font) :Int = {
+    val len = _line.length
+    // binary search for the largest column whose start position is <= x
+    var lo = 0 ; var hi = len
+    while (lo < hi) {
+      val mid = (lo+hi+1)/2
+      if (charX(mid, font) <= x) lo = mid else hi = mid-1
+    }
+    lo
+  }
+
   /** Updates this line to reflect the supplied style change. */
   def onStyle (loc :Loc) :Unit = invalidate()
 

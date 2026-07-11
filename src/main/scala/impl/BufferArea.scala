@@ -488,9 +488,17 @@ class BufferArea (val bview :BufferViewImpl, val disp :DispatcherImpl) extends R
 
   override def getCssMetaData = BufferArea.getClassCssMetaData
 
+  // converts a mouse event's position (in contentNode's coordinate space, which is also the space
+  // in which line layout positions and charX/columnAt operate) into a buffer Loc
+  private def locFor (mev :MouseEvent) :Loc = {
+    val lineCount = bview.buffer.lines.length
+    val row = math.max(0, math.min(lineCount-1, bview.scrollTop() + (mev.getY/lineHeight).toInt))
+    Loc(row, bview.lines(row).columnAt(mev.getX, font.get))
+  }
+
   // mouse events are forwarded here by the skin
   def mousePressed (mev :MouseEvent) :Unit = {
-    // TODO: update view.point to the clicked Loc
+    bview.point() = locFor(mev)
     // TODO: also note the clicked Loc so that if we drag, we can use it to set the region
   }
   def mouseDragged (mev :MouseEvent) :Unit = {

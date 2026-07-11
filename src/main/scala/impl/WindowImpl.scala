@@ -169,6 +169,10 @@ class WindowImpl (val stage :Stage, ws :WorkspaceImpl, defWidth :Int, defHeight 
     * tooling (like the local command socket, see [[Server]]); `focus`'s declared type (`Frame`,
     * per the `Window` trait it overrides) doesn't expose this. */
   def focusedDispatcher :Dispatcher = _focus.get.disp
+
+  /** Returns the buffer area for this window's focused frame, for use by debugging/automation
+    * tooling (like the local command socket, see [[Server]]). */
+  def focusedArea :BufferArea = _focus.get.disp.area
   override def mini = _mini
   override def statusMini = _statusMini
 

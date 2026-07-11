@@ -57,7 +57,12 @@ object EditorConfig extends Config.Defs {
 
   @Var("""The default geometry of editor views, as an Emacs-style geometry string:
           `WxH+X+Y` (or `WxH-X-Y`). Width and height are in characters; x and y are in pixels,
-          with a value of -1 indicating that the view should be centered on that axis.""")
+          with a value of -1 indicating that the view should be centered on that axis.
+          May also be a semicolon-separated list of `minWidth:WxH+X+Y` clauses (a clause with
+          no `minWidth:` prefix is the default), in which case the clause with the largest
+          minWidth that is no larger than the primary screen's width (in pixels) is used. For
+          example: `100x40-1-1;2560:160x50+0+0` uses `100x40-1-1` normally, but `160x50+0+0`
+          when the primary screen is at least 2560 pixels wide (e.g. an external monitor).""")
   val viewGeom = key("100x40-1-1")
 
   @Var("The number of entries retained by the kill ring.")

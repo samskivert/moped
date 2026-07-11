@@ -380,10 +380,18 @@ class WorkspaceImpl (val app  :Moped, val mgr  :WorkspaceManager,
   }
 
   private def createWindow (stage :Stage, geom :Geom) :WindowImpl = {
-    // parse the configured view geometry (an Emacs-style "WxH+X+Y" string) into its components,
-    // reacting to changes so that the window tracks live edits to the config value
-    val geomV = config.value(EditorConfig.viewGeom).map(
-      text => Geometry(text) getOrElse DefaultGeom)
+    // parse the configured view geometry (an Emacs-style "WxH+X+Y" string, optionally with
+    // screen-width-keyed variants, see Geometry.forWidth) into its components, reacting to
+    // changes so that the window tracks live edits to the config value
+    def primaryScreenWidth = Screen.getPrimary.getBounds.getWidth.toInt
+    val geomV = config.value(EditorConfig.viewGeom).map { text =>
+      val geom = Geometry.forWidth(text, primaryScreenWidth, bad =>
+        log.log(s"Invalid view-geom clause '$bad' (in '$text'); ignoring it."))
+      geom getOrElse {
+        log.log(s"No usable view-geom clause in '$text'; using default $DefaultGeom.")
+        DefaultGeom
+      }
+    }
     val (bwidth, bheight) = geom.size getOrElse ((geomV().width, geomV().height))
     val win = new WindowImpl(stage, this, bwidth, bheight)
     // TODO: willCreateWindow

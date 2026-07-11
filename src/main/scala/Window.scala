@@ -190,5 +190,28 @@ object Geometry {
     case _ => None
   }
 
+  /** Resolves a `view-geom`-style expression to a single geometry appropriate for a screen of
+    * `screenWidth` pixels. `expr` is a semicolon-separated list of clauses, each an optional
+    * `minWidth:` breakpoint prefix followed by a `WxH+x+y` geometry (a bare geometry with no
+    * prefix acts as the default, i.e. `minWidth` 0). The clause with the largest `minWidth` that
+    * is still `<= screenWidth` wins, e.g. `100x40-1-1;2560:160x50+0+0` yields `100x40-1-1` on a
+    * sub-2560px-wide screen and `160x50+0+0` on a 2560px-or-wider one.
+    * @param onBadClause invoked (with the offending clause text) for every clause that fails to
+    * parse; such clauses are simply omitted from consideration. */
+  def forWidth (expr :String, screenWidth :Int,
+                onBadClause :String => Unit = _ => ()) :Option[Geometry] = {
+    val clauses = expr.split(";").toSeq.flatMap { clause =>
+      val trimmed = clause.trim
+      val parsed = trimmed match {
+        case ClauseRe(min, geom) => apply(geom).map(min.toInt -> _)
+        case geom                => apply(geom).map(0 -> _)
+      }
+      if (parsed.isEmpty) onBadClause(trimmed)
+      parsed
+    }
+    clauses.filter(_._1 <= screenWidth).sortBy(_._1).lastOption.map(_._2)
+  }
+
   private val GeomRe = """(\d+)x(\d+)([+-]\d+)([+-]\d+)""".r
+  private val ClauseRe = """(\d+):(.+)""".r
 }

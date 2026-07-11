@@ -97,6 +97,7 @@
 
 .regionFace {
   -fx-fill: #000044;
+  -fx-bg-fill: #ADD6FFCC;
 }
 
 .warnFace {

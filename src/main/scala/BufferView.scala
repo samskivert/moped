@@ -38,6 +38,14 @@ abstract class BufferView {
   /** The current point (aka the cursor position). */
   def point :Property[Loc]
 
+  /** The region (if any) currently being dragged out with the mouse. This is distinct from the
+    * usual mark/point-defined region: it's only ever set while an actual mouse drag is in
+    * progress (from mouse-down to mouse-up), used solely to render an ephemeral highlight over
+    * that span. The drag gesture also sets the mark and point as usual (mark to where the drag
+    * started, point following the drag), so mark/point remain the way to act on the result of a
+    * mouse-selected region (e.g. `kill-region`) after the drag ends and this reverts to `None`. */
+  def dragSelection :Property[Option[Region]]
+
   /** The width of the view, in characters. */
   def width :Property[Int]
 
@@ -105,6 +113,9 @@ abstract class RBufferView (initWidth :Int, initHeight :Int) extends BufferView 
     override def update (loc :Loc) :Loc = super.update(buffer.bound(loc))
     override def updateForce (loc :Loc) :Loc = super.updateForce(buffer.bound(loc))
   }
+
+  /** The region (if any) currently being dragged out with the mouse. See [[BufferView.dragSelection]]. */
+  val dragSelection :Value[Option[Region]] = Value(None)
 
   /** The width of the buffer view, in characters. */
   val width :Value[Int] = Value(initWidth)

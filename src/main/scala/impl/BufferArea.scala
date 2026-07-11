@@ -446,6 +446,17 @@ class BufferArea (val bview :BufferViewImpl, val disp :DispatcherImpl) extends R
   // move the cursor when the point is updated
   bview.point `onValueNotify` contentNode.updateCursor
 
+  // highlight the in-progress mouse-drag region (if any) with an ephemeral style; each update
+  // first clears whatever the previous update styled, so only the current drag extent (if any)
+  // ever ends up highlighted
+  private var _draggedRegion :Option[moped.Region] = None
+  bview.dragSelection onValue { nregion =>
+    val buf = bview.buffer
+    _draggedRegion.foreach(r => buf.removeTags(classOf[String], _ == EditorConfig.regionStyle, r))
+    nregion.foreach(r => buf.addStyle(EditorConfig.regionStyle, r))
+    _draggedRegion = nregion
+  }
+
   // display the lines visible at the top of the buffer
   contentNode.updateVizLines()
 
@@ -496,15 +507,39 @@ class BufferArea (val bview :BufferViewImpl, val disp :DispatcherImpl) extends R
     Loc(row, bview.lines(row).columnAt(mev.getX, font.get))
   }
 
+  // the location of the mouse-down that started the current click/drag gesture, tracked
+  // internally (distinct from the buffer's mark) so that a plain click (press+release with no
+  // drag in between, meant to just reposition the point, same as ever) doesn't clobber whatever
+  // mark the user may already have set via the keyboard; only promoted to a real mark (in
+  // mouseReleased) if the gesture turns out to actually be a drag
+  private var _pressLoc :Option[Loc] = None
+
   // mouse events are forwarded here by the skin
   def mousePressed (mev :MouseEvent) :Unit = {
-    bview.point() = locFor(mev)
-    // TODO: also note the clicked Loc so that if we drag, we can use it to set the region
+    val loc = locFor(mev)
+    _pressLoc = Some(loc)
+    bview.point() = loc
   }
   def mouseDragged (mev :MouseEvent) :Unit = {
-    // TODO: adjust the point and mark to set the active region to the dragged area
+    val loc = locFor(mev)
+    bview.point() = loc
+    // re-derive the (ordered) dragged region from the press location and the current drag
+    // position every time, purely to render the ephemeral highlight
+    bview.dragSelection() = _pressLoc.map { press =>
+      if (press <= loc) moped.Region(press, loc) else moped.Region(loc, press)
+    }
   }
-  def mouseReleased (mev :MouseEvent) :Unit = {}
+  def mouseReleased (mev :MouseEvent) :Unit = {
+    val loc = locFor(mev)
+    bview.point() = loc
+    // only if the gesture actually dragged out a region (more than the single point where the
+    // mouse went down) do we set the mark, turning it into a real mark/point-defined region that
+    // persists after the drag ends (e.g. for kill-region); a plain click-release leaves whatever
+    // mark already existed untouched
+    _pressLoc.foreach { press => if (press != loc) bview.buffer.mark = press }
+    _pressLoc = None
+    bview.dragSelection() = None
+  }
 }
 
 /** [BufferArea] helper classes and whatnot. */

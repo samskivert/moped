@@ -69,114 +69,120 @@ class Sitter (
     buf.tagAt(classOf[Sitter.Scopes], loc).map(_.scopes).getOrElse(Nil).reverse
 
   /** Re-matches and re-faces the entire buffer. */
-  def rethinkBuffer () :Unit = cascadeRethink(0, buf.lines.size, 0, true)
+  def rethinkBuffer () :Unit = reparseAndRestyle(force = true, 0, buf.lines.size)
 
   /** Re-matches and re-faces the region from line `from` to line `to` (non-inclusive). */
-  def rethinkRegion (from :Int, to :Int) :Unit = cascadeRethink(from, to, 0, true)
+  def rethinkRegion (from :Int, to :Int) :Unit = reparseAndRestyle(force = true, from, to)
 
-  /** Re-matches and re-faces the region from line `from` to line `to` (non-inclusive) as if it
-    * were the only contents of the buffer. The first line of the region is treated as having no
-    * inherited scoping state. Used for highlighting code embedded in Markdown, etc. */
-  def rethinkIsolatedRegion (from :Int, to :Int) :Unit = cascadeRethink(from, to, from, true)
+  /** Re-matches and re-faces the region from line `from` to line `to` (non-inclusive). Tree-sitter
+    * always parses the entire buffer text, so (unlike the TextMate/NDF `Scoper`) there's no
+    * "isolated, no inherited state" parse mode to speak of; this is equivalent to `rethinkRegion`
+    * and exists for interface parity with `Scoper`. */
+  def rethinkIsolatedRegion (from :Int, to :Int) :Unit = rethinkRegion(from, to)
 
   /** Connects this sitter to `buf`, using `didInvoke` to batch refacing. */
   def connect (buf :RBuffer, didInvoke :SignalV[String]) :this.type = {
     assert(this.buf eq buf)
-    // listen for changes to the buffer and note the region that needs rethinking
+    // listen for changes to the buffer and incrementally inform our tree of edits as they happen
     buf.edited.onValue(processEdit)
-    // when a fn completes, rethink any changes we noted during edit notifications
+    // when a fn completes, reparse (incrementally) and refresh styling for whatever tree-sitter
+    // reports as actually changed
     didInvoke.onEmit(processRethinks())
-    // compute states for all of the starting rows (TODO: turn this into something that happens
-    // lazily the first time a line is made visible...)
-    cascadeRethink(0, buf.lines.size, 0, false)
+    // parse and face the whole buffer for the first time
+    reparseAndRestyle(force = true, 0, buf.lines.size)
     this
   }
 
-  override def toString = s"Sitter(${lang}, $buf)"
-
-  private var rethinkStart = Int.MaxValue
-  private var rethinkEnd = -1
-
-  private def processEdit (edit :Buffer.Edit) = edit match {
-    case Buffer.Insert(start, end) =>
-      rethinkStart = math.min(rethinkStart, start.row)
-      rethinkEnd = math.max(rethinkEnd, end.row)
-    case Buffer.Delete(start, end, _) =>
-      rethinkStart = math.min(rethinkStart, start.row)
-      rethinkEnd = math.max(rethinkEnd, start.row)
-    case Buffer.Transform(start, end, _) =>
-      rethinkStart = math.min(rethinkStart, start.row)
-      rethinkEnd = math.max(rethinkEnd, end.row)
-  }
-
-  // private def processRethinks () = try {
-  //   if (rethinkEnd >= rethinkStart) {
-  //     var row = rethinkStart ; val end = rethinkEnd
-  //     while (row <= end) { setState(row, rethink(row, 0)) ; row += 1 }
-  //     cascadeRethink(row, buf.lines.size, 0, false)
-  //     rethinkStart = Int.MaxValue
-  //     rethinkEnd = -1
-  //   }
-  // } catch {
-  //   case e :Throwable =>
-  //     println(s"Rethink choked (for $this)")
-  //     e.printStackTrace()
-  // }
-  private def processRethinks () = rethinkBuffer() // TEMP
-
-  // private def rethink (row :Int, firstRow :Int) :Span.State = {
-  //   // println(s"RETHINK $row ${buf.lines(row)}")
-  //   val pstate = if (row == firstRow) topState else curState(row-1)
-  //   val state = pstate.continue(buf.lines(row))
-  //   state.apply(procs, buf, row)
-  //   state
-  // }
+  override def toString = s"Sitter($lang, $buf)"
 
   protected def isModeStyle (style :String) = style `startsWith` "code"
-  private val allStyles = stylers.values.toSet
 
-  // rethinks row; if end of row state changed, rethinks the next row as well; &c
-  private def cascadeRethink (row :Int, stopRow :Int, firstRow :Int, force :Boolean) :Unit = {
-    // TEMP rethink whole buffer
-    val parser = new TSParser()
-    parser.setLanguage(lang)
+  private val parser = { val p = new TSParser() ; p.setLanguage(lang) ; p }
+
+  // the tree matching the buffer's current content, once we've parsed at least once. Kept alive
+  // and incrementally updated (via TSTree.edit, in processEdit) as edits arrive, so that the next
+  // reparse can reuse tree-sitter's unchanged subtrees instead of parsing from scratch.
+  private var curTree :TSTree = null
+
+  private def toPoint (loc :Loc) = new TSPoint(loc.row, loc.col)
+
+  // the number of characters spanned by `lines`, per Moped's convention (used by Buffer.offset and
+  // Loc.+) that a line separator consumes a single character
+  private def textLength (lines :Iterable[LineV]) :Int =
+    lines.map(_.length).sum + math.max(0, lines.size-1)
+
+  private def toInputEdit (edit :Buffer.Edit) :TSInputEdit = edit match {
+    case Buffer.Insert(start, end) =>
+      val sb = buf.offset(start)
+      new TSInputEdit(sb, sb, buf.offset(end), toPoint(start), toPoint(start), toPoint(end))
+    case Buffer.Delete(start, end, deleted) =>
+      // `end` (== start + deleted) is the *old* (pre-delete) end of the removed text; the buffer
+      // has already been mutated by the time this fires, so we can't ask it where `end` used to
+      // be, we have to compute the old byte offset from `deleted`'s own length instead
+      val sb = buf.offset(start)
+      new TSInputEdit(sb, sb + textLength(deleted), sb, toPoint(start), toPoint(end), toPoint(start))
+    case Buffer.Transform(start, end, orig) =>
+      // transforms are length-preserving (`end` is defined as `start + orig`, and per Transform's
+      // own undo(), `[start,end)` remains valid in the buffer after the transform is applied), so
+      // the old and new end of the edit are the same position
+      val sb = buf.offset(start) ; val eb = buf.offset(end)
+      new TSInputEdit(sb, eb, eb, toPoint(start), toPoint(end), toPoint(end))
+  }
+
+  // informs our live tree of edits as they happen so the next reparse can be incremental; edits
+  // must be applied to the tree in the order they occur, which is exactly the order in which
+  // `buf.edited` notifies us, so we can simply apply each one as it arrives
+  private def processEdit (edit :Buffer.Edit) :Unit =
+    if (curTree != null) curTree.edit(toInputEdit(edit))
+
+  // reparses (incrementally, per the edits noted since the last parse) and refaces only the rows
+  // that tree-sitter reports actually changed as a result
+  private def processRethinks () :Unit = reparseAndRestyle(force = false, 0, 0)
+
+  // reparses the buffer, reusing `curTree` (if we have one) so that tree-sitter can avoid
+  // re-parsing subtrees unaffected by the edits applied to it since the last parse. If `force` is
+  // true (or this is our first ever parse), styling is refreshed for all of `[restyleFrom,
+  // restyleTo)`; otherwise only the rows tree-sitter reports as changed between the old and new
+  // trees are refaced, which is the common (and cheap) case for routine edit-driven reparses.
+  private def reparseAndRestyle (force :Boolean, restyleFrom :Int, restyleTo :Int) :Unit = {
+    val source = Line.toText(buf.lines)
+    val oldTree = curTree
+    val newTree = parser.parseString(oldTree, source)
     try {
-      val source = Line.toText(buf.lines)
-      val tree = parser.parseString(null, source)
-      try {
-        buf.removeTags(classOf[String], isModeStyle, buf) // TOOD: row/stopRow
-        buf.removeTags(classOf[Sitter.Scopes], _ => true, buf) // TOOD: row/stopRow
-        def process (node :TSNode, scopes :List[String]) :Unit = {
-          val sloc = buf.loc(node.getStartByte)
-          val eloc = buf.loc(node.getEndByte)
-          stylers.get(node.getType).flatMap(styler => Option(styler(scopes))).
-            foreach(style => buf.addStyle(style, sloc, eloc))
-          syntaxers.get(node.getType).flatMap(taxer => Option(taxer(scopes))).
-            foreach(tax => buf.setSyntax(tax, sloc, eloc))
-          val nscopes = node.getType :: scopes
-          if (node.getChildCount > 0) {
-            for (ii <- 0 until node.getChildCount) process(node.getChild(ii), nscopes)
-          }
-          // uncomment to add scopes to every node; costly but needed when setting up a new language
-          // else buf.addTag(Sitter.Scopes(nscopes), sloc, eloc)
-        }
-        process(tree.getRootNode, Nil)
-      } finally tree.close()
+      if (force || oldTree == null) restyle(newTree, restyleFrom, restyleTo)
+      else TSTree.getChangedRanges(oldTree, newTree).foreach { range =>
+        restyle(newTree, range.getStartPoint.getRow, range.getEndPoint.getRow+1)
+      }
     } finally {
-      parser.close()
+      if (oldTree != null) oldTree.close()
+      curTree = newTree
     }
+  }
 
-    // if (row < stopRow) {
-    //   try {
-    //     val ostate = curState(row) ; val nstate = rethink(row, firstRow)
-    //     setState(row, nstate)
-    //     if (ostate == null || force || (ostate nequiv nstate)) cascadeRethink(
-    //       row+1, stopRow, firstRow, force)
-    //   } catch {
-    //     case ex :Exception =>
-    //       println(s"Cascade rethink died [row=$row, stop=$stopRow, first=$firstRow, force=$force]")
-    //       ex.printStackTrace()
-    //   }
-    // }
+  // clears old styles/scopes from rows [from,to) and reapplies styling for any tree node whose
+  // span overlaps those rows; nodes entirely outside the range (and their children, which can
+  // never extend beyond their parent) are skipped
+  private def restyle (tree :TSTree, from :Int, to :Int) :Unit = if (to > from) {
+    val start = Loc(from, 0) ; val until = Loc(to, 0)
+    buf.removeTags(classOf[String], isModeStyle, start, until)
+    buf.removeTags(classOf[Sitter.Scopes], _ => true, start, until)
+
+    def process (node :TSNode, scopes :List[String]) :Unit = {
+      val sloc = buf.loc(node.getStartByte)
+      val eloc = buf.loc(node.getEndByte)
+      if (sloc.row < to && eloc.row >= from) {
+        stylers.get(node.getType).flatMap(styler => Option(styler(scopes))).
+          foreach(style => buf.addStyle(style, sloc, eloc))
+        syntaxers.get(node.getType).flatMap(taxer => Option(taxer(scopes))).
+          foreach(tax => buf.setSyntax(tax, sloc, eloc))
+        val nscopes = node.getType :: scopes
+        if (node.getChildCount > 0) {
+          for (ii <- 0 until node.getChildCount) process(node.getChild(ii), nscopes)
+        }
+        // uncomment to add scopes to every node; costly but needed when setting up a new language
+        // else buf.addTag(Sitter.Scopes(nscopes), sloc, eloc)
+      }
+    }
+    process(tree.getRootNode, Nil)
   }
 }

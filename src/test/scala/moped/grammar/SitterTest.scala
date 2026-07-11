@@ -96,6 +96,45 @@ class SitterTest {
     }
   }
 
+  @Test def testIncrementalEditing () :Unit = {
+    val buffer = moped.impl.BufferImpl.scratch("test.py")
+    buffer.append(Seq(
+      Line("# leading comment"),
+      Line("def foo():"),
+      Line("    pass")))
+    // consume the initial insert edit the buffer emits for the append() above, so it doesn't
+    // confuse the Sitter we're about to connect (which isn't listening yet anyway, but this
+    // mirrors how a real buffer is populated before a mode attaches to it)
+
+    val stylers = Map[String, Styler]("comment" -> (_ => "cmt"))
+    val syntaxers = Map[String, Syntaxer]()
+    val sitter = new Sitter(new TreeSitterPython(), buffer, stylers, syntaxers)
+    val didInvoke = Signal[String]()
+    sitter.connect(buffer, didInvoke)
+
+    def hasCmt (loc :Loc) = buffer.stylesAt(loc).contains("cmt")
+
+    // initial parse should have styled the leading comment
+    assertTrue(hasCmt(Loc(0, 2)))
+    assertFalse(hasCmt(Loc(1, 2))) // "def foo():" is not a comment
+
+    // insert a new comment-only line between the def and the pass, and a trailing comment on the
+    // last line; this exercises multiple edits arriving before a single rethink
+    buffer.insertLine(Loc(2, 0), Line("    # inner comment"))
+    buffer.insert(buffer.end, Line("  # trailing"))
+    didInvoke.emit("did-invoke") // trigger the batched rethink, as a real mode dispatch would
+
+    // the newly inserted comment should now be styled...
+    assertTrue(hasCmt(Loc(2, 6)))
+    assertTrue(hasCmt(buffer.end.atCol(buffer.end.col-2)))
+    // ...and the original comment should still be styled (proving the incremental restyle didn't
+    // clobber/lose styling outside the edited rows)
+    assertTrue(hasCmt(Loc(0, 2)))
+    // and the non-comment lines should still not be styled as comments
+    assertFalse(hasCmt(Loc(1, 2)))
+    assertFalse(hasCmt(Loc(3, 4)))
+  }
+
   def dump (source :String, node :TSNode, indent :String = "") :Unit = {
     val text = source.substring(node.getStartByte, node.getEndByte)
     println(s"$indent$text :: ${node.getType}")

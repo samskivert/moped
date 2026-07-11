@@ -164,6 +164,11 @@ class WindowImpl (val stage :Stage, ws :WorkspaceImpl, defWidth :Int, defHeight 
   override def frames = _frames
   override def focus = _focus.get
   override def workspace = ws
+
+  /** Returns the dispatcher for this window's focused frame, for use by debugging/automation
+    * tooling (like the local command socket, see [[Server]]); `focus`'s declared type (`Frame`,
+    * per the `Window` trait it overrides) doesn't expose this. */
+  def focusedDispatcher :Dispatcher = _focus.get.disp
   override def mini = _mini
   override def statusMini = _statusMini
 

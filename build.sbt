@@ -36,7 +36,7 @@ lazy val root = project.in(file(".")).settings(
   libraryDependencies += "io.github.bonede" % "tree-sitter-typescript" % "0.23.2",
   libraryDependencies += "io.github.bonede" % "tree-sitter-tsx" % "0.23.2",
 
-  libraryDependencies ++= Seq("base", "controls").map(
+  libraryDependencies ++= Seq("base", "controls", "swing").map(
     m => "org.openjfx" % s"javafx-$m" % "26" classifier osName),
   libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test",
 

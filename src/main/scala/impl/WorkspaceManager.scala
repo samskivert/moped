@@ -92,6 +92,10 @@ class WorkspaceManager (app :Moped) extends AbstractService with WorkspaceServic
     if (wscache.asMap.values.asScala.forall(_.windows.isEmpty)) Platform.exit()
   }
 
+  /** Returns some currently open window, for use by debugging/automation tooling (like the local
+    * command socket, see [[Server]]) that doesn't have a specific window in mind. */
+  def anyWindow :Option[WindowImpl] = wscache.asMap.values.asScala.flatMap(_.anyWindow).headOption
+
   def addHintPath (wsname :String, path :Path) :Unit =
     wshints.update(m => { m.put(wsname, path.toString) ; m })
   def removeHintPath (wsname :String, path :Path) :Unit =
@@ -149,6 +153,11 @@ class WorkspaceImpl (val app  :Moped, val mgr  :WorkspaceManager,
 
   def windows = _windows
   def buffers = _buffers
+
+  /** Returns some window in this workspace, concretely typed (unlike [[windows]], which widens to
+    * the `Workspace` trait's `Window` for interface purposes). Used by debugging/automation tooling
+    * (like the local command socket, see [[Server]]). */
+  def anyWindow :Option[WindowImpl] = _windows.headOption
   def lastOpened = Files.getLastModifiedTime(root).toMillis
 
   def open (stage :Stage) :WindowImpl = _windows.headOption || createWindow(stage, geomSysProp)

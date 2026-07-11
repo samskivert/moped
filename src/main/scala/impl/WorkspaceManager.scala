@@ -380,9 +380,11 @@ class WorkspaceImpl (val app  :Moped, val mgr  :WorkspaceManager,
   }
 
   private def createWindow (stage :Stage, geom :Geom) :WindowImpl = {
-    val (bwidth, bheight) = geom.size getOrElse {
-      (config(EditorConfig.viewWidth), config(EditorConfig.viewHeight))
-    }
+    // parse the configured view geometry (an Emacs-style "WxH+X+Y" string) into its components,
+    // reacting to changes so that the window tracks live edits to the config value
+    val geomV = config.value(EditorConfig.viewGeom).map(
+      text => Geometry(text) getOrElse DefaultGeom)
+    val (bwidth, bheight) = geom.size getOrElse ((geomV().width, geomV().height))
     val win = new WindowImpl(stage, this, bwidth, bheight)
     // TODO: willCreateWindow
 
@@ -418,18 +420,18 @@ class WorkspaceImpl (val app  :Moped, val mgr  :WorkspaceManager,
       val swidth = stage.getWidth()
       if (!swidth.isNaN) stage.setX(getOffset(viewLeft, swidth, sbounds.getMinX, sbounds.getMaxX))
     }
-    config.value(EditorConfig.viewLeft) `onValueNotify` setStageLeft
+    geomV.map(_.x) `onValueNotify` setStageLeft
     stage.widthProperty.addListener(
-      (obs, ov, nv) => setStageLeft(config(EditorConfig.viewLeft)))
+      (obs, ov, nv) => setStageLeft(geomV().x))
 
     def setStageTop (viewTop :Int) = {
       val sbounds = screenForStage(stage).getVisualBounds
       val sheight = stage.getHeight()
       if (!sheight.isNaN) stage.setY(getOffset(viewTop, sheight, sbounds.getMinY, sbounds.getMaxY))
     }
-    config.value(EditorConfig.viewTop) `onValueNotify` setStageTop
+    geomV.map(_.y) `onValueNotify` setStageTop
     stage.heightProperty.addListener(
-      (obs, ov, nv) => setStageTop(config(EditorConfig.viewTop)))
+      (obs, ov, nv) => setStageTop(geomV().y))
 
     // if a position was passed in, override the value from prefs
     geom.pos.foreach { pos => setStageLeft(pos._1) ; setStageTop(pos._2) }
@@ -461,6 +463,9 @@ class WorkspaceImpl (val app  :Moped, val mgr  :WorkspaceManager,
     if (buffers.exists(_.name == revName)) freshName(name, n+1)
     else revName
   }
+
+  // fallback used if EditorConfig.viewGeom fails to parse
+  private val DefaultGeom = Geometry(100, 40, -1, -1)
 
   // TODO: move to Editor.Geom? might use in Workspace.createEditor()
   case class Geom (size :Option[(Int,Int)], pos :Option[(Int,Int)])

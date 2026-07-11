@@ -169,7 +169,8 @@ trait Window {
   * the top of the containing window at which the frame is positioned.
   */
 case class Geometry (width :Int, height :Int, x :Int, y :Int) {
-  override def toString = s"${width}x$height+$x+$y"
+  private def sign (v :Int) = if (v < 0) v.toString else s"+$v"
+  override def toString = s"${width}x$height${sign(x)}${sign(y)}"
 }
 
 /** Describes the pixel size of a [[Window]] or [[Window.Frame]]. */

@@ -55,17 +55,10 @@ trait Editor {
 /** Defines global configurables. */
 object EditorConfig extends Config.Defs {
 
-  @Var("""The default x position of editor views, in pixels.
-          -1 indicates that the view should be centered in the screen.""")
-  val viewLeft = key(-1)
-  @Var("""The default y position of editor views, in pixels.
-          -1 indicates that the view should be centered in the screen.""")
-  val viewTop = key(-1)
-
-  @Var("The default width of editor views, in characters.")
-  val viewWidth = key(100)
-  @Var("The default height of editor views, in characters.")
-  val viewHeight = key(40)
+  @Var("""The default geometry of editor views, as an Emacs-style geometry string:
+          `WxH+X+Y` (or `WxH-X-Y`). Width and height are in characters; x and y are in pixels,
+          with a value of -1 indicating that the view should be centered on that axis.""")
+  val viewGeom = key("100x40-1-1")
 
   @Var("The number of entries retained by the kill ring.")
   val killRingSize = key(40)

@@ -96,8 +96,8 @@ class TypeScriptMode (env :Env) extends SitterCodeMode(env) {
       "export", "extends", "finally", "for", "from", "function", "get", "if", "implements",
       "import", "in", "infer", "instanceof", "interface", "is", "keyof", "let", "module",
       "namespace", "new", "of", "override", "private", "protected", "public", "readonly", "return",
-      "satisfies", "set", "static", "super", "switch", "this", "throw", "try", "typeof", "unique",
-      "using", "var", "while", "with", "yield")
+      "satisfies", "set", "static", "super", "switch", "this", "throw", "try", "type", "typeof",
+      "unique", "using", "var", "while", "with", "yield")
 
     // primitive type keywords; unlike "number"/"string"/"object" these don't double as some other
     // node type elsewhere in the grammar, so they can be styled unconditionally

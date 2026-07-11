@@ -123,8 +123,13 @@ class Moped extends Application with Editor {
 
 object Moped {
 
-  /** The port on which [Server] listens for commands. */
-  final val Port = (Option(System.getenv("MOPED_PORT")) getOrElse "32324").toInt
+  /** The port on which [Server] listens for commands. Defaults to 32324, which is what a plain
+    * `sbt run` dev/test instance uses. The packaged app (see `macapp/create.sh`) overrides this to
+    * a different port via the `moped.port` system property, so a dev/test instance launched via
+    * `sbt run` never collides with (or gets its `open`/debug commands silently forwarded to) your
+    * regular running editor. Can also be overridden via the `MOPED_PORT` environment variable. */
+  final val Port = (Option(System.getProperty("moped.port")) orElse
+                     Option(System.getenv("MOPED_PORT")) getOrElse "32324").toInt
 
   /** Files received via 'open files' events. These may arrive long before JavaFX is ready to run,
     * so we register a handler immediately in main() and buffer files in this reactive value. This

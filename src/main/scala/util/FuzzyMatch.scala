@@ -55,6 +55,187 @@ class FuzzyMatch (glob :String) {
       }
       if (gg == glen) score else 0
     }
+    // fuzzyMatch(full) match {
+    //   case (false, _) => 0
+    //   case (true, score) => score
+    // }
+  }
+
+  def levenshteinDistance (full: String): Int = {
+    val m = glob.length
+    val n = full.length
+    val dp = Array.ofDim[Int](m + 1, n + 1)
+
+    for (i <- 0 to m) dp(i)(0) = i
+    for (j <- 0 to n) dp(0)(j) = j
+
+    for (i <- 1 to m) {
+      for (j <- 1 to n) {
+        val substitutionCost = if (glob(i - 1) == full(j - 1)) 0 else 1
+        dp(i)(j) = List(dp(i - 1)(j) + 1, dp(i)(j - 1) + 1, dp(i - 1)(j - 1) + substitutionCost).min
+      }
+    }
+
+    dp(m)(n)
+  }
+
+  val SEQUENTIAL_BONUS = 15 // bonus for adjacent matches
+  val SEPARATOR_BONUS = 30 // bonus if match occurs after a separator
+  val CAMEL_BONUS = 30 // bonus if match is uppercase and prev is lower
+  val FIRST_LETTER_BONUS = 15 // bonus if the first letter is matched
+
+  val LEADING_LETTER_PENALTY = -5 // penalty applied for every letter in str before the first match
+  val MAX_LEADING_LETTER_PENALTY = -15 // maximum penalty for leading letters
+  val UNMATCHED_LETTER_PENALTY = -1
+
+  /**
+   * Does a fuzzy search to find pattern inside a string.
+   * @param {*} pattern string        pattern to search for
+   * @param {*} str     string        string which is being searched
+   * @returns [boolean, number]       a boolean which tells if pattern was
+   *                                  found or not and a search score
+   */
+  def fuzzyMatch (str :String) = fuzzyMatchRecursive(
+    str,
+    0 /* patternCurIndex */,
+    0 /* strCurrIndex */,
+    null,
+    Array.fill(256)(-1),
+    256 /* maxMatches */,
+    0 /* nextMatch */,
+    0 /* recursionCount */,
+    10 /* recursionLimit */
+  )
+
+  def fuzzyMatchRecursive(
+    str :String,
+    opatternCurIndex :Int,
+    ostrCurIndex :Int,
+    srcMatches :Array[Int],
+    matches :Array[Int],
+    maxMatches :Int,
+    onextMatch :Int,
+    orecursionCount :Int,
+    recursionLimit :Int
+  ) :(Boolean, Int) = {
+    var outScore = 0
+
+    // Return if recursion limit is reached.
+    val recursionCount = orecursionCount + 1
+    if (recursionCount >= recursionLimit) return (false, outScore)
+
+    var nextMatch = onextMatch
+    var patternCurIndex = opatternCurIndex
+    var strCurIndex = ostrCurIndex
+
+    // Return if we reached ends of strings.
+    if (patternCurIndex == glob.length || strCurIndex == str.length) return (false, outScore)
+
+    // Recursion params
+    var recursiveMatch = false
+    var bestRecursiveMatches = Array.fill(256)(-1)
+    var bestRecursiveScore = 0
+
+    // Loop through pattern and str looking for a match.
+    var firstMatch = true
+    while (patternCurIndex < glob.length && strCurIndex < str.length) {
+      // Match found.
+      if (adjustCase(glob(patternCurIndex)) == adjustCase(str(strCurIndex))) {
+        if (nextMatch >= maxMatches) return (false, outScore)
+
+        if (firstMatch && srcMatches != null) {
+          Array.copy(srcMatches, 0, matches, 0, matches.length)
+          firstMatch = false
+        }
+
+        var recursiveMatches = Array.fill(256)(-1)
+        val (matched, recursiveScore) = fuzzyMatchRecursive(
+          str,
+          patternCurIndex,
+          strCurIndex + 1,
+          matches,
+          recursiveMatches,
+          maxMatches,
+          nextMatch,
+          recursionCount,
+          recursionLimit
+        )
+
+        if (matched) {
+          // Pick best recursive score.
+          if (!recursiveMatch || recursiveScore > bestRecursiveScore) {
+            System.arraycopy(recursiveMatches, 0, bestRecursiveMatches, 0, bestRecursiveMatches.length)
+            bestRecursiveScore = recursiveScore
+          }
+          recursiveMatch = true
+        }
+
+        nextMatch += 1
+        matches(nextMatch) = strCurIndex
+        patternCurIndex += 1
+      }
+      strCurIndex += 1
+    }
+
+    val matched = patternCurIndex == glob.length
+
+    if (matched) {
+      outScore = 100
+
+      // Apply leading letter penalty
+      var penalty = LEADING_LETTER_PENALTY * matches(0)
+      penalty = if (penalty < MAX_LEADING_LETTER_PENALTY) MAX_LEADING_LETTER_PENALTY else penalty
+      outScore += penalty
+
+      //Apply unmatched penalty
+      val unmatched = str.length - nextMatch
+      outScore += UNMATCHED_LETTER_PENALTY * unmatched
+
+      // Apply ordering bonuses
+      var i = 0; while (i < nextMatch) {
+        val currIdx = matches(i)
+
+        if (i > 0) {
+          val prevIdx = matches(i - 1)
+          if (currIdx == prevIdx + 1) {
+            outScore += SEQUENTIAL_BONUS
+          }
+        }
+
+        // Check for bonuses based on neighbor character value.
+        if (currIdx > 0) {
+          // Camel case
+          val neighbor = str(currIdx - 1)
+          val curr = str(currIdx)
+          if (neighbor != neighbor.toUpper && curr != curr.toLower) {
+            outScore += CAMEL_BONUS
+          }
+          val isNeighbourSeparator = neighbor == '_' || neighbor == ' ' || neighbor == '.'
+          if (isNeighbourSeparator) {
+            outScore += SEPARATOR_BONUS
+          }
+        } else {
+          // First letter
+          outScore += FIRST_LETTER_BONUS
+        }
+
+        i += 1
+      }
+
+      // Return best result
+      if (recursiveMatch && (!matched || bestRecursiveScore > outScore)) {
+        // Recursive score is better than "this"
+        System.arraycopy(bestRecursiveMatches, 0, matches, 0, matches.length)
+        outScore = bestRecursiveScore
+        return (true, outScore)
+      } else if (matched) {
+        // "this" score is better than recursive
+        return (true, outScore)
+      } else {
+        return (false, outScore)
+      }
+    }
+    return (false, outScore)
   }
 
   protected def compare (astr :String, bstr :String) :Int = astr.compareTo(bstr)

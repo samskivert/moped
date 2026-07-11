@@ -10,6 +10,7 @@
 #   ./moped-cmd.sh invoke forward-char
 #   ./moped-cmd.sh type "hello world"
 #   ./moped-cmd.sh click 120 45
+#   ./moped-cmd.sh click 120 45 2      # double-click (word select); 3 for triple (line select)
 #   ./moped-cmd.sh drag 200 45
 #   ./moped-cmd.sh release 200 45
 #   ./moped-cmd.sh screenshot /tmp/shot.png

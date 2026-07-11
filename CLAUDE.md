@@ -58,6 +58,8 @@ hand-writing a client each time:
 ./moped-cmd.sh invoke backward-word
 ./moped-cmd.sh type "hello world"              # insert literal text at point, as if typed
 ./moped-cmd.sh click 120 45                   # simulate a mouse press at pixel (x, y)
+./moped-cmd.sh click 120 45 2                 # double-click (selects the word); 3 for triple
+                                               # (selects the line); both also affect a following drag
 ./moped-cmd.sh drag 200 45                    # simulate dragging to pixel (x, y)
 ./moped-cmd.sh release 200 45                 # simulate releasing the mouse button
 ./moped-cmd.sh screenshot /tmp/shot.png        # PNG of the whole window

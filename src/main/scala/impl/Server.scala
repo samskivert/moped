@@ -29,9 +29,10 @@ import moped._
   *   - `point`: reports the point (as `row,col`) of some open window's focused buffer.
   *   - `mark`: reports the mark (as `row,col`, or `none`) of some open window's focused buffer.
   *   - `line ROW`: reports the text of line `ROW` (0-indexed) of some open window's focused buffer.
-  *   - `click X Y`: simulates a primary-button mouse press at pixel position `(X, Y)` (relative to
-  *     the buffer content, i.e. the same coordinate space `screenshot` captures) in some open
-  *     window's focused frame.
+  *   - `click X Y [COUNT]`: simulates a primary-button mouse press at pixel position `(X, Y)`
+  *     (relative to the buffer content, i.e. the same coordinate space `screenshot` captures) in
+  *     some open window's focused frame. `COUNT` (default 1) is the click count, i.e. `2` for a
+  *     double-click, `3` for a triple-click.
   *   - `drag X Y`: simulates dragging the (already-pressed, per `click`) mouse to `(X, Y)`.
   *   - `release X Y`: simulates releasing the mouse button at `(X, Y)`.
   *   - `screenshot PATH`: renders some open window to a PNG file at `PATH`.
@@ -116,7 +117,8 @@ class Server (app :Moped) extends Thread {
         }
       })
       case c if c `startsWith` "click " => Some(onUIBlocking {
-        withXY(arg("click "), MouseEvent.MOUSE_PRESSED)((win, mev) => win.focusedArea.mousePressed(mev))
+        withXY(arg("click "), MouseEvent.MOUSE_PRESSED)(
+          (win, mev) => win.focusedArea.mousePressed(mev))
       })
       case c if c `startsWith` "drag " => Some(onUIBlocking {
         withXY(arg("drag "), MouseEvent.MOUSE_DRAGGED)((win, mev) => win.focusedArea.mouseDragged(mev))
@@ -135,16 +137,18 @@ class Server (app :Moped) extends Thread {
   // finds the focused frame of some open window; must be called on the JavaFX application thread
   private def focusedFrame = app.wspMgr.anyWindow.map(_.focus)
 
-  // parses "X Y" out of `argStr` and, if there's an open window, invokes `fn` with it and a
-  // synthetic MouseEvent of type `evType` at that position; used by `click`/`drag`/`release`
+  // parses "X Y [COUNT]" out of `argStr` and, if there's an open window, invokes `fn` with it and
+  // a synthetic MouseEvent of type `evType` at that position; used by `click`/`drag`/`release`
   private def withXY (
     argStr :String, evType :javafx.event.EventType[MouseEvent]
   )(fn :(WindowImpl, MouseEvent) => Unit) :String = {
     app.wspMgr.anyWindow match {
       case Some(win) =>
         argStr.split(" ").filter(_.nonEmpty) match {
-          case Array(x, y) => fn(win, mouseEvent(evType, x.toDouble, y.toDouble)) ; "ok"
-          case _ => "error: usage: X Y"
+          case Array(x, y) => fn(win, mouseEvent(evType, x.toDouble, y.toDouble, 1)) ; "ok"
+          case Array(x, y, count) =>
+            fn(win, mouseEvent(evType, x.toDouble, y.toDouble, count.toInt)) ; "ok"
+          case _ => "error: usage: X Y [COUNT]"
         }
       case None => "error: no open window"
     }
@@ -152,11 +156,12 @@ class Server (app :Moped) extends Thread {
 
   // builds a synthetic MouseEvent at (x, y); passed directly to BufferArea.mousePressed/
   // mouseDragged/mouseReleased (bypassing the real event-dispatch chain, since we're calling it
-  // programmatically), which only read getX/getY, so the other fields are inert placeholders
+  // programmatically), which only read getX/getY (and, for mousePressed, getClickCount), so the
+  // other fields are inert placeholders
   private def mouseEvent (
-    evType :javafx.event.EventType[MouseEvent], x :Double, y :Double
+    evType :javafx.event.EventType[MouseEvent], x :Double, y :Double, clickCount :Int
   ) :MouseEvent = new MouseEvent(
-    evType, x, y, x, y, MouseButton.PRIMARY, 1,
+    evType, x, y, x, y, MouseButton.PRIMARY, clickCount,
     false, false, false, false, // shift/control/alt/meta down
     true, false, false, // primary/middle/secondary button down
     false, false, false, // synthesized, popupTrigger, stillSincePress

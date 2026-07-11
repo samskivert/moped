@@ -314,16 +314,37 @@ class BufferArea (val bview :BufferViewImpl, val disp :DispatcherImpl) extends R
       val line = bview.buffer.line(point)
       val lineCount = bview.buffer.lines.length
 
+      // a UTF-16 surrogate pair (used by any codepoint outside the Basic Multilingual Plane,
+      // which includes most emoji) occupies two Buffer columns for one visual character; the
+      // pair's start column is normally where the point sits, but defensively handle the point
+      // landing on the pair's second column too (which oughtn't happen, since Buffer.nextChar/
+      // prevChar keep motion from splitting a pair, but not every path that can move the point,
+      // e.g. a mouse click, is necessarily covered)
+      def isHighAt (col :Int) = col < line.length && Character.isHighSurrogate(line.charAt(col))
+      def isLowAt (col :Int) = col >= 0 && col < line.length && Character.isLowSurrogate(line.charAt(col))
+      val (pairStart, isPair) =
+        if (isHighAt(point.col) && isLowAt(point.col+1)) (point.col, true)
+        else if (isLowAt(point.col) && isHighAt(point.col-1)) (point.col-1, true)
+        else (point.col, false)
+
       // use the line to determine the layout coordinates of the cursor
       val linev = bview.lines(point.row)
-      val cx = linev.charX(point.col, charWidth) ; val cy = linev.getLayoutY
+      val cx = linev.charX(pairStart, charWidth) ; val cy = linev.getLayoutY
       cursor.setLayoutX(cx) ; cursor.setLayoutY(cy)
       uncursor.setLayoutX(cx) ; uncursor.setLayoutY(cy)
 
-      // set the cursor "text" to the character under the point (if any)
+      // the cursor block is normally exactly one character wide, but widen it to cover both
+      // columns of a surrogate pair, so it doesn't just cover half of a (usually wider) glyph
+      val cwidth = if (isPair) charWidth*2 else charWidth
+      cursorBlock.setWidth(cwidth)
+      uncursor.setWidth(cwidth)
+
+      // set the cursor "text" to the character under the point (if any); grab both halves of a
+      // surrogate pair, lest we display a lone, invalid surrogate
       val cchar = if (point.row >= lineCount) "" else {
-        if (point.col >= line.length) ""
-        else String.valueOf(line.charAt(point.col))
+        if (pairStart >= line.length) ""
+        else if (isPair) line.sliceString(pairStart, pairStart+2)
+        else String.valueOf(line.charAt(pairStart))
       }
       cursorText.setText(cchar)
 

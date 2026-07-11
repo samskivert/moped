@@ -18,6 +18,11 @@ lazy val buildTreeSitterGrammars = taskKey[Seq[File]](
 // icon, Info.plist bits, and file association definitions live there)
 lazy val macapp = taskKey[File]("Stages the app and packages it into a macOS .app/.dmg via jpackage.")
 
+// updates an already-installed /Applications/Moped.app in place with freshly staged jars, without
+// repackaging the whole .app/.dmg; much faster than `macapp` for iterating during development
+lazy val macupdate = taskKey[Unit](
+  "Stages the app and copies the jars/native libs into /Applications/Moped.app in place.")
+
 lazy val root = project.in(file(".")).settings(
   name := "Moped",
   version := "0.1.0-SNAPSHOT",
@@ -146,5 +151,17 @@ lazy val root = project.in(file(".")).settings(
     // jpackage's default --type on macOS is dmg; report the one it just produced, if we can find it
     macappDir.listFiles().filter(_.getName.endsWith(".dmg")).sortBy(-_.lastModified).
       headOption.getOrElse(macappDir)
+  },
+
+  macupdate := Def.uncached {
+    if (osName != "mac") sys.error("The macupdate task only works on macOS.")
+
+    val log = streams.value.log
+    val stageDir = (Universal / stage).value
+    val appDir = file("/Applications/Moped.app/Contents/app")
+    if (!appDir.exists) sys.error(s"$appDir does not exist; is Moped.app installed?")
+
+    log.info(s"Copying staged jars/native libs into $appDir...")
+    (stageDir / "lib").listFiles().foreach(f => IO.copyFile(f, appDir / f.getName))
   }
 )

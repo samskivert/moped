@@ -28,6 +28,7 @@ import moped._
   *   - `type TEXT`: inserts `TEXT` at the point of some open window's focused buffer, as if typed.
   *   - `point`: reports the point (as `row,col`) of some open window's focused buffer.
   *   - `mark`: reports the mark (as `row,col`, or `none`) of some open window's focused buffer.
+  *   - `line ROW`: reports the text of line `ROW` (0-indexed) of some open window's focused buffer.
   *   - `click X Y`: simulates a primary-button mouse press at pixel position `(X, Y)` (relative to
   *     the buffer content, i.e. the same coordinate space `screenshot` captures) in some open
   *     window's focused frame.
@@ -100,6 +101,16 @@ class Server (app :Moped) extends Thread {
         focusedFrame match {
           case Some(f) if f.view != null =>
             f.view.buffer.mark.map(p => s"${p.row},${p.col}").getOrElse("none")
+          case Some(_) => "error: no buffer"
+          case None => "error: no open window"
+        }
+      })
+      case c if c `startsWith` "line " => Some(onUIBlocking {
+        focusedFrame match {
+          case Some(f) if f.view != null =>
+            val row = arg("line ").toInt
+            if (row < 0 || row >= f.view.buffer.lines.size) "error: no such line"
+            else f.view.buffer.lines(row).asString
           case Some(_) => "error: no buffer"
           case None => "error: no open window"
         }

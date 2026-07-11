@@ -52,6 +52,8 @@ hand-writing a client each time:
 ```
 ./moped-cmd.sh point                          # report point as "row,col"
 ./moped-cmd.sh mark                           # report mark as "row,col", or "none"
+./moped-cmd.sh line 0                         # report the text of line 0 (handy to check the
+                                               # actual buffer content, independent of rendering)
 ./moped-cmd.sh invoke forward-char            # invoke any registered Fn by name
 ./moped-cmd.sh invoke backward-word
 ./moped-cmd.sh type "hello world"              # insert literal text at point, as if typed

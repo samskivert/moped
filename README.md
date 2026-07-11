@@ -68,10 +68,8 @@ editor from within SBT and pass the name of a file to edit. To run Moped on its 
 something like:
 
 ```
-run src/main/scala/impl/Moped.scala
+sbt run src/main/scala/impl/Moped.scala
 ```
-
-at the SBT console.
 
 There's not much documentation on the editor internals, but you can start by looking at the
 implementation of a major mode. `src/main/scala/major/EditingMode.scala` shows how most of the

@@ -117,6 +117,13 @@ abstract class LangClient (
   private def wspaceSvc = server.getWorkspaceService
 
   private val uriToProject = new HashMap[String, Project]()
+  private val uriToDiagnostics = new HashMap[String, JList[Diagnostic]]()
+
+  /** Returns the most recently published diagnostics for `uri`, or an empty list if none have been
+    * published (or they've all been cleared). Used to populate `CodeActionContext.diagnostics`
+    * when requesting code actions. */
+  def diagnosticsFor (uri :String) :JList[Diagnostic] =
+    uriToDiagnostics.getOrDefault(uri, Collections.emptyList())
 
   // once we are connected, our server instance will be set and we can initialize our session
   serverV.onValue(server => {
@@ -239,20 +246,38 @@ abstract class LangClient (
         // TODO: commitCharactersSupport?: boolean
         // TODO: documentationFormat?: MarkupKind[];
       })
+      caps.setCodeAction(init(new CodeActionCapabilities()) { caps =>
+        caps.setCodeActionLiteralSupport(new CodeActionLiteralSupportCapabilities(
+          new CodeActionKindCapabilities(Arrays.asList(
+            CodeActionKind.QuickFix, CodeActionKind.Refactor, CodeActionKind.RefactorExtract,
+            CodeActionKind.RefactorInline, CodeActionKind.RefactorRewrite, CodeActionKind.Source,
+            CodeActionKind.SourceOrganizeImports))))
+        caps.setIsPreferredSupport(true)
+        caps.setResolveSupport(new CodeActionResolveSupportCapabilities(Arrays.asList("edit")))
+      })
     })
     caps.setWorkspace(init(new WorkspaceClientCapabilities()) { caps =>
-      // TODO: nothing to set re: workspace capabilities as of yet
+      // we implement workspace/applyEdit (see `applyEdit` below), including resource operations
+      caps.setApplyEdit(true)
+      caps.setWorkspaceEdit(init(new WorkspaceEditCapabilities()) { caps =>
+        caps.setDocumentChanges(true)
+        caps.setResourceOperations(Arrays.asList("create", "rename", "delete"))
+      })
     })
   }
 
-  /** Executes `cmd` on the language server. The command should come from [[execCommands]] which
-    * enumerates all commands supported by the server. */
-  def execCommand (cmd :String) :Future[Any] = {
+  /** Executes `cmd` (with `args`, if any) on the language server. `cmd` should come from
+    * [[execCommands]] which enumerates all commands supported by the server. */
+  def execCommand (cmd :String, args :JList[Object] = Collections.emptyList()) :Future[Any] = {
     val params = new ExecuteCommandParams()
     params.setCommand(cmd)
-    // TODO: args?
+    params.setArguments(args)
     LSP.adapt(wspaceSvc.executeCommand(params), exec)
   }
+
+  /** Executes the command described by `cmd` (as returned, e.g., by a code action) on the
+    * language server. */
+  def execCommand (cmd :Command) :Future[Any] = execCommand(cmd.getCommand, cmd.getArguments)
 
   /** Formats (and styles) a `text` block, appending it to `buffer`. */
   def format (buffer :Buffer, wrapWidth :Int, text :String) :Buffer = {
@@ -557,8 +582,22 @@ abstract class LangClient (
    */
   override def applyEdit (
     params :ApplyWorkspaceEditParams
-  ) :CompletableFuture[ApplyWorkspaceEditResponse] =
-    throw new UnsupportedOperationException()
+  ) :CompletableFuture[ApplyWorkspaceEditResponse] = {
+    val rsp = new CompletableFuture[ApplyWorkspaceEditResponse]()
+    exec.ui.execute(() => {
+      try {
+        Lang.applyWorkspaceEdit(project.pspace.wspace, params.getEdit)
+        rsp.complete(new ApplyWorkspaceEditResponse(true))
+      } catch {
+        case err :Throwable =>
+          trace(s"applyEdit failed: $err")
+          val failed = new ApplyWorkspaceEditResponse(false)
+          failed.setFailureReason(err.getMessage)
+          rsp.complete(failed)
+      }
+    })
+    rsp
+  }
 
   /**
    * The client/registerCapability request is sent from the server to the client to register for a
@@ -598,6 +637,7 @@ abstract class LangClient (
       case DiagnosticSeverity.Error => Severity.Error
     }
     exec.ui.execute(() => {
+      uriToDiagnostics.put(pdp.getUri, pdp.getDiagnostics)
       val project = uriToProject.get(pdp.getUri)
       if (project == null) trace(s"Got diagnostics for unmapped URI: ${pdp.getUri}")
       else {

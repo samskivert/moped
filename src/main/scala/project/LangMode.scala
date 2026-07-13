@@ -26,6 +26,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   private def wspaceSvc = client.server.getWorkspaceService
 
   private val commandRing = new Ring(8)
+  private val codeActionRing = new Ring(8)
   private def renameHistory = wspace.historyRing("lang-rename")
   private def symbolHistory = wspace.historyRing("lang-symbol")
   private def wordAt (loc :Loc) :String =
@@ -55,6 +56,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     bind("visit-func",           "C-c C-j").
     bind("visit-value",          "C-c C-h").
     bind("rename-element",       "C-c C-r").
+    bind("code-action",          "C-c C-a").
     bind("find-uses",            "C-c C-f").
     bind("lang-exec-command",    "C-c C-l x")
 
@@ -181,7 +183,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     })
   }
 
-  private def renameElementAt (loc :Loc, newName :String) =
+  private def renameElementAt (loc :Loc, newName :String) :Future[WorkspaceEdit] =
     client.serverCaps.flatMap(caps => {
       val canRename = Option(caps.getRenameProvider).map(LSP.toScala).map(_ match {
         case Left(bv) => bv.booleanValue
@@ -190,26 +192,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
       if (!canRename) abort("Language Server does not support rename refactoring.")
 
       val rparams = new RenameParams(LSP.docId(view.buffer), LSP.toPos(loc), newName)
-      LSP.adapt(textSvc.rename(rparams), view.window.exec).map(edits => {
-        val docChanges = edits.getDocumentChanges
-        if (docChanges != null) {
-          println(s"TODO(docChanges): $docChanges")
-        }
-
-        // TODO: resource changes...
-
-        val changes = edits.getChanges
-        if (changes == null) abort(s"No changes returned for rename (to $newName)")
-        // def toEdit (edit :TextEdit) = Edit(LSP.fromRange(edit.getRange), edit.getNewText)
-        changes.asScala.map((uri, edits) => new Renamer(LSP.toStore(uri)) {
-          def validate (buffer :Buffer) :Unit = {} // LSP does not supply enough info to validate
-          def apply (buffer :Buffer) = {
-            val backToFront = edits.asScala.sortBy(e => LSP.fromPos(e.getRange.getStart)).reverse
-            for (edit <- backToFront) buffer.replace(
-              LSP.fromRange(edit.getRange), Seq(Line(edit.getNewText)))
-          }
-        }).toSeq
-      })
+      LSP.adapt(textSvc.rename(rparams), view.window.exec)
     })
 
   @Fn("Renames all occurrences of the element at the point.")
@@ -217,34 +200,88 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     val loc = view.point()
     window.mini.read("New name:", wordAt(loc), renameHistory, Completer.none).
       flatMap(name => renameElementAt(loc, name)).
-      onSuccess(renamers => {
-        println(s"Renames $renamers")
-        if (renamers.isEmpty) abort(
+      onSuccess(edit => {
+        val stores = Lang.editedStores(edit)
+        if (stores.isEmpty) abort(
           "No renames returned for refactor. Is there an element at the point?")
 
         def doit (save :Boolean) = try {
-          renamers.foreach { renamer =>
-            val buffer = project.pspace.wspace.openBuffer(renamer.store)
-            renamer.validate(buffer)
-          }
-          renamers.foreach { renamer =>
-            val buffer = project.pspace.wspace.openBuffer(renamer.store)
-            renamer.apply(buffer)
-            if (save) buffer.save()
-          }
+          val edited = Lang.applyWorkspaceEdit(project.pspace.wspace, edit)
+          if (save) edited.foreach(store => project.pspace.wspace.openBuffer(store).save())
         } catch {
           case err :Throwable => window.exec.handleError(err)
         }
 
-        // if there are occurrences outside the current buffer, confirm the rename
-        if (renamers.size == 1 && renamers(0).store == view.buffer.store) doit(false)
+        // if the rename is confined to the current buffer, leave it dirty for review, same as any
+        // other edit; if it touches other files, they're not visibly open for the user to notice
+        // and save themselves, so save them automatically once the user confirms the rename
+        if (stores.size == 1 && stores(0) == view.buffer.store) doit(false)
         else window.mini.readYN(
-          s"'Element occurs in ${renamers.size-1} source file(s) not including this one. " +
+          s"'Element occurs in ${stores.size-1} source file(s) not including this one. " +
             "Undoing the rename will not be trivial, continue?").onSuccess { yes =>
           if (yes) doit(true)
         }
       }).
       onFailure(window.exec.handleError)
+  }
+
+  @Fn("""Queries for and applies a code action (quick fix, refactor, etc.) available at the
+         point. If more than one action is available, prompts for which to apply.""")
+  def codeAction () :Unit = {
+    val doc = LSP.docId(view.buffer)
+    val pos = LSP.toPos(view.point())
+    // TODO: use the mark-to-point region here, if a mark/selection is active, instead of always
+    // requesting actions for a zero-width range at the point
+    val range = new Range(pos, pos)
+    val ctx = new CodeActionContext(overlappingDiagnostics(doc.getUri, range))
+    val aparams = new CodeActionParams(doc, range, ctx)
+    LSP.adapt(textSvc.codeAction(aparams), window.exec).
+      onSuccess(applyCodeActions).
+      onFailure(window.exec.handleError)
+  }
+
+  private def overlappingDiagnostics (uri :String, range :Range) :JList[Diagnostic] = {
+    def le (p1 :Position, p2 :Position) =
+      p1.getLine < p2.getLine || (p1.getLine == p2.getLine && p1.getCharacter <= p2.getCharacter)
+    def overlaps (dr :Range) = le(dr.getStart, range.getEnd) && le(range.getStart, dr.getEnd)
+    client.diagnosticsFor(uri).asScala.filter(d => overlaps(d.getRange)).asJava
+  }
+
+  private def titleOf (action :JEither[Command, CodeAction]) = LSP.toScala(action) match {
+    case Left(cmd) => cmd.getTitle
+    case Right(action) => action.getTitle
+  }
+
+  private def applyCodeActions (result :JList[JEither[Command, CodeAction]]) :Unit = {
+    val actions = if (result == null) Seq() else result.asScala.toSeq
+    if (actions.isEmpty) view.window.popStatus("No code actions available.")
+    // always show the picker, even for a single action, so the user can see what it is before
+    // committing to it (rather than it just silently happening); picking one from the list is
+    // itself the confirmation, so we run it immediately rather than asking again
+    else window.mini.read(
+      "Code action:", "", codeActionRing, Completer.from(actions, singleCol = true)(titleOf)).
+      onSuccess(runCodeAction)
+  }
+
+  private def runCodeAction (action :JEither[Command, CodeAction]) :Unit = LSP.toScala(action) match {
+    case Left(cmd) => runCommand(cmd)
+    case Right(action) =>
+      // if the action wasn't already resolved (no edit or command), ask the server to resolve it
+      if (action.getEdit == null && action.getCommand == null)
+        LSP.adapt(textSvc.resolveCodeAction(action), window.exec).
+          onSuccess(finishCodeAction).
+          onFailure(window.exec.handleError)
+      else finishCodeAction(action)
+  }
+
+  private def runCommand (cmd :Command) :Unit =
+    client.execCommand(cmd).onFailure(window.exec.handleError)
+
+  private def finishCodeAction (action :CodeAction) :Unit = try {
+    Option(action.getEdit).foreach(edit => Lang.applyWorkspaceEdit(project.pspace.wspace, edit))
+    Option(action.getCommand).foreach(runCommand)
+  } catch {
+    case err :Throwable => window.exec.handleError(err)
   }
 
   @Fn("Describes the status and capabilities of the current language client.")

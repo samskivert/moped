@@ -5,7 +5,7 @@
 package moped.project
 
 import java.net.URI
-import java.nio.file.Path
+import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import scala.annotation.nowarn
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
@@ -80,15 +80,103 @@ object Lang {
     case null => Kind.Value
   }
 
-  /** Handles a rename refactoring in a single store. */
-  abstract class Renamer (val store :Store) {
-    /** Validates that this renamer can be applied to `buffer` (checking that its renames match
-      * up with the buffer as expected).
-      * @throw FeedbackException if something doesn't line up.
-      */
-    def validate (buffer :Buffer) :Unit
-    /** Applies the rename to `buffer` (which will correspond to this renamer's `store`). */
-    def apply (buffer :Buffer) :Unit
+  /** Applies `edits` to `buffer`, back to front so that earlier edits don't invalidate the
+    * positions of later ones. */
+  def applyTextEdits (buffer :Buffer, edits :Seq[TextEdit]) :Unit = {
+    // some servers (e.g. typescript-language-server, for edits that insert content into a brand
+    // new file created earlier in the same WorkspaceEdit) signal "insert at the end of the
+    // document" via a bogus negative line/character position rather than a real one; detect and
+    // redirect that to the buffer's actual end rather than passing negative coordinates through
+    def regionFor (edit :TextEdit) = {
+      val r = LSP.fromRange(edit.getRange)
+      if (r.start.row < 0 || r.end.row < 0) Region(buffer.end, buffer.end) else r
+    }
+    val backToFront = edits.map(e => (regionFor(e), e)).sortBy(_._1.start).reverse
+    // newText frequently spans multiple lines (e.g. inserting a whole new import statement), so it
+    // must be split into one Line per line, not jammed into a single Line with embedded newlines
+    for ((region, edit) <- backToFront) buffer.replace(region, Line.fromText(edit.getNewText))
+  }
+
+  /** Returns the stores that would be touched by applying `edit`, without actually applying it.
+    * Useful for confirming a refactor with the user before committing to it. */
+  def editedStores (edit :WorkspaceEdit) :Seq[Store] = {
+    val docChanges = edit.getDocumentChanges
+    if (docChanges != null) docChanges.asScala.toSeq.map(LSP.toScala).map {
+      case Left(tde) => LSP.toStore(tde.getTextDocument.getUri)
+      case Right(op :CreateFile) => LSP.toStore(op.getUri)
+      case Right(op :RenameFile) => LSP.toStore(op.getNewUri)
+      case Right(op :DeleteFile) => LSP.toStore(op.getUri)
+      case Right(op) => throw new IllegalArgumentException(s"Unknown resource operation: $op")
+    }
+    else Option(edit.getChanges).map(_.asScala.keys.map(LSP.toStore).toSeq) || Seq()
+  }
+
+  /** Applies `edit` (as received from `workspace/applyEdit`, a code action's `edit` field, or
+    * `textDocument/rename`) to `wspace`. Text edits are applied to (and, if not yet open, opened
+    * in) the relevant buffers, but those buffers are not saved; the caller decides whether/when to
+    * do that. Resource operations (file create/rename/delete), by contrast, take effect on disk
+    * immediately, as there's no "unsaved buffer" state for them to stage into.
+    * @return the stores whose buffers were edited (and may now want saving); this does not include
+    * stores that were merely created, renamed or deleted via a resource operation. */
+  def applyWorkspaceEdit (wspace :Workspace, edit :WorkspaceEdit) :Seq[Store] = {
+    val edited = Seq.newBuilder[Store]
+    def applyChange (uri :String, edits :Seq[TextEdit]) :Unit = {
+      val store = LSP.toStore(uri)
+      applyTextEdits(wspace.openBuffer(store), edits)
+      edited += store
+    }
+    val docChanges = edit.getDocumentChanges
+    if (docChanges != null) docChanges.asScala.foreach(change => LSP.toScala(change) match {
+      case Left(tde) => applyChange(tde.getTextDocument.getUri, tde.getEdits.asScala.toSeq)
+      case Right(op :CreateFile) => createFile(op)
+      case Right(op :RenameFile) => renameFile(wspace, op)
+      case Right(op :DeleteFile) => deleteFile(wspace, op)
+      case Right(op) => throw new IllegalArgumentException(s"Unknown resource operation: $op")
+    })
+    else Option(edit.getChanges).foreach(_.asScala.foreach((uri, edits) =>
+      applyChange(uri, edits.asScala.toSeq)))
+    edited.result()
+  }
+
+  private def uriPath (uri :String) = Paths.get(new URI(uri))
+  private def flag (bv :JBoolean) = bv != null && bv.booleanValue
+
+  private def createFile (op :CreateFile) :Unit = {
+    val path = uriPath(op.getUri)
+    val opts = op.getOptions
+    val overwrite = opts != null && flag(opts.getOverwrite)
+    val ignoreIfExists = opts != null && flag(opts.getIgnoreIfExists)
+    if (!Files.exists(path)) {
+      Files.createDirectories(path.getParent)
+      Files.write(path, Array.emptyByteArray)
+    }
+    else if (overwrite) Files.write(path, Array.emptyByteArray)
+    else if (!ignoreIfExists) throw Errors.feedback(s"File already exists: $path")
+  }
+
+  private def renameFile (wspace :Workspace, op :RenameFile) :Unit = {
+    val oldPath = uriPath(op.getOldUri) ; val newPath = uriPath(op.getNewUri)
+    val opts = op.getOptions
+    val overwrite = opts != null && flag(opts.getOverwrite)
+    val ignoreIfExists = opts != null && flag(opts.getIgnoreIfExists)
+    if (Files.exists(newPath) && !overwrite && !ignoreIfExists)
+      throw Errors.feedback(s"File already exists: $newPath")
+    Files.createDirectories(newPath.getParent)
+    wspace.buffers.find(_.store.file.contains(oldPath)) match {
+      case Some(buf) => buf.saveTo(Store(newPath)) ; Files.deleteIfExists(oldPath)
+      case None =>
+        val copyOpts = if (overwrite) Seq(StandardCopyOption.REPLACE_EXISTING) else Seq()
+        Files.move(oldPath, newPath, copyOpts*)
+    }
+  }
+
+  private def deleteFile (wspace :Workspace, op :DeleteFile) :Unit = {
+    val path = uriPath(op.getUri)
+    wspace.buffers.find(_.store.file.contains(path)).foreach(_.kill())
+    val opts = op.getOptions
+    val ignoreIfNotExists = opts != null && flag(opts.getIgnoreIfNotExists)
+    if (!Files.deleteIfExists(path) && !ignoreIfNotExists)
+      throw Errors.feedback(s"File does not exist: $path")
   }
 
   case class Symbol (

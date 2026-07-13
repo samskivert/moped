@@ -6,6 +6,7 @@
 # Usage:
 #   ./moped-cmd.sh point
 #   ./moped-cmd.sh mark
+#   ./moped-cmd.sh goto 69 12          # sets point to row 69, col 12 (0-indexed), mark untouched
 #   ./moped-cmd.sh line 0
 #   ./moped-cmd.sh invoke forward-char
 #   ./moped-cmd.sh type "hello world"     # types into an active minibuffer prompt if one is
@@ -36,7 +37,9 @@ fi
 
 exec 3<>"/dev/tcp/localhost/$port"
 echo "$*" >&3
-if read -r -t 6 response <&3; then
+# IFS= prevents `read` from silently trimming leading/trailing whitespace, which would otherwise
+# misreport a `line` response's real indentation
+if IFS= read -r -t 6 response <&3; then
   echo "$response"
 fi
 exec 3<&-

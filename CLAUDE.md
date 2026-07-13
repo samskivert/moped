@@ -52,6 +52,10 @@ hand-writing a client each time:
 ```
 ./moped-cmd.sh point                          # report point as "row,col"
 ./moped-cmd.sh mark                           # report mark as "row,col", or "none"
+./moped-cmd.sh goto 69 12                     # set point to row 69, col 12 (0-indexed); mark is
+                                               # untouched, so this is much faster than chaining
+                                               # invoke goto-line/end-of-line/forward-char etc.
+                                               # to position the cursor for a test
 ./moped-cmd.sh line 0                         # report the text of line 0 (handy to check the
                                                # actual buffer content, independent of rendering)
 ./moped-cmd.sh invoke forward-char            # invoke any registered Fn by name

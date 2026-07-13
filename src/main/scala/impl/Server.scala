@@ -36,6 +36,8 @@ import moped._
   *     pipeline. Unlike `type`, this triggers key-bound `Fn`s and `selfInsertCommand` overrides
   *     (e.g. `mini-yesno`'s `y`/`n` keys, which intercept the typed character before it ever
   *     reaches a text buffer, so `type "y"` silently does nothing useful there).
+  *   - `goto ROW COL`: sets the point (0-indexed) of some open window's focused buffer, without
+  *     touching the mark, as if the user had clicked there.
   *   - `point`: reports the point (as `row,col`) of some open window's focused buffer.
   *   - `mark`: reports the mark (as `row,col`, or `none`) of some open window's focused buffer.
   *   - `line ROW`: reports the text of line `ROW` (0-indexed) of some open window's focused buffer.
@@ -113,6 +115,17 @@ class Server (app :Moped) extends Thread {
         else app.wspMgr.anyWindow match {
           case Some(win) =>
             pressKey(win.activeMiniDispatcher || win.focusedDispatcherImpl, ch.charAt(0)) ; "ok"
+          case None => "error: no open window"
+        }
+      })
+      case c if c `startsWith` "goto " => Some(onUIBlocking {
+        focusedFrame match {
+          case Some(f) if f.view != null =>
+            arg("goto ").split(" ").filter(_.nonEmpty) match {
+              case Array(row, col) => f.view.point() = Loc(row.toInt, col.toInt) ; "ok"
+              case _ => "error: usage: goto ROW COL"
+            }
+          case Some(_) => "error: no buffer"
           case None => "error: no open window"
         }
       })

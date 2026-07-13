@@ -363,9 +363,40 @@ abstract class LangClient (
         val extraEdits = Option(additionalTextEdits).map(_.asScala.toSeq) getOrElse Seq()
         Lang.applyTextEdits(view.buffer, mainEdit +: extraEdits)
         view.point() = locForOffset(mainRegion.start, text, cursorOffset)
-        Option(command).foreach(cmd => execCommand(cmd).onFailure(exec.handleError))
+        Option(command).foreach {
+          // some servers (e.g. java-language-server) attach a VS-Code-specific client UI command
+          // like "editor.action.triggerParameterHints" to a completion instead of embedding
+          // per-argument snippet placeholders, expecting the *client* to show live signature help
+          // while the user fills in the call; these are never real server commands, so forwarding
+          // them via workspace/executeCommand would just error against a server that (rightly)
+          // doesn't recognize its own editor's UI action names
+          case cmd if cmd.getCommand == "editor.action.triggerParameterHints" =>
+            showSignatureHelp(view).onFailure(exec.handleError)
+          case cmd if cmd.getCommand `startsWith` "editor.action." => // ignore other client-only UI actions
+          case cmd => execCommand(cmd).onFailure(exec.handleError)
+        }
       }
     }
+  }
+
+  /** Requests signature help at `view`'s point and shows it in a popup. Bound to the
+    * `show-signature-help` Fn, and also used to fulfil completions whose `command` is the
+    * client-only `editor.action.triggerParameterHints` pseudo-command (see [[toChoice]]). */
+  def showSignatureHelp (view :RBufferView) :Future[Unit] = {
+    val sparams = new SignatureHelpParams(LSP.docId(view.buffer), LSP.toPos(view.point()))
+    LSP.adapt(textSvc.signatureHelp(sparams), exec).map(help => {
+      val sigs = Option(help).map(_.getSignatures) getOrElse Collections.emptyList()
+      if (!sigs.isEmpty) {
+        val popbuf = Buffer.scratch("*signature*")
+        val wrapWidth = view.width()-4
+        sigs.asScala.zipWithIndex.foreach { case (sig, ii) =>
+          if (ii > 0) popbuf.split(popbuf.end)
+          Format.format(popbuf, wrapWidth, sig.getLabel)
+          Option(sig.getDocumentation).foreach(doc => Format.formatDocs(popbuf, wrapWidth, doc, grammarSvc))
+        }
+        view.popup() = Popup.buffer(popbuf, Popup.UpRight(view.point()))
+      }
+    })
   }
 
   // converts LSP snippet syntax (tabstops `$1`/`${1:default}`/`${1|a,b|}`, escapes `\$`/`\}`/`\\`)

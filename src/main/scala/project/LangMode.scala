@@ -60,6 +60,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     bind("rename-element",       "C-c C-r").
     bind("code-action",          "C-c C-a").
     bind("find-uses",            "C-c C-f").
+    bind("show-signature-help",  "C-c C-p").
     bind("lang-exec-command",    "C-c C-l x")
 
   //   bind("describe-codex", "C-h c").
@@ -122,6 +123,9 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
       }
     })
   }
+
+  @Fn("Shows help for the signature of the call at the point.")
+  def showSignatureHelp () :Unit = client.showSignatureHelp(view).onFailure(window.exec.handleError)
 
   @Fn("Navigates to the declaration of the element at the point.")
   def gotoDeclaration () :Unit = {

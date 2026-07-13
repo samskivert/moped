@@ -13,7 +13,7 @@ import javafx.application.Platform
 import javafx.embed.swing.SwingFXUtils
 import javafx.geometry.Rectangle2D
 import javafx.scene.SnapshotParameters
-import javafx.scene.input.{MouseButton, MouseEvent}
+import javafx.scene.input.{KeyCode, KeyEvent, MouseButton, MouseEvent}
 import javax.imageio.ImageIO
 
 import moped._
@@ -30,6 +30,12 @@ import moped._
   *   - `type TEXT`: inserts `TEXT` at the point of some open window's active minibuffer read (a
   *     `read`/`readopt`/`yesno` prompt), if one is showing, otherwise its focused buffer, as if
   *     typed.
+  *   - `key CHAR`: simulates a single printable-character keypress (e.g. `y`, `n`) against some
+  *     open window's active minibuffer read, if one is showing, otherwise its focused frame, by
+  *     synthesizing a KEY_PRESSED/KEY_TYPED pair and running it through the normal key-resolution
+  *     pipeline. Unlike `type`, this triggers key-bound `Fn`s and `selfInsertCommand` overrides
+  *     (e.g. `mini-yesno`'s `y`/`n` keys, which intercept the typed character before it ever
+  *     reaches a text buffer, so `type "y"` silently does nothing useful there).
   *   - `point`: reports the point (as `row,col`) of some open window's focused buffer.
   *   - `mark`: reports the mark (as `row,col`, or `none`) of some open window's focused buffer.
   *   - `line ROW`: reports the text of line `ROW` (0-indexed) of some open window's focused buffer.
@@ -101,6 +107,15 @@ class Server (app :Moped) extends Thread {
           case None => "error: no open window"
         }
       })
+      case c if c `startsWith` "key " => Some(onUIBlocking {
+        val ch = arg("key ")
+        if (ch.length != 1) "error: usage: key CHAR (single character)"
+        else app.wspMgr.anyWindow match {
+          case Some(win) =>
+            pressKey(win.activeMiniDispatcher || win.focusedDispatcherImpl, ch.charAt(0)) ; "ok"
+          case None => "error: no open window"
+        }
+      })
       case "point" => Some(onUIBlocking {
         focusedFrame match {
           case Some(f) if f.view != null =>
@@ -163,6 +178,21 @@ class Server (app :Moped) extends Thread {
         }
       case None => "error: no open window"
     }
+  }
+
+  // simulates a single printable-character keypress (KEY_PRESSED then KEY_TYPED) against `disp`,
+  // passed through its normal key-resolution pipeline (see DispatcherImpl.keyPressed); unlike
+  // `type` (which inserts text directly into a buffer), this correctly triggers key-bound Fns and
+  // selfInsertCommand overrides (e.g. mini-yesno's y/n keys, which intercept the typed character
+  // before it ever reaches a text buffer)
+  private def pressKey (disp :DispatcherImpl, ch :Char) :Unit = {
+    val code = try KeyCode.valueOf(ch.toString.toUpperCase) catch {
+      case _ :IllegalArgumentException => KeyCode.UNDEFINED
+    }
+    disp.keyPressed(new KeyEvent(
+      KeyEvent.KEY_PRESSED, KeyEvent.CHAR_UNDEFINED, ch.toString, code, false, false, false, false))
+    disp.keyPressed(new KeyEvent(
+      KeyEvent.KEY_TYPED, ch.toString, ch.toString, KeyCode.UNDEFINED, false, false, false, false))
   }
 
   // builds a synthetic MouseEvent at (x, y); passed directly to BufferArea.mousePressed/

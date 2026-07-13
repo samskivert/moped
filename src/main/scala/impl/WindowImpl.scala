@@ -161,6 +161,11 @@ class WindowImpl (val stage :Stage, ws :WorkspaceImpl, defWidth :Int, defHeight 
     * per the `Window` trait it overrides) doesn't expose this. */
   def focusedDispatcher :Dispatcher = _focus.get.disp
 
+  /** As [[focusedDispatcher]], but with the concrete type, which exposes `keyPressed` for
+    * debugging/automation tooling that needs to simulate real key presses (as opposed to `invoke`,
+    * which triggers a named `Fn` directly, bypassing key resolution and self-insert handling). */
+  def focusedDispatcherImpl :DispatcherImpl = _focus.get.disp
+
   /** Returns the buffer area for this window's focused frame, for use by debugging/automation
     * tooling (like the local command socket, see [[Server]]). */
   def focusedArea :BufferArea = _focus.get.disp.area
@@ -174,8 +179,8 @@ class WindowImpl (val stage :Stage, ws :WorkspaceImpl, defWidth :Int, defHeight 
   def activeMiniView :Option[BufferViewImpl] = _mini.activeView
 
   /** Returns the dispatcher for this window's active minibuffer read, if one is currently
-    * showing. See [[activeMiniView]]. */
-  def activeMiniDispatcher :Option[Dispatcher] = _mini.activeDispatcher
+    * showing. See [[activeMiniView]] and [[focusedDispatcherImpl]]. */
+  def activeMiniDispatcher :Option[DispatcherImpl] = _mini.activeDispatcher
 
   override def geometry = {
     val fg = focus.geometry // TODO: the right thing when we have multiple frames

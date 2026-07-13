@@ -60,6 +60,10 @@ hand-writing a client each time:
                                                # active minibuffer prompt (e.g. after `invoke
                                                # rename-element`) if one is showing, else to the
                                                # focused buffer's point
+./moped-cmd.sh key y                          # simulate pressing the 'y' key through the normal
+                                               # key-resolution pipeline (unlike `type`, this
+                                               # reaches key-bound Fns and selfInsertCommand
+                                               # overrides, e.g. mini-yesno's y/n keys)
 ./moped-cmd.sh click 120 45                   # simulate a mouse press at pixel (x, y)
 ./moped-cmd.sh click 120 45 2                 # double-click (selects the word); 3 for triple
                                                # (selects the line); both also affect a following drag

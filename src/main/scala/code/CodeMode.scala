@@ -220,18 +220,23 @@ abstract class CodeMode (env :Env) extends EditingMode(env) {
 
     // if we have details, show those above the completion
     var deetOptPop :OptValue[Popup] = null
-    def checkDeets () = active.details(view.width()).onSuccess(_ match {
-      case Some(buffer) =>
-        // TODO: double check that `active` is still the `active` we started with...
-        val popup = Popup.buffer(buffer, Popup.UpRight(comp.start))
-        if (deetOptPop == null) deetOptPop = view.addPopup(popup)
-        else deetOptPop() = popup
-      case None =>
-        if (deetOptPop != null) {
-          deetOptPop.clear()
-          deetOptPop = null
-        }
-    })
+    def checkDeets () = {
+      // details are resolved asynchronously (e.g. an LSP completionItem/resolve round trip); if
+      // the active choice changes again before this resolves, ignore the now-stale response
+      // rather than clobbering the popup for whatever is active by the time it arrives
+      val expected = active
+      active.details(view.width()).onSuccess(result => if (active eq expected) result match {
+        case Some(buffer) =>
+          val popup = Popup.buffer(buffer, Popup.UpRight(comp.start))
+          if (deetOptPop == null) deetOptPop = view.addPopup(popup)
+          else deetOptPop() = popup
+        case None =>
+          if (deetOptPop != null) {
+            deetOptPop.clear()
+            deetOptPop = null
+          }
+      })
+    }
     if (!choices.isEmpty) checkDeets()
 
     def extendOrAdvance () :Unit = {
@@ -288,12 +293,18 @@ abstract class CodeMode (env :Env) extends EditingMode(env) {
     }
 
     def refine () :Unit = {
+      val oactive = active
       var ochoices = choices
       choices = refined
       if (choices.isEmpty) clearActiveComp()
       else {
         if (choices != ochoices) activeIndex = 0
         compsOptPop() = compsPopup(comps)
+        // the active choice may have changed as a side effect of narrowing the list (even if the
+        // index stayed the same, e.g. 0), so refresh the details popup to match; comparing by
+        // reference (rather than always refetching) avoids redundant detail fetches (e.g. LSP
+        // completionItem/resolve round-trips) on every keystroke when the active choice is stable
+        if (active ne oactive) checkDeets()
       }
     }
 

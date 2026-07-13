@@ -201,6 +201,13 @@ abstract class CodeMode (env :Env) extends EditingMode(env) {
       // figure out the max width of choices + sigs
       def siglen (c :Choice, gap :Int) = c.sig.map(_.length + gap) getOrElse 0
       val width = choices.map(c => c.label.length + siglen(c, 1)).max
+      def choiceLine (c :Choice) = {
+        val b = Line.builder(c.label)
+        b += " " * (width-c.label.length-siglen(c, 0))
+        c.sig.map(b.append)
+        if (c eq active) b.withStyle(activeChoiceStyle)
+        b.build()
+      }
       // the popup is anchored just below the completion's starting line, so cap how many choices
       // we show to however many rows are actually visible between there and the bottom of the
       // view; otherwise a long list (e.g. every String method) gets pushed back up over the top of
@@ -209,19 +216,21 @@ abstract class CodeMode (env :Env) extends EditingMode(env) {
       // overlapping the line being edited (e.g. completing near the bottom of the buffer).
       val availBelow = view.scrollTop() + view.height() - comp.start.row - 2
       val MaxChoices = math.max(3, math.min(30, availBelow))
-      // truncate list to max choices, trimming above and below the active completion so we show a
-      // sliding window around it
-      def trimStart = Math.min(Math.max(0, activeIndex-2), choices.length-MaxChoices)
-      val trimmed = if (choices.size <= MaxChoices) choices
-      else choices.drop(trimStart).take(MaxChoices)
-      val avail = trimmed.map { c =>
-        val b = Line.builder(c.label)
-        b += " " * (width-c.label.length-siglen(c, 0))
-        c.sig.map(b.append)
-        if (c eq active) b.withStyle(activeChoiceStyle)
-        b.build()
+      if (choices.size <= MaxChoices) choices.map(choiceLine)
+      else {
+        // reserve the last slot for a "N more" indicator (so a truncated list doesn't just look
+        // like the complete list of choices), trimming above and below the active completion so we
+        // show a sliding window around it. If the active choice is near the very end of the full
+        // list, just show the last MaxChoices choices with no indicator, since nothing remains
+        // below to summarize.
+        val shown = MaxChoices - 1
+        val lookback = math.min(2, shown-1)
+        val trimStart = math.min(math.max(0, activeIndex-lookback), choices.length-shown)
+        val hiddenBelow = choices.length - trimStart - shown
+        if (hiddenBelow <= 0) choices.takeRight(MaxChoices).map(choiceLine)
+        else choices.slice(trimStart, trimStart+shown).map(choiceLine) :+
+          Line.builder(s"... $hiddenBelow more ...").withStyle(docStyle).build()
       }
-      avail
     }
 
     // if we have details, show those above the completion

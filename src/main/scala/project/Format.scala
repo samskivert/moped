@@ -40,7 +40,8 @@ object Format {
   /** Formats a marked `code` block, appending it to `buffer`. */
   @nowarn def format (
     buffer :Buffer, wrapWidth :Int, code :MarkedString, grammarSvc :GrammarService
-  ) :Buffer = formatCode(buffer, wrapWidth, code.getValue, "source." + code.getLanguage, grammarSvc)
+  ) :Buffer = formatCode(
+    buffer, wrapWidth, unescapeHtml(code.getValue), "source." + code.getLanguage, grammarSvc)
 
   /** Formats `markup`, appending it to `buffer`. */
   def format (
@@ -60,10 +61,20 @@ object Format {
     case Right(mark) => format(buffer, wrapWidth, mark, grammarSvc)
   }
 
+  // some servers (e.g. java-language-server) emit raw HTML entities in hover markdown, even inside
+  // fenced code blocks where they're presumably meant to render as literal characters (we've seen
+  // `&nbsp;` used this way to keep an argument list from wrapping); decode the common ones so hover
+  // text doesn't show literal entity text
+  private val htmlEntities = Seq(
+    "&nbsp;" -> " ", "&amp;" -> "&", "&lt;" -> "<", "&gt;" -> ">", "&quot;" -> "\"", "&#39;" -> "'")
+  private def unescapeHtml (text :String) :String =
+    htmlEntities.foldLeft(text) { case (t, (ent, ch)) => t.replace(ent, ch) }
+
   /** Formats a markdown `text` block, appending it to `buffer`. */
   def formatMarkdown (
-    buffer :Buffer, wrapWidth :Int, text :String, grammarSvc :GrammarService
+    buffer :Buffer, wrapWidth :Int, rawText :String, grammarSvc :GrammarService
   ) :Buffer = {
+    val text = unescapeHtml(rawText)
     def format (
       buffer :Buffer, wrapWidth :Int, lines :Seq[String], iter :Int
     ) :Unit = {
@@ -224,6 +235,11 @@ object Format {
   }
 
   /** Formats a `detail` string into a signature (to be shown next to the completion text).
-    * Any newlines must be removed. */
-  def formatSig (detail :String) :LineV = Line.apply(Filler.flatten(detail).take(40))
+    * Any newlines must be removed. Truncated (with an ellipsis) if overly long, since this is
+    * meant to fit on one line alongside the completion's label. */
+  def formatSig (detail :String) :LineV = {
+    val flat = Filler.flatten(detail)
+    val MaxLen = 60
+    Line.apply(if (flat.length <= MaxLen) flat else flat.take(MaxLen-1) + "…")
+  }
 }

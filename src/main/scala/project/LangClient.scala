@@ -101,6 +101,15 @@ abstract class LangClient (
   /** A user friendly name for this language server (i.e. 'Dotty', 'Eclpse', etc.). */
   def name :String
 
+  /** Sent as `initializationOptions` in the `initialize` request. Most language servers don't need
+    * any (the default, `null`) and instead rely purely on standard `ClientCapabilities` plus a
+    * `workspace/configuration` pull; others (like typescript-language-server) use this instead to
+    * configure server-specific preferences that have no standard LSP capability equivalent (e.g.
+    * whether to include parameter-placeholder snippets or auto-import suggestions in completions).
+    * The value must be JSON-serializable (a `java.util.Map`/`List`/primitive, per lsp4j's Gson
+    * (de)serialization), since it's sent to the server as an arbitrary JSON blob. */
+  protected def initializationOptions :Object = null
+
   /** The execute commands supported by the server. */
   def execCommands :Set[String] = execCmds
   private var execCmds = Set[String]()
@@ -128,8 +137,11 @@ abstract class LangClient (
   // once we are connected, our server instance will be set and we can initialize our session
   serverV.onValue(server => {
     val initParams = new InitializeParams()
-    initParams.setTrace("verbose")
+    // only ask the server to be chatty (more $/logTrace and window/logMessage traffic) when we
+    // actually want debug info; otherwise this floods *messages*/stderr on every normal run
+    initParams.setTrace(if (debugMode) "verbose" else "off")
     initParams.setCapabilities(createClientCaps)
+    initParams.setInitializationOptions(initializationOptions)
     val name = root.toString // TODO: get project name?
     initParams.setWorkspaceFolders(List(WorkspaceFolder(root.toUri.toString, name)).asJava)
     // TEMP: metals does not support workspace folders (yet?)
@@ -224,9 +236,21 @@ abstract class LangClient (
       caps.setCompletion(init(new CompletionCapabilities()) { caps =>
         caps.setCompletionItem(init(new CompletionItemCapabilities()) { caps =>
           caps.setSnippetSupport(true)
+          // we honor InsertReplaceEdit (using its narrower "insert" range) as well as plain TextEdit
+          caps.setInsertReplaceSupport(true)
+          // ask that these be filled in on completionItem/resolve if the server didn't already
+          // include them in the initial completion list (many servers lazily resolve additional
+          // text edits, e.g. auto-imports, to keep the initial list fast)
+          caps.setResolveSupport(new CompletionItemResolveSupportCapabilities(
+            Arrays.asList("documentation", "detail", "additionalTextEdits")))
         })
         // completionItemKind? { valueSet? :CompletionItemKind[] }
         caps.setContextSupport(true)
+        // tell servers we understand list-wide item defaults (LSP 3.17): some servers (e.g. we've
+        // seen this from Java language servers) set insertTextFormat/editRange once on the list
+        // instead of repeating them on every item
+        caps.setCompletionList(new CompletionListCapabilities(
+          Arrays.asList("commitCharacters", "editRange", "insertTextFormat", "insertTextMode", "data")))
       })
       caps.setHover(init(new HoverCapabilities()) { caps =>
         caps.setContentFormat(Arrays.asList("markdown", "plaintext"))
@@ -279,17 +303,115 @@ abstract class LangClient (
     * language server. */
   def execCommand (cmd :Command) :Future[Any] = execCommand(cmd.getCommand, cmd.getArguments)
 
-  /** Converts LSP completion information into Moped's format. */
-  def toChoice (item :CompletionItem) = {
+  /** Converts LSP completion information into Moped's format. `itemDefaults` comes from the
+    * containing `CompletionList` (LSP 3.17); some servers set `insertTextFormat`/`editRange` there
+    * once instead of repeating them on every item, so we fall back to it when an item omits them. */
+  def toChoice (item :CompletionItem, itemDefaults :CompletionItemDefaults) = {
     def firstNonNull (a :String, b :String) = if (a != null) a else if (b != null) b else ???
     new CodeCompleter.Choice(firstNonNull(item.getInsertText, item.getLabel)) {
       override def label = firstNonNull(item.getLabel, item.getInsertText)
       override def sig = Option(item.getDetail).map(Format.formatSig).map(Line.apply)
-      override def details (viewWidth :Int) =
-        LSP.adapt(textSvc.resolveCompletionItem(item), exec).
-          map(item => Option(item.getDocumentation).
-          map(Format.formatDocs(Buffer.scratch("*details*"), viewWidth-4, _, grammarSvc)))
+
+      // some servers only populate documentation/textEdit/additionalTextEdits lazily via resolve;
+      // memoize so that showing the docs popup and then accepting the completion don't each pay
+      // for their own completionItem/resolve round trip
+      private lazy val resolved :Future[CompletionItem] =
+        LSP.adapt(textSvc.resolveCompletionItem(item), exec)
+
+      override def details (viewWidth :Int) = resolved.map(ritem => Option(ritem.getDocumentation).
+        map(Format.formatDocs(Buffer.scratch("*details*"), viewWidth-4, _, grammarSvc)))
+
+      override def commit (view :RBufferView, region :Region) :Future[Unit] = resolved.map { ritem =>
+        // completionItem/resolve is only obligated to *add* whatever the initial list response
+        // left out (typically documentation/detail, or a lazily-computed additionalTextEdits for
+        // auto-import); it's free to leave other fields like insertText/textEdit unset even when
+        // the original item already had them, so we merge: prefer the resolved item's value where
+        // it bothered to set one, otherwise fall back to the original, unresolved item's
+        def merged[T] (resolved :T, original :T) :T = if (resolved != null) resolved else original
+        val textEdit = merged(ritem.getTextEdit, item.getTextEdit)
+        val insertText = merged(ritem.getInsertText, item.getInsertText)
+        val insertTextFormat = {
+          val fmt = merged(ritem.getInsertTextFormat, item.getInsertTextFormat)
+          if (fmt != null || itemDefaults == null) fmt else itemDefaults.getInsertTextFormat
+        }
+        val additionalTextEdits = merged(ritem.getAdditionalTextEdits, item.getAdditionalTextEdits)
+        val command = merged(ritem.getCommand, item.getCommand)
+
+        // prefer the server's own edit (exact range + text) over the plain insertText/label; for
+        // an InsertReplaceEdit (or InsertReplaceRange, from itemDefaults) we use the narrower
+        // "insert" range, since our completion UI always operates right at the point with nothing
+        // after it that we'd want to overwrite
+        val defaultRange =
+          if (textEdit != null || itemDefaults == null) null else itemDefaults.getEditRange
+        val (mainRegion, rawText) = Option(textEdit).map(LSP.toScala) match {
+          case Some(Left(edit)) => (LSP.fromRange(edit.getRange), edit.getNewText)
+          case Some(Right(ire)) => (LSP.fromRange(ire.getInsert), ire.getNewText)
+          case None => Option(defaultRange).map(LSP.toScala) match {
+            // the list's default edit range has no newText of its own; it's meant to combine with
+            // the item's own insertText (LSP 3.17 CompletionList.itemDefaults semantics)
+            case Some(Left(range)) => (LSP.fromRange(range), firstNonNull(insertText, ritem.getLabel))
+            case Some(Right(irr)) => (LSP.fromRange(irr.getInsert), firstNonNull(insertText, ritem.getLabel))
+            case None => (region, firstNonNull(insertText, ritem.getLabel))
+          }
+        }
+        val (text, cursorOffset) =
+          if (insertTextFormat == InsertTextFormat.Snippet) stripSnippet(rawText)
+          else (rawText, rawText.length)
+        // additionalTextEdits (e.g. auto-inserting an import) apply alongside the main edit;
+        // applyTextEdits sorts and applies them back-to-front so they don't invalidate one another
+        val mainEdit = new TextEdit(LSP.toRange(mainRegion), text)
+        val extraEdits = Option(additionalTextEdits).map(_.asScala.toSeq) getOrElse Seq()
+        Lang.applyTextEdits(view.buffer, mainEdit +: extraEdits)
+        view.point() = locForOffset(mainRegion.start, text, cursorOffset)
+        Option(command).foreach(cmd => execCommand(cmd).onFailure(exec.handleError))
+      }
     }
+  }
+
+  // converts LSP snippet syntax (tabstops `$1`/`${1:default}`/`${1|a,b|}`, escapes `\$`/`\}`/`\\`)
+  // into plain text, using each placeholder's default text if present; we don't support
+  // interactive tab-stop cycling, just landing the point at a sensible spot afterward (the first
+  // tabstop's position, or the end of the text if there were none)
+  private def stripSnippet (text :String) :(String, Int) = {
+    val out = new StringBuilder
+    var firstTabstop = -1
+    var ii = 0
+    val n = text.length
+    while (ii < n) {
+      val c = text.charAt(ii)
+      if (c == '\\' && ii+1 < n) { out.append(text.charAt(ii+1)) ; ii += 2 }
+      else if (c == '$' && ii+1 < n) {
+        ii += 1
+        if (text.charAt(ii) == '{') {
+          val close = text.indexOf('}', ii)
+          val (body, next) =
+            if (close < 0) (text.substring(ii+1), n) else (text.substring(ii+1, close), close+1)
+          ii = next
+          val colon = body.indexOf(':') ; val pipe = body.indexOf('|')
+          val default =
+            if (colon >= 0) body.substring(colon+1)
+            else if (pipe >= 0) body.substring(pipe+1, body.lastIndexOf('|'))
+            else ""
+          if (firstTabstop < 0) firstTabstop = out.length
+          out.append(default)
+        } else {
+          val start = ii
+          while (ii < n && Character.isDigit(text.charAt(ii))) ii += 1
+          if (ii == start) out.append('$') // lone '$', not followed by a digit or '{'; keep it literal
+          else if (firstTabstop < 0) firstTabstop = out.length
+        }
+      } else { out.append(c) ; ii += 1 }
+    }
+    (out.toString, if (firstTabstop >= 0) firstTabstop else out.length)
+  }
+
+  // converts a character offset within `text` (as inserted starting at `start`) into a Loc,
+  // accounting for any newlines in `text`
+  private def locForOffset (start :Loc, text :String, offset :Int) :Loc = {
+    val prefix = text.substring(0, math.min(offset, text.length))
+    val nl = prefix.lastIndexOf('\n')
+    if (nl < 0) Loc(start.row, start.col + prefix.length)
+    else Loc(start.row + prefix.count(_ == '\n'), prefix.length - nl - 1)
   }
 
   /** Creates a visit for `loc` in `project`. */
@@ -356,11 +478,11 @@ abstract class LangClient (
         // TODO: add completion context
         val cparams = new CompletionParams(LSP.docId(buffer), LSP.toPos(pos))
         LSP.adapt(textSvc.completion(cparams), window.exec).map(result => {
-          val (items, incomplete) = LSP.toScala(result).fold(
-            items => (items, false),
-            list => (list.getItems, list.isIncomplete))
+          val (items, itemDefaults) = LSP.toScala(result).fold(
+            items => (items, null :CompletionItemDefaults),
+            list => (list.getItems, list.getItemDefaults))
           val sorted = items.asScala.toSeq.sortBy(it => Option(it.getSortText) || it.getLabel)
-          Completion(pos, sorted.map(toChoice))
+          Completion(pos, sorted.map(toChoice(_, itemDefaults)))
         })
       }
     }

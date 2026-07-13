@@ -41,6 +41,16 @@ object CodeCompleter {
       * @param viewWidth the width of the current view (in characters) which should be used to
       * wrap the detail text to fit. */
     def details (viewWidth :Int) :Future[Option[Buffer]] = Future.success(None)
+
+    /** Applies this choice: replaces `region` (spanning from the completion's start to the point
+      * at the time it's accepted) with whatever text is appropriate, and performs any other
+      * action the completion mechanism deems necessary (e.g. inserting an import elsewhere in the
+      * file, moving the point to a snippet's first tabstop, or running a follow-up command).
+      * Defaults to simply replacing `region` with [[insert]]. */
+    def commit (view :RBufferView, region :Region) :Future[Unit] = {
+      view.buffer.replace(region, Seq(Line(insert)))
+      Future.success(())
+    }
   }
 
   /** Encapsulates the result of a completion request.

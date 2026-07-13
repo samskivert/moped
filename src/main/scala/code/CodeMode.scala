@@ -309,8 +309,10 @@ abstract class CodeMode (env :Env) extends EditingMode(env) {
     }
 
     def commit () :Unit = {
-      buffer.replace(comp.start, view.point(), Seq(Line(active.insert)))
+      val chosen = active
+      val region = Region(comp.start, view.point())
       clearActiveComp()
+      chosen.commit(view, region).onFailure(window.exec.handleError)
     }
 
     def clear () :Unit = {

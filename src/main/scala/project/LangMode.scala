@@ -11,6 +11,7 @@ import scala.jdk.CollectionConverters._
 import org.eclipse.lsp4j._
 
 import moped._
+import moped.grammar.GrammarService
 import moped.major.ReadingMode
 import moped.util.{BufferBuilder, Chars, Errors}
 
@@ -24,6 +25,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   private val client = LangClient(buffer)
   private def textSvc = client.server.getTextDocumentService
   private def wspaceSvc = client.server.getWorkspaceService
+  private def grammarSvc = project.metaSvc.service[GrammarService]
 
   private val commandRing = new Ring(8)
   private val codeActionRing = new Ring(8)
@@ -104,8 +106,8 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
         // spec (in case a server doesn't send MarkupContent), so we must keep handling it
         @nowarn val scalaContents = LSP.toScala(contents)
         scalaContents match {
-          case Left(segs) => for (seg <- segs.asScala) client.format(popbuf, wrapWidth, seg)
-          case Right(markup) => client.format(popbuf, wrapWidth, markup)
+          case Left(segs) => for (seg <- segs.asScala) Format.format(popbuf, wrapWidth, seg, grammarSvc)
+          case Right(markup) => Format.format(popbuf, wrapWidth, markup, grammarSvc)
         }
         // if the formatted docs are too tall to show comfortably in a popup, open them in a real
         // buffer instead of an overlay that would spill off the bottom of the view

@@ -18,9 +18,9 @@ import org.eclipse.lsp4j.jsonrpc.{Launcher, MessageConsumer}
 import org.eclipse.lsp4j.services.{LanguageClient, LanguageServer}
 
 import moped._
-import moped.code.{CodeCompleter, CodeConfig}
+import moped.code.CodeCompleter
 import moped.grammar.GrammarService
-import moped.util.{BufferBuilder, Close, Filler, SubProcess}
+import moped.util.{BufferBuilder, Close, SubProcess}
 
 object LangClient {
 
@@ -279,122 +279,16 @@ abstract class LangClient (
     * language server. */
   def execCommand (cmd :Command) :Future[Any] = execCommand(cmd.getCommand, cmd.getArguments)
 
-  /** Formats (and styles) a `text` block, appending it to `buffer`. */
-  def format (buffer :Buffer, wrapWidth :Int, text :String) :Buffer = {
-    text.split(System.getProperty("line.separator")) foreach { line =>
-      if (buffer.lines.length > 0 && buffer.lines.last.length > 0) buffer.split(buffer.end)
-      val filler = new Filler(wrapWidth)
-      filler.append(line)
-      val start = buffer.end
-      val end = buffer.insert(start, filler.toLines)
-      buffer.addStyle(CodeConfig.docStyle, start, end)
-    }
-    buffer
-  }
-
-  /** Formats a marked `code` block, appending it to `buffer`. */
-  @nowarn def format (buffer :Buffer, code :MarkedString) :Buffer =
-    formatCode(buffer, code.getValue, "source." + code.getLanguage)
-
-  /** Formats `markup`, appending it to `buffer`. */
-  def format (buffer :Buffer, wrapWidth :Int, markup :MarkupContent) :Buffer =
-    markup.getKind match {
-      case "markdown"      => formatMarkdown(buffer, wrapWidth, markup.getValue)
-      case _ /*plaintext*/ => format(buffer, wrapWidth, markup.getValue)
-    }
-
-  /** Formats `either` a text or code block, appending it to `buffer`. A bare string here is a
-    * `MarkedString`, which per the LSP spec is markdown text, not plain text; some servers (e.g.
-    * java-language-server) use this older, pre-`MarkupContent` hover format for markdown docs. */
-  @nowarn def format (
-    buffer :Buffer, wrapWidth :Int, either :Either[String, MarkedString]
-  ) :Buffer = LSP.toScala(either) match {
-    case Left(text) => formatMarkdown(buffer, wrapWidth, text)
-    case Right(mark) => format(buffer, mark)
-  }
-
-  /** Formats a markdown `text` block, appending it to `buffer`. */
-  def formatMarkdown (buffer :Buffer, wrapWidth :Int, text :String) :Buffer = {
-    def format (
-      buffer :Buffer, wrapWidth :Int, lines :Seq[String], iter :Int
-    ) :Unit = {
-      if (lines.size > 0) {
-        val open = lines.indexWhere(l => l.startsWith("```"), 0)
-        if (open == -1) formatMarkdownText(buffer, wrapWidth, lines.mkString("\n"))
-        else {
-          val close = lines.indexWhere(l => l.startsWith("```"), open+1)
-          if (close == -1) formatMarkdownText(buffer, wrapWidth, lines.mkString("\n"))
-          else {
-            if (open > 0) formatMarkdownText(buffer, wrapWidth, lines.take(open).mkString("\n"))
-            val code = lines.slice(open+1, close).mkString("\n")
-            val scope = lines(open).substring(3).trim()
-            if (iter > 0) { buffer.split(buffer.end) ; buffer.split(buffer.end) }
-            formatCode(buffer, code, if (scope == "") "text" else s"source.$scope")
-            val rest = lines.drop(close+1)
-            if (rest.size > 0) {
-              if (iter > 0) { buffer.split(buffer.end) ; buffer.split(buffer.end) }
-              format(buffer, wrapWidth, rest, iter+1)
-            }
-          }
-        }
-      }
-    }
-    format(buffer, wrapWidth, Seq.from(text.split("\n")), 0)
-    buffer
-  }
-
-  /** Formats a chunk of non-fenced-code markdown `text`, wrapping it to `wrapWidth` and
-    * highlighting it with the same grammar `markdown-mode` uses, so that inline constructs
-    * (code spans, emphasis, links, headers, etc.) are styled the way they are in a `.md` buffer.
-    * The whole chunk is given a baseline "doc comment" style (the same one applied to plain,
-    * non-markdown hover text) so that prose isn't rendered in the buffer's plain text color;
-    * markdown-specific styles are layered on top of (not instead of) that baseline. */
-  private def formatMarkdownText (buffer :Buffer, wrapWidth :Int, text :String) :Unit = {
-    text.split(System.getProperty("line.separator")) foreach { line =>
-      if (buffer.lines.length > 0 && buffer.lines.last.length > 0) buffer.split(buffer.end)
-      val filler = new Filler(wrapWidth)
-      filler.append(line)
-      val start = buffer.end
-      val end = buffer.insert(start, filler.toLines)
-      buffer.addStyle(CodeConfig.docStyle, start, end)
-      grammarSvc.scoper(buffer, "text.html.markdown").foreach(
-        _.rethinkIsolatedRegion(start.row, end.row+1))
-    }
-  }
-
-  /** Formats a styled `code` block using TextMate `scope`, appending it to `buffer`. */
-  def formatCode (buffer :Buffer, code :String, scope :String) :Buffer = {
-    if (buffer.lines.length > 0 && buffer.lines.last.length > 0) buffer.split(buffer.end)
-    val start = buffer.end
-    val end = buffer.insert(start, Line.fromText(code))
-    grammarSvc.scoper(buffer, scope).foreach(_.rethinkIsolatedRegion(start.row, end.row+1))
-    buffer
-  }
-
-  /** Formats a `docs` string, appending to `buffer`. May contain newlines. */
-  def formatDocs (buffer :Buffer, wrapWidth :Int, docs :String) = format(buffer, wrapWidth, docs)
-
-  /** Formats `either` a text or markup block, appending it to `buffer`. */
-  def formatDocs (buffer :Buffer, wrapWidth :Int, either :Either[String, MarkupContent]) :Buffer =
-    LSP.toScala(either) match {
-      case Left(text) => format(buffer, wrapWidth, text)
-      case Right(mark) => format(buffer, wrapWidth, mark)
-    }
-
-  /** Formats a `detail` string into a signature (to be shown next to the completion text).
-    * Any newlines must be removed. */
-  def formatSig (detail :String) :LineV = Line.apply(Filler.flatten(detail).take(40))
-
   /** Converts LSP completion information into Moped's format. */
   def toChoice (item :CompletionItem) = {
     def firstNonNull (a :String, b :String) = if (a != null) a else if (b != null) b else ???
     new CodeCompleter.Choice(firstNonNull(item.getInsertText, item.getLabel)) {
       override def label = firstNonNull(item.getLabel, item.getInsertText)
-      override def sig = Option(item.getDetail).map(formatSig).map(Line.apply)
+      override def sig = Option(item.getDetail).map(Format.formatSig).map(Line.apply)
       override def details (viewWidth :Int) =
         LSP.adapt(textSvc.resolveCompletionItem(item), exec).
           map(item => Option(item.getDocumentation).
-          map(formatDocs(Buffer.scratch("*details*"), viewWidth-4, _)))
+          map(Format.formatDocs(Buffer.scratch("*details*"), viewWidth-4, _, grammarSvc)))
     }
   }
 

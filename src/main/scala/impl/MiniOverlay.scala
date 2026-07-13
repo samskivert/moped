@@ -50,12 +50,12 @@ abstract class MiniOverlay (window :WindowImpl) extends BorderPane with Minibuff
   val ui = new MiniUI() {
     override def setPrompt (prompt :String) = plabel.setText(prompt)
     override def getPrompt = plabel.getText
-    override def showCompletions (comps :SeqV[String]) :Unit = {
+    override def showCompletions (comps :SeqV[String], singleColumn :Boolean = false) :Unit = {
       if (comps.isEmpty) setBottom(null)
       else {
         // we have approximately the bottom two thirds of the window for completions
         val maxComps = ((2*window.getHeight/3)/plabel.getHeight-1).toInt
-        val fcomps = formatCompletions(comps)
+        val fcomps = if (singleColumn) comps else formatCompletions(comps)
         val tcomps = if (fcomps.size <= maxComps) fcomps else fcomps.take(maxComps-1)
         val buffer = cview.buffer
         buffer.replace(buffer.start, buffer.end, tcomps.map(Line.apply))

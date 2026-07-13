@@ -19,8 +19,10 @@ abstract class MiniUI {
   /** Returns the current minibuffer prompt. */
   def getPrompt :String
 
-  /** Displays the supplied completion strings. */
-  def showCompletions (comps :SeqV[String]) :Unit
+  /** Displays the supplied completion strings.
+    * @param singleColumn if true, display one candidate per line even if more would fit
+    * side-by-side in multiple columns; see [[Completer.singleColumn]]. */
+  def showCompletions (comps :SeqV[String], singleColumn :Boolean = false) :Unit
 }
 
 /** The base class for modes which operate in the minibuffer. These modes generally manage the

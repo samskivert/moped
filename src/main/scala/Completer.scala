@@ -161,6 +161,12 @@ abstract class Completer[T] {
     * shared by the currently displayed prefix and the current completions. */
   def pathSeparator :Option[String] = None
 
+  /** If true, the minibuffer will display this completer's candidates one per line, even if they'd
+    * otherwise fit in multiple columns. Useful when the candidates are themselves lists of prose
+    * (like a list of code actions) rather than short tokens, for which a multi-column layout reads
+    * as a confusing grid rather than a list. */
+  def singleColumn :Boolean = false
+
   /** Returns the minimum prefix length needed to generate completion. Most completers will return
     * zero for this method and supply all possible completions immediately. However, if that is
     * computationally infeasible, a completer can require a one or two character prefix to reduce
@@ -200,10 +206,13 @@ object Completer {
     def complete (prefix :String) = Future.success(Completion.string(prefix, names))
   }
 
-  /** Returns a completer over `things` using `nameFn` to obtain each thing's name. */
-  def from[T] (things :Iterable[T])(nameFn :T => String) = new Completer[T]() {
-    def complete (prefix :String) = Future.success(Completion(prefix, things, true)(nameFn))
-  }
+  /** Returns a completer over `things` using `nameFn` to obtain each thing's name.
+    * @param singleCol see [[Completer.singleColumn]]. */
+  def from[T] (things :Iterable[T], singleCol :Boolean = false)(nameFn :T => String) =
+    new Completer[T]() {
+      def complete (prefix :String) = Future.success(Completion(prefix, things, true)(nameFn))
+      override def singleColumn = singleCol
+    }
 
   /** Returns a completer on buffer name. */
   def buffer (buffers :SeqV[Buffer], defbuf :Buffer) :Completer[Buffer] =

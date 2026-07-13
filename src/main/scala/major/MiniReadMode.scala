@@ -131,7 +131,7 @@ class MiniReadMode[T] (
           val pre = comp.glob
           val preLen = completer.pathSeparator map(sep => pre.lastIndexOf(sep)+1) getOrElse 0
           val stripped = if (preLen > 0) comps.map(_.substring(preLen)) else comps
-          miniui.showCompletions(stripped)
+          miniui.showCompletions(stripped, completer.singleColumn)
         }
       }
     })

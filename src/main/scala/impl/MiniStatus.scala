@@ -30,7 +30,7 @@ abstract class MiniStatus (window :WindowImpl) extends BorderPane with Minibuffe
   val ui = new MiniUI() {
     override def setPrompt (prompt :String) = plabel.setText(prompt)
     override def getPrompt = plabel.getText
-    override def showCompletions (comps :SeqV[String]) :Unit = {} // not supported presently
+    override def showCompletions (comps :SeqV[String], singleColumn :Boolean = false) :Unit = {} // not supported presently
   }
 
   private var curDisp :DispatcherImpl = null

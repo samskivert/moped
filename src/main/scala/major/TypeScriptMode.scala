@@ -283,4 +283,19 @@ class TypeScriptLangClient (proj :Project, serverCmd :Seq[String])
     extends LangClient(proj, serverCmd, None) {
 
   override def name = "TypeScript"
+
+  // by default tsserver returns bare-name completions for functions/methods with no parens or
+  // argument placeholders, and won't suggest symbols that aren't yet imported; these preferences
+  // (passed straight through by typescript-language-server to tsserver's own UserPreferences) opt
+  // into the richer behavior. `includeCompletionsWithSnippetText` requires (and we already declare)
+  // `completionItem.snippetSupport` on the client side to actually take effect.
+  override def initializationOptions :Object = {
+    val prefs = new java.util.HashMap[String, Object]()
+    prefs.put("includeCompletionsWithSnippetText", java.lang.Boolean.TRUE)
+    prefs.put("includeCompletionsForModuleExports", java.lang.Boolean.TRUE)
+    prefs.put("includeCompletionsWithInsertText", java.lang.Boolean.TRUE)
+    val opts = new java.util.HashMap[String, Object]()
+    opts.put("preferences", prefs)
+    opts
+  }
 }

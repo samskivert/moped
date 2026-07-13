@@ -23,9 +23,13 @@ import moped._
   * write a single response line (`ok`, or `error: ...`) back before reading the next command:
   *
   *   - `open PATH`: opens `PATH` in the most recently used editor on the currently active desktop.
-  *   - `invoke FN`: invokes the named `Fn` (e.g. `forward-char`, `backward-char`) against some open
-  *     window's focused frame, as if triggered by a keybinding.
-  *   - `type TEXT`: inserts `TEXT` at the point of some open window's focused buffer, as if typed.
+  *   - `invoke FN`: invokes the named `Fn` (e.g. `forward-char`, `backward-char`, `newline`)
+  *     against some open window's active minibuffer read, if one is showing (e.g. to type a
+  *     name then submit it with `invoke newline`, or to cancel with `invoke abort`), otherwise
+  *     its focused frame, as if triggered by a keybinding.
+  *   - `type TEXT`: inserts `TEXT` at the point of some open window's active minibuffer read (a
+  *     `read`/`readopt`/`yesno` prompt), if one is showing, otherwise its focused buffer, as if
+  *     typed.
   *   - `point`: reports the point (as `row,col`) of some open window's focused buffer.
   *   - `mark`: reports the mark (as `row,col`, or `none`) of some open window's focused buffer.
   *   - `line ROW`: reports the text of line `ROW` (0-indexed) of some open window's focused buffer.
@@ -78,15 +82,22 @@ class Server (app :Moped) extends Thread {
       case c if c `startsWith` "invoke " => Some(onUIBlocking {
         app.wspMgr.anyWindow match {
           case Some(win) =>
-            if (win.focusedDispatcher.invoke(arg("invoke "))) "ok" else "error: no such fn"
+            val disp = win.activeMiniDispatcher || win.focusedDispatcher
+            if (disp.invoke(arg("invoke "))) "ok" else "error: no such fn"
           case None => "error: no open window"
         }
       })
       case c if c `startsWith` "type " => Some(onUIBlocking {
-        focusedFrame match {
-          case Some(f) if f.view != null =>
-            f.view.buffer.insert(f.view.point(), Line(arg("type "))) ; "ok"
-          case Some(_) => "error: no buffer"
+        app.wspMgr.anyWindow match {
+          case Some(win) => win.activeMiniView match {
+            case Some(view) => view.buffer.insert(view.point(), Line(arg("type "))) ; "ok"
+            case None => focusedFrame match {
+              case Some(f) if f.view != null =>
+                f.view.buffer.insert(f.view.point(), Line(arg("type "))) ; "ok"
+              case Some(_) => "error: no buffer"
+              case None => "error: no open window"
+            }
+          }
           case None => "error: no open window"
         }
       })

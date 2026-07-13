@@ -56,7 +56,10 @@ hand-writing a client each time:
                                                # actual buffer content, independent of rendering)
 ./moped-cmd.sh invoke forward-char            # invoke any registered Fn by name
 ./moped-cmd.sh invoke backward-word
-./moped-cmd.sh type "hello world"              # insert literal text at point, as if typed
+./moped-cmd.sh type "hello world"              # insert literal text, as if typed; goes to an
+                                               # active minibuffer prompt (e.g. after `invoke
+                                               # rename-element`) if one is showing, else to the
+                                               # focused buffer's point
 ./moped-cmd.sh click 120 45                   # simulate a mouse press at pixel (x, y)
 ./moped-cmd.sh click 120 45 2                 # double-click (selects the word); 3 for triple
                                                # (selects the line); both also affect a following drag

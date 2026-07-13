@@ -8,7 +8,9 @@
 #   ./moped-cmd.sh mark
 #   ./moped-cmd.sh line 0
 #   ./moped-cmd.sh invoke forward-char
-#   ./moped-cmd.sh type "hello world"
+#   ./moped-cmd.sh type "hello world"     # types into an active minibuffer prompt if one is
+#                                          # showing (e.g. after `invoke rename-element`), else
+#                                          # into the focused buffer
 #   ./moped-cmd.sh click 120 45
 #   ./moped-cmd.sh click 120 45 2      # double-click (word select); 3 for triple (line select)
 #   ./moped-cmd.sh drag 200 45

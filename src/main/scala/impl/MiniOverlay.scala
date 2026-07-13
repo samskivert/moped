@@ -41,6 +41,12 @@ abstract class MiniOverlay (window :WindowImpl) extends BorderPane with Minibuff
 
   private var curDisp :DispatcherImpl = null
 
+  /** Returns the buffer view backing the currently active minibuffer read, if one is showing. */
+  def activeView :Option[BufferViewImpl] = Option(curDisp).map(_.area.bview)
+
+  /** Returns the dispatcher for the currently active minibuffer read, if one is showing. */
+  def activeDispatcher :Option[DispatcherImpl] = Option(curDisp)
+
   val ui = new MiniUI() {
     override def setPrompt (prompt :String) = plabel.setText(prompt)
     override def getPrompt = plabel.getText

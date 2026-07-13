@@ -156,15 +156,6 @@ class WindowImpl (val stage :Stage, ws :WorkspaceImpl, defWidth :Int, defHeight 
   //
   // Window interface methods
 
-  override def geometry = {
-    val fg = focus.geometry // TODO: the right thing when we have multiple frames
-    Geometry(fg.width, fg.height, stage.getX.toInt, stage.getY.toInt)
-  }
-  override def size = Size(stage.getWidth.toInt, stage.getHeight.toInt)
-  override def frames = _frames
-  override def focus = _focus.get
-  override def workspace = ws
-
   /** Returns the dispatcher for this window's focused frame, for use by debugging/automation
     * tooling (like the local command socket, see [[Server]]); `focus`'s declared type (`Frame`,
     * per the `Window` trait it overrides) doesn't expose this. */
@@ -173,6 +164,27 @@ class WindowImpl (val stage :Stage, ws :WorkspaceImpl, defWidth :Int, defHeight 
   /** Returns the buffer area for this window's focused frame, for use by debugging/automation
     * tooling (like the local command socket, see [[Server]]). */
   def focusedArea :BufferArea = _focus.get.disp.area
+
+  /** Returns the buffer view of this window's active minibuffer read (e.g. a `read`, `readopt` or
+    * `yesno` prompt), if one is currently showing. Used by debugging/automation tooling (like the
+    * local command socket, see [[Server]]) so that e.g. `type` can target minibuffer input instead
+    * of always inserting into the main buffer, which is otherwise indistinguishable from the
+    * user's perspective (the minibuffer is a distinct overlay with its own buffer/dispatcher, not
+    * part of this window's focused `Frame`). */
+  def activeMiniView :Option[BufferViewImpl] = _mini.activeView
+
+  /** Returns the dispatcher for this window's active minibuffer read, if one is currently
+    * showing. See [[activeMiniView]]. */
+  def activeMiniDispatcher :Option[Dispatcher] = _mini.activeDispatcher
+
+  override def geometry = {
+    val fg = focus.geometry // TODO: the right thing when we have multiple frames
+    Geometry(fg.width, fg.height, stage.getX.toInt, stage.getY.toInt)
+  }
+  override def size = Size(stage.getWidth.toInt, stage.getHeight.toInt)
+  override def frames = _frames
+  override def focus = _focus.get
+  override def workspace = ws
   override def mini = _mini
   override def statusMini = _statusMini
 

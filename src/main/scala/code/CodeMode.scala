@@ -201,8 +201,14 @@ abstract class CodeMode (env :Env) extends EditingMode(env) {
       // figure out the max width of choices + sigs
       def siglen (c :Choice, gap :Int) = c.sig.map(_.length + gap) getOrElse 0
       val width = choices.map(c => c.label.length + siglen(c, 1)).max
-      // TODO: get actual available space instead of hardcoding
-      val MaxChoices = 30
+      // the popup is anchored just below the completion's starting line, so cap how many choices
+      // we show to however many rows are actually visible between there and the bottom of the
+      // view; otherwise a long list (e.g. every String method) gets pushed back up over the top of
+      // the view (and over any details popup shown above the completion line) to fit. Always show
+      // at least a few choices, even if that means running past the bottom of the view and
+      // overlapping the line being edited (e.g. completing near the bottom of the buffer).
+      val availBelow = view.scrollTop() + view.height() - comp.start.row - 2
+      val MaxChoices = math.max(3, math.min(30, availBelow))
       // truncate list to max choices, trimming above and below the active completion so we show a
       // sliding window around it
       def trimStart = Math.min(Math.max(0, activeIndex-2), choices.length-MaxChoices)

@@ -214,11 +214,29 @@ class Sitter (
       new TSInputEdit(sb, eb, eb, toPoint(start), toPoint(end), toPoint(end))
   }
 
+  // the row range literally touched by edits since the last reparse (as opposed to whatever rows
+  // tree-sitter's changed-range diff decides to report); accumulated in processEdit, consumed and
+  // reset in reparseAndRestyle. Used as a floor under the changed-range-driven restyle: for
+  // in-progress/partial parses (e.g. mid-identifier, mid-keyword, error-recovery states while
+  // actively typing), TSTree.getChangedRanges can report *no* changed ranges at all for an edit
+  // even though the edited text plainly did change, which would otherwise leave a freshly-typed
+  // (and, if on a brand new line, never-yet-styled) span with no styling applied to it whatsoever.
+  private var pendingFrom = Int.MaxValue
+  private var pendingTo = Int.MinValue
+
   // informs our live tree of edits as they happen so the next reparse can be incremental; edits
   // must be applied to the tree in the order they occur, which is exactly the order in which
   // `buf.edited` notifies us, so we can simply apply each one as it arrives
-  private def processEdit (edit :Buffer.Edit) :Unit =
+  private def processEdit (edit :Buffer.Edit) :Unit = {
     if (curTree != null) curTree.edit(toInputEdit(edit))
+    val (sr, er) = edit match {
+      case Buffer.Insert(start, end) => (start.row, end.row)
+      case Buffer.Delete(start, _, _) => (start.row, start.row)
+      case Buffer.Transform(start, end, _) => (start.row, end.row)
+    }
+    if (sr < pendingFrom) pendingFrom = sr
+    if (er+1 > pendingTo) pendingTo = er+1
+  }
 
   // reparses (incrementally, per the edits noted since the last parse) and refaces only the rows
   // that tree-sitter reports actually changed as a result
@@ -227,8 +245,10 @@ class Sitter (
   // reparses the buffer, reusing `curTree` (if we have one) so that tree-sitter can avoid
   // re-parsing subtrees unaffected by the edits applied to it since the last parse. If `force` is
   // true (or this is our first ever parse), styling is refreshed for all of `[restyleFrom,
-  // restyleTo)`; otherwise only the rows tree-sitter reports as changed between the old and new
-  // trees are refaced, which is the common (and cheap) case for routine edit-driven reparses.
+  // restyleTo)`; otherwise the rows tree-sitter reports as changed between the old and new trees
+  // are refaced, unioned with whatever rows were literally edited since the last reparse (see
+  // `pendingFrom`/`pendingTo`), which is the common (and cheap) case for routine edit-driven
+  // reparses.
   private def reparseAndRestyle (force :Boolean, restyleFrom :Int, restyleTo :Int) :Unit = {
     val source = Line.toText(buf.lines)
     val oldTree = curTree
@@ -238,12 +258,17 @@ class Sitter (
     val byteOffsets = new Sitter.ByteOffsets(source)
     try {
       if (force || oldTree == null) restyle(newTree, source, byteOffsets, restyleFrom, restyleTo)
-      else TSTree.getChangedRanges(oldTree, newTree).foreach { range =>
-        restyle(newTree, source, byteOffsets, range.getStartPoint.getRow, range.getEndPoint.getRow+1)
+      else {
+        TSTree.getChangedRanges(oldTree, newTree).foreach { range =>
+          restyle(newTree, source, byteOffsets, range.getStartPoint.getRow, range.getEndPoint.getRow+1)
+        }
+        if (pendingTo > pendingFrom) restyle(newTree, source, byteOffsets, pendingFrom, pendingTo)
       }
     } finally {
       if (oldTree != null) oldTree.close()
       curTree = newTree
+      pendingFrom = Int.MaxValue
+      pendingTo = Int.MinValue
     }
   }
 

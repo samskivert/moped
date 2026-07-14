@@ -29,6 +29,8 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
 
   private val commandRing = new Ring(8)
   private val codeActionRing = new Ring(8)
+  // regions currently tagged by the automatic occurrence highlighter (see refreshHighlights)
+  private var highlighted :Seq[Region] = Seq()
   private def renameHistory = wspace.historyRing("lang-rename")
   private def symbolHistory = wspace.historyRing("lang-symbol")
   private def wordAt (loc :Loc) :String =
@@ -126,6 +128,37 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
 
   @Fn("Shows help for the signature of the call at the point.")
   def showSignatureHelp () :Unit = client.showSignatureHelp(view).onFailure(window.exec.handleError)
+
+  // once the point rests in one spot for a bit, highlight all other occurrences of the symbol
+  // under it; debounced so we don't hit the server on every intermediate cursor position while
+  // the point is moving around, e.g. during a multi-keystroke motion or while typing
+  note(view.point.asSignal.debounce(250L, window.exec.ui).onValue(_ => refreshHighlights()))
+
+  private def refreshHighlights () :Unit = {
+    clearHighlights()
+    val loc = view.point()
+    client.serverCaps.onSuccess(caps => if (caps.getDocumentHighlightProvider != null) {
+      val hparams = new DocumentHighlightParams(LSP.docId(view.buffer), LSP.toPos(loc))
+      LSP.adapt(textSvc.documentHighlight(hparams), window.exec).onSuccess(hs => {
+        // the point may have moved on to its next resting spot (kicking off another request)
+        // while this one was in flight; only apply results that are still relevant
+        if (view.point() == loc) {
+          highlighted = Option(hs).map(_.asScala.toSeq.map(h => LSP.fromRange(h.getRange))) getOrElse Seq()
+          highlighted.foreach(buffer.addStyle(EditorConfig.occurrenceStyle, _))
+        }
+      }).onFailure(err => env.log.log("documentHighlight request failed", err))
+    })
+  }
+
+  private def clearHighlights () :Unit = {
+    highlighted.foreach(buffer.removeStyle(EditorConfig.occurrenceStyle, _))
+    highlighted = Seq()
+  }
+
+  override def deactivate () :Unit = {
+    super.deactivate()
+    clearHighlights()
+  }
 
   @Fn("Navigates to the declaration of the element at the point.")
   def gotoDeclaration () :Unit = {

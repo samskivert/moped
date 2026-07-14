@@ -120,6 +120,10 @@
   -fx-bg-stroke: White !important;
 }
 
+.occurrenceFace {
+  -fx-bg-fill: #FFFFFF22;
+}
+
 /** TODO: from emacs
  '(link ((t (:underline t :foreground "#7CF"))))
  '(link-visited ((t (:underline t :foreground "#36A"))))

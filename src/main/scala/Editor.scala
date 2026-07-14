@@ -93,4 +93,8 @@ object EditorConfig extends Config.Defs {
   val matchStyle = "matchFace"
   /** The CSS style applied to the active search match. */
   val activeMatchStyle = "activeMatchFace"
+  /** The CSS style applied to a passive "occurrence" highlight (e.g. other uses of the symbol at
+    * the point), a subtler background-only tint as opposed to the more attention-grabbing
+    * search/find-uses match styles. */
+  val occurrenceStyle = "occurrenceFace"
 }

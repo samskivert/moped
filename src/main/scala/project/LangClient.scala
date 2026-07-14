@@ -255,6 +255,7 @@ abstract class LangClient (
       caps.setHover(init(new HoverCapabilities()) { caps =>
         caps.setContentFormat(Arrays.asList("markdown", "plaintext"))
       })
+      caps.setDocumentHighlight(new DocumentHighlightCapabilities())
       caps.setSignatureHelp(init(new SignatureHelpCapabilities()) { caps =>
         caps.setSignatureInformation(init(new SignatureInformationCapabilities()) { caps =>
           caps.setDocumentationFormat(Arrays.asList("markdown", "plaintext"))

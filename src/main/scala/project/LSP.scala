@@ -31,7 +31,44 @@ object LSP {
   def toScala[A,B] (either :Either[A, B]) =
     if (either.isLeft) Left(either.getLeft) else Right(either.getRight)
 
-  def langId (uri :String) = uri.substring(uri.lastIndexOf(".")+1) // TODO: what's a real mapping?
+  // maps a file extension to its standard LSP "language identifier" (see the LSP spec's "Text
+  // Document Item" section); most servers are lenient and just warn/correct when handed the bare
+  // extension instead (e.g. "ts" instead of "typescript"), but there's no reason not to send the
+  // right thing when we know it
+  private val langIds = Map(
+    "ts" -> "typescript", "tsx" -> "typescriptreact",
+    "js" -> "javascript", "jsx" -> "javascriptreact", "mjs" -> "javascript", "cjs" -> "javascript",
+    "json" -> "json", "jsonc" -> "jsonc",
+    "py" -> "python",
+    "rb" -> "ruby",
+    "rs" -> "rust",
+    "go" -> "go",
+    "c" -> "c", "h" -> "c",
+    "cpp" -> "cpp", "cc" -> "cpp", "cxx" -> "cpp", "hpp" -> "cpp", "hh" -> "cpp",
+    "cs" -> "csharp",
+    "php" -> "php",
+    "html" -> "html", "htm" -> "html",
+    "css" -> "css", "scss" -> "scss", "less" -> "less",
+    "md" -> "markdown", "markdown" -> "markdown",
+    "sh" -> "shellscript", "bash" -> "shellscript", "zsh" -> "shellscript",
+    "yaml" -> "yaml", "yml" -> "yaml",
+    "xml" -> "xml",
+    "sql" -> "sql",
+    "kt" -> "kotlin", "kts" -> "kotlin",
+    "clj" -> "clojure", "cljs" -> "clojurescript",
+    "ex" -> "elixir", "exs" -> "elixir",
+    "erl" -> "erlang",
+    "hs" -> "haskell",
+    "pl" -> "perl",
+    "toml" -> "toml",
+    "vue" -> "vue",
+    "svelte" -> "svelte",
+  )
+
+  def langId (uri :String) :String = {
+    val ext = uri.substring(uri.lastIndexOf(".")+1).toLowerCase
+    langIds.getOrElse(ext, ext)
+  }
 
   def docId (buffer :Buffer) = buffer.state.get[TextDocumentIdentifier] getOrElse {
     throw Errors.feedback("No TextDocumentIdentifier. Buffer not saved to a file?")

@@ -64,6 +64,23 @@ class ScalaLangClient (proj :Project, serverCmd :Seq[String])
       messages.emit(params.text)
     }
   }
+
+  // Metals pulls its own settings (a whole user-configurable schema: sbt/gradle/mill script
+  // paths, excluded packages, etc.) via workspace/configuration under the single section "metals"
+  // (see UserConfigurationSync.scala); any field we don't mention here just keeps Metals' own
+  // default (see UserConfiguration.scala), so we only need to call out settings we actually want
+  // to change from their default.
+  override protected def configurationValue (section :String, scopeUri :Option[String]) :Object =
+    if (section != "metals") super.configurationValue(section, scopeUri)
+    else {
+      val cfg = new java.util.HashMap[String, Object]()
+      // super-method-lenses-enabled defaults to false; flipping it on makes Metals surface an
+      // "implements/overrides Foo.bar" code lens above overriding methods, which our existing
+      // code lens cache/modeline/invoke-lens machinery picks up automatically, complementing
+      // visit-super's direct goto-super-method command with a discoverable in-buffer affordance
+      cfg.put("superMethodLensesEnabled", java.lang.Boolean.TRUE)
+      cfg
+    }
 }
 
 // see MetalsLanguageClient.metalsStatus in Metals' own sources for the full parameter shape; we

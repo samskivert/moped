@@ -8,6 +8,7 @@ import java.nio.file.Path
 import scala.annotation.nowarn
 import scala.collection.mutable.{Map => MMap}
 import scala.jdk.CollectionConverters._
+import com.google.gson.{Gson, JsonElement}
 import org.eclipse.lsp4j._
 
 import moped._
@@ -29,6 +30,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
 
   private val commandRing = new Ring(8)
   private val codeActionRing = new Ring(8)
+  private val lensRing = new Ring(8)
   // regions currently tagged by the automatic occurrence highlighter (see refreshHighlights)
   private var highlighted :Seq[Region] = Seq()
   private def renameHistory = wspace.historyRing("lang-rename")
@@ -63,6 +65,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     bind("code-action",          "C-c C-a").
     bind("find-uses",            "C-c C-f").
     bind("show-signature-help",  "C-c C-p").
+    bind("invoke-lens",          "C-c C-l").
     bind("lang-exec-command",    "C-c C-x")
 
   //   bind("describe-codex", "C-h c").
@@ -164,6 +167,9 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   // buffer is edited or the server tells us (via workspace/codeLens/refresh) that lenses anywhere
   // may have gone stale, e.g. because a reference was added/removed in a file we don't have open
   private var codeLenses :Seq[CodeLens] = Seq()
+  // the resolved lens(es) (commands filled in) for whichever line the point is currently on; kept
+  // around so invokeLens doesn't have to re-resolve what's already showing in the modeline
+  private var lineLenses :Seq[CodeLens] = Seq()
   // the text displayed in the modeline for whichever lens(es) apply to the current line
   private val lensText = Value("")
 
@@ -188,16 +194,20 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     }
   })
 
-  // resolves whichever (possibly bare, per resolveCodeLens) lenses apply to the current line and
-  // shows their titles in the modeline; a no-op network-wise for lines with no lens
+  // resolves whichever (possibly bare, per resolveCodeLens) lenses apply to the current line,
+  // caches them for invokeLens, and shows their titles in the modeline; a no-op network-wise for
+  // lines with no lens
   private def updateLensText () :Unit = {
     val row = view.point().row
     val onLine = codeLenses.filter(l => LSP.fromRange(l.getRange).start.row == row)
-    if (onLine.isEmpty) lensText() = ""
+    if (onLine.isEmpty) { lineLenses = Seq() ; lensText() = "" }
     else Future.sequence(onLine.map(resolveLens)).onSuccess(ls => {
       // the point may have moved to a new line by the time resolution completes; only apply
       // results that are still relevant
-      if (view.point().row == row) lensText() = ls.flatMap(l => Option(l.getCommand).map(_.getTitle)).mkString("  ")
+      if (view.point().row == row) {
+        lineLenses = ls
+        lensText() = ls.flatMap(l => Option(l.getCommand).map(_.getTitle)).mkString("  ")
+      }
     }).onFailure(err => env.log.log("codeLens resolve failed", err))
   }
 
@@ -207,6 +217,35 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   private def resolveLens (lens :CodeLens) :Future[CodeLens] =
     if (lens.getCommand != null) Future.success(lens)
     else LSP.adapt(textSvc.resolveCodeLens(lens), window.exec)
+
+  private val gson = new Gson()
+
+  @Fn("""Invokes the command associated with the code lens on the current line. If more than one
+         lens applies, prompts for which to invoke.""")
+  def invokeLens () :Unit = {
+    val cmds = lineLenses.flatMap(l => Option(l.getCommand)).
+      filter(c => !Option(c.getCommand).getOrElse("").isEmpty)
+    if (cmds.isEmpty) window.popStatus("No code lens on this line.")
+    // as with code actions, always show the picker (even for a single lens) so the user can see
+    // what it is before committing; picking it is itself the confirmation
+    else window.mini.read("Lens:", "", lensRing, Completer.from(cmds, singleCol = true)(_.getTitle)).
+      onSuccess(runLensCommand)
+  }
+
+  private def runLensCommand (cmd :Command) :Unit = cmd.getCommand match {
+    // the "N references"/"N implementations" lens most servers emit resolves to this VS-Code-only
+    // client command (arguments: uri, position, Location[]) rather than anything a server
+    // implements via workspace/executeCommand, so we have to interpret it ourselves
+    case "editor.action.showReferences" =>
+      val locs = gson.fromJson(
+        cmd.getArguments.get(2).asInstanceOf[JsonElement], classOf[Array[Location]])
+      visitAll("reference", locs.toSeq)
+    // other editor.action.* commands are VS Code UI actions with no server-side meaning and no
+    // client-side equivalent we support yet; ignore rather than sending them to the server, where
+    // they'd just fail
+    case c if c.startsWith("editor.action.") => ()
+    case _ => client.execCommand(cmd).onFailure(window.exec.handleError)
+  }
 
   override def deactivate () :Unit = {
     super.deactivate()
@@ -247,14 +286,23 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   import org.eclipse.lsp4j.jsonrpc.messages.{Either => JEither}
   private def visitLocations (what :String)(
     locs :JEither[JList[? <: Location],JList[? <: LocationLink]]
-  ) = {
-    val visits = LSP.toScala(locs) match {
-      case Left(locs) => locs.asScala.filter(_.getUri != null).map(client.visit(project, _))
-      case Right(links) => links.asScala.filter(_.getTargetUri != null).map(client.visit(project, _))
+  ) = LSP.toScala(locs) match {
+    case Left(locs) => visitAll(what, locs.asScala.toSeq)
+    case Right(links) => {
+      val visits = links.asScala.filter(_.getTargetUri != null).map(client.visit(project, _))
+      if (visits.isEmpty) view.window.popStatus(s"Unable to locate $what.")
+      else {
+        window.visits() = Visit.List(what, visits.toSeq)
+        window.visits().next(window)
+      }
     }
+  }
+
+  private def visitAll (what :String, locs :Seq[Location]) :Unit = {
+    val visits = locs.filter(_.getUri != null).map(client.visit(project, _))
     if (visits.isEmpty) view.window.popStatus(s"Unable to locate $what.")
     else {
-      window.visits() = Visit.List(what, visits.toSeq)
+      window.visits() = Visit.List(what, visits)
       window.visits().next(window)
     }
   }

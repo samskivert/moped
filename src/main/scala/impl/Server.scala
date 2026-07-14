@@ -110,7 +110,9 @@ class Server (app :Moped) extends Thread {
         }
       })
       case c if c `startsWith` "key " => Some(onUIBlocking {
-        val ch = arg("key ")
+        // deliberately not `arg("key ")`: that trims, which would silently swallow a literal
+        // space keypress (a legitimate, common single character to simulate)
+        val ch = cmd.substring("key ".length)
         if (ch.length != 1) "error: usage: key CHAR (single character)"
         else app.wspMgr.anyWindow match {
           case Some(win) =>

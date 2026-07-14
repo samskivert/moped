@@ -157,6 +157,11 @@ abstract class LangClient (
     * cleared are not included. Used by `view-diagnostics` (see LangDiagnosticsMode). */
   def allDiagnostics :Map[String, JList[Diagnostic]] = uriToDiagnostics.asScala.toMap
 
+  /** Emitted (on the UI thread) whenever a `textDocument/publishDiagnostics` notification updates
+    * [[allDiagnostics]], so that anything summarizing it (e.g. LangMode's warning/error modeline
+    * counts) knows to recompute. */
+  val diagnosticsChanged = Signal[Unit]()
+
   // once we are connected, our server instance will be set and we can initialize our session
   serverV.onValue(server => {
     val initParams = new InitializeParams()
@@ -731,6 +736,7 @@ abstract class LangClient (
           diag.getMessage,
           Option(diag.getSeverity) map sevToNote getOrElse Severity.Error))
       }
+      diagnosticsChanged.emit(())
     })
   }
 

@@ -186,6 +186,29 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   // already-initialized server) and otherwise fires the moment it becomes set.
   note(buffer.state[TextDocumentIdentifier].onValueNotify(_.foreach(_ => refreshCodeLensCache())))
 
+  // a "W / E" warning/error count for the whole project (not just this buffer), reusing the same
+  // colors as in-buffer diagnostic styling; either half (or the separator) disappears when its
+  // count is zero, and the whole datum disappears when there are none of either
+  private val diagCounts = Value(Seq[ModeLine.Segment]())
+  note(env.mline.addStyledDatum(diagCounts, Value("Project warnings / errors")))
+  note(client.diagnosticsChanged.onEmit(refreshDiagCounts()))
+  refreshDiagCounts()
+
+  private def refreshDiagCounts () :Unit = {
+    var warns = 0 ; var errs = 0
+    client.allDiagnostics.valuesIterator.flatMap(_.asScala).foreach(d =>
+      Option(d.getSeverity).getOrElse(DiagnosticSeverity.Error) match {
+        case DiagnosticSeverity.Warning => warns += 1
+        case DiagnosticSeverity.Error => errs += 1
+        case _ => // hints/infos aren't counted here
+      })
+    val segs = Seq.newBuilder[ModeLine.Segment]
+    if (warns > 0) segs += ModeLine.Segment(s"W$warns", EditorConfig.warnStyle)
+    if (warns > 0 && errs > 0) segs += ModeLine.Segment(" ")
+    if (errs > 0) segs += ModeLine.Segment(s"E$errs", EditorConfig.errorStyle)
+    diagCounts() = segs.result()
+  }
+
   private def refreshCodeLensCache () :Unit = client.serverCaps.onSuccess(caps => {
     if (caps.getCodeLensProvider != null) {
       val cparams = new CodeLensParams(LSP.docId(view.buffer))

@@ -4,9 +4,12 @@
 
 package moped.impl
 
+import scala.jdk.CollectionConverters._
+import javafx.scene.Node
 import javafx.scene.control.Label
 import javafx.scene.control.Tooltip
 import javafx.scene.layout.HBox
+import javafx.scene.text.{Text, TextFlow}
 import moped._
 
 class ModeLineImpl extends HBox(8) with ModeLine {
@@ -20,6 +23,25 @@ class ModeLineImpl extends HBox(8) with ModeLine {
     getChildren.add(label)
     Closeable({
       getChildren.remove(label)
+      vconn.close()
+      tconn.close()
+    })
+  }
+
+  def addStyledDatum (value :ValueV[Seq[ModeLine.Segment]], tooltip :ValueV[String]) :Closeable = {
+    val flow = new TextFlow()
+    val tt = new Tooltip()
+    Tooltip.install(flow, tt)
+    def rebuild (segs :Seq[ModeLine.Segment]) :Unit = flow.getChildren.setAll(segs.map { seg =>
+      val text = new Text(seg.text)
+      if (!seg.style.isEmpty) text.getStyleClass.add(seg.style)
+      text :Node
+    }.asJava)
+    val vconn = value `onValueNotify` rebuild
+    val tconn = tooltip `onValueNotify` tt.setText
+    getChildren.add(flow)
+    Closeable({
+      getChildren.remove(flow)
       vconn.close()
       tconn.close()
     })

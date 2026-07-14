@@ -324,6 +324,8 @@ abstract class LangClient (
       // gone stale for a reason we couldn't have seen locally (e.g. a reference added/removed in
       // a different file); see `refreshCodeLenses` below and `codeLensesRefreshed`
       caps.setCodeLens(new CodeLensWorkspaceCapabilities(true))
+      // we implement workspace/configuration (see `configuration` below)
+      caps.setConfiguration(true)
     })
   }
 
@@ -787,9 +789,21 @@ abstract class LangClient (
     CompletableFuture.completedFuture(List(WorkspaceFolder(root.toUri.toString, name)).asJava)
   }
 
+  /** Returns the value to report for `section` (e.g. `"typescript.referencesCodeLens"` or
+    * `"editor.tabSize"`) when the server pulls it via `workspace/configuration`, or `null` (the
+    * default) to signal "no opinion," which per spec tells the server to fall back to its own
+    * default rather than treating `null` as a real (absent) value. `scopeUri`, if present, narrows
+    * the request to a specific resource (usually the file being configured). The value must be
+    * JSON-serializable, same constraints as [[initializationOptions]]. */
+  protected def configurationValue (section :String, scopeUri :Option[String]) :Object = null
+
   override def configuration (params :ConfigurationParams) :CompletableFuture[JList[Object]] = {
-    trace(s"TODO: workspace/configuration ${params}")
-    CompletableFuture.completedFuture(Collections.emptyList[Object])
+    // the response must have exactly one entry per requested item, in the same order (an empty
+    // list, regardless of how many items were requested, is a protocol violation some servers
+    // may not tolerate), so we map every item through configurationValue rather than short-circuit
+    val values = params.getItems.asScala.map(
+      item => configurationValue(item.getSection, Option(item.getScopeUri))).toList
+    CompletableFuture.completedFuture(values.asJava)
   }
 
   override def logTrace (params :LogTraceParams) = trace(params.getMessage)

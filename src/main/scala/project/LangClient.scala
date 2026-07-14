@@ -150,6 +150,13 @@ abstract class LangClient (
   def diagnosticsFor (uri :String) :JList[Diagnostic] =
     uriToDiagnostics.getOrDefault(uri, Collections.emptyList())
 
+  /** Returns a snapshot of the most recently published diagnostics for every URI the server has
+    * ever sent us diagnostics for, keyed by URI, including files that aren't open in any buffer
+    * (the server happily reports diagnostics for those too; we just have nowhere to show them
+    * in-buffer, so they'd otherwise be silently dropped). URIs whose diagnostics have all been
+    * cleared are not included. Used by `view-diagnostics` (see LangDiagnosticsMode). */
+  def allDiagnostics :Map[String, JList[Diagnostic]] = uriToDiagnostics.asScala.toMap
+
   // once we are connected, our server instance will be set and we can initialize our session
   serverV.onValue(server => {
     val initParams = new InitializeParams()
@@ -711,7 +718,8 @@ abstract class LangClient (
       case DiagnosticSeverity.Error => Severity.Error
     }
     exec.ui.execute(() => {
-      uriToDiagnostics.put(pdp.getUri, pdp.getDiagnostics)
+      if (pdp.getDiagnostics.isEmpty) uriToDiagnostics.remove(pdp.getUri)
+      else uriToDiagnostics.put(pdp.getUri, pdp.getDiagnostics)
       val project = uriToProject.get(pdp.getUri)
       if (project == null) trace(s"Got diagnostics for unmapped URI: ${pdp.getUri}")
       else {

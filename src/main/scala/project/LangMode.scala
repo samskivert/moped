@@ -65,6 +65,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     bind("rename-element",       "C-c C-r").
     bind("code-action",          "C-c C-a").
     bind("find-uses",            "C-c C-f").
+    bind("view-diagnostics",     "C-c C-w").
     bind("show-signature-help",  "C-c C-p").
     bind("invoke-lens",          "C-c C-l").
     bind("lang-exec-command",    "C-c C-x")
@@ -627,6 +628,14 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     var req = new ReferenceParams(doc, pos, ReferenceContext());
     val initState = project.bufferState("lang-find-uses", LangFindUsesConfig.Context(name, req), client)
     window.focus.visit(project.createBuffer(s"*find-uses: ${name}*", initState))
+  }
+
+  @Fn("""Displays all diagnostics known for this project in a separate buffer, including
+         diagnostics for files that aren't currently open in any buffer.""")
+  def viewDiagnostics () :Unit = {
+    val initState = project.bufferState(
+      "lang-diagnostics", LangDiagnosticsConfig.Context(project.name, client.allDiagnostics))
+    window.focus.visit(project.createBuffer(s"*diagnostics: ${project.name}*", initState))
   }
 
   @Fn("Debug document symbols")

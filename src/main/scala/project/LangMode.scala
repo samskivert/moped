@@ -4,6 +4,7 @@
 
 package moped.project
 
+import java.net.URI
 import java.nio.file.Path
 import scala.annotation.nowarn
 import scala.collection.mutable.{Map => MMap}
@@ -31,6 +32,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   private val commandRing = new Ring(8)
   private val codeActionRing = new Ring(8)
   private val lensRing = new Ring(8)
+  private val superclassRing = new Ring(8)
   // regions currently tagged by the automatic occurrence highlighter (see refreshHighlights)
   private var highlighted :Seq[Region] = Seq()
   private def renameHistory = wspace.historyRing("lang-rename")
@@ -308,22 +310,65 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
       onSuccess(visitLocations("typeDefinition"))
   }
 
-  @Fn("""If the point is in a method that overrides a method in a supertype, visits that
+  @Fn("""Visits the supertype of the type enclosing the point. If it has more than one supertype
+         (e.g. a superclass plus implemented interfaces/traits), prompts for which to visit.
+         If the point is in a method that overrides a method in a supertype, visits that
          supertype's implementation. There's no LSP-standard request for this, so it only works
          against servers that expose it as a custom command (currently: Metals).""")
   def visitSuper () :Unit = {
-    val cmd = "goto-super-method"
-    if (!client.execCommands(cmd)) window.popStatus("This language server does not support visit-super.")
-    else {
-      val tdpp = LSP.toTDPP(view.buffer, view.point())
-      client.execCommand(cmd, java.util.Collections.singletonList[Object](tdpp)).
-        onFailure(window.exec.handleError)
-      // Metals doesn't return the target location as this request's result; instead it navigates
-      // by pushing a metals/executeClientCommand("metals-goto-location") notification back at us
-      // (see ScalaLangClient.executeClientCommand) once it's resolved the super method, or simply
-      // sends nothing at all if the point isn't on/in a method that overrides anything
-    }
+    enclosers(view.point()).onSuccess(encs => {
+      val kinds = if (client.execCommands(gotoSuperCmd)) Set(SymbolKind.Class, SymbolKind.Method)
+                  else Set(SymbolKind.Class)
+      encs.find(enc => kinds(enc.kind)) match {
+        case Some(enc) => visitSymbol(enc)
+        case None => window.popStatus("Failed to find enclosing method or class.")
+      }
+    })
   }
+
+  private val gotoSuperCmd = "goto-super-method"
+
+  private def visitSymbol (sym :Symbol) :Unit = {
+    if (sym.kind == SymbolKind.Method) {
+      val pos = new TextDocumentPositionParams(LSP.docId(buffer), sym.sigRange.getStart)
+      client.execCommand(gotoSuperCmd, java.util.Collections.singletonList[Object](pos)).
+        onFailure(window.exec.handleError)
+      client.messages.emit(s"Visiting superclass implementation of '${sym.name}'...")
+      // Metals doesn't return the target location as this request's result; instead it
+      // navigates by pushing a metals/executeClientCommand("metals-goto-location")
+      // notification back at us (see ScalaLangClient.executeClientCommand) once it's
+      // resolved the super method, or simply sends nothing at all if the point isn't on/in a
+      // method that overrides anything
+    }
+    else client.serverCaps.onSuccess(caps => {
+      if (caps.getTypeHierarchyProvider == null)
+        window.popStatus(s"${client.name} language server does not support type hierarchy.")
+      else {
+        val pparams = new TypeHierarchyPrepareParams(LSP.docId(buffer), sym.sigRange.getStart)
+        LSP.adapt(textSvc.prepareTypeHierarchy(pparams), window.exec).onSuccess(items => {
+          (Option(items).map(_.asScala.toSeq) getOrElse Seq()).headOption match {
+            case None => window.popStatus(s"Unable to resolve type '${sym.name}'.")
+            case Some(item) =>
+              val sparams = new TypeHierarchySupertypesParams(item)
+              LSP.adapt(textSvc.typeHierarchySupertypes(sparams), window.exec).onSuccess(supers => {
+                val superSeq = Option(supers).map(_.asScala.toSeq) getOrElse Seq()
+                if (superSeq.isEmpty) window.popStatus(s"No supertype found for '${item.getName}'.")
+                else visitTypeHierarchyItems(superSeq)
+              }).onFailure(window.exec.handleError)
+          }
+        }).onFailure(window.exec.handleError)
+      }
+    })
+  }
+
+  private def visitTypeHierarchyItems (items :Seq[TypeHierarchyItem]) :Unit =
+    if (items.size == 1) visitTypeHierarchyItem(items.head)
+    else window.mini.read("Supertype:", "", superclassRing,
+                          Completer.from(items, singleCol = true)(_.getName)).
+      onSuccess(visitTypeHierarchyItem)
+
+  private def visitTypeHierarchyItem (item :TypeHierarchyItem) :Unit =
+    client.visit(project, new URI(item.getUri), item.getSelectionRange).apply(window)
 
   import java.util.{List => JList}
   import org.eclipse.lsp4j.jsonrpc.messages.{Either => JEither}

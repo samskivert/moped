@@ -287,6 +287,7 @@ abstract class LangClient (
       })
       caps.setDocumentHighlight(new DocumentHighlightCapabilities())
       caps.setCodeLens(new CodeLensCapabilities())
+      caps.setTypeHierarchy(new TypeHierarchyCapabilities())
       caps.setSignatureHelp(init(new SignatureHelpCapabilities()) { caps =>
         caps.setSignatureInformation(init(new SignatureInformationCapabilities()) { caps =>
           caps.setDocumentationFormat(Arrays.asList("markdown", "plaintext"))

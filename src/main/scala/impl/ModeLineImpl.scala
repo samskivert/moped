@@ -5,7 +5,7 @@
 package moped.impl
 
 import scala.jdk.CollectionConverters._
-import javafx.scene.Node
+import javafx.scene.{Cursor, Node}
 import javafx.scene.control.Label
 import javafx.scene.control.Tooltip
 import javafx.scene.layout.HBox
@@ -28,10 +28,17 @@ class ModeLineImpl extends HBox(8) with ModeLine {
     })
   }
 
-  def addStyledDatum (value :ValueV[Seq[ModeLine.Segment]], tooltip :ValueV[String]) :Closeable = {
+  def addStyledDatum (
+    value :ValueV[Seq[ModeLine.Segment]], tooltip :ValueV[String],
+    onClick :Option[() => Unit] = None
+  ) :Closeable = {
     val flow = new TextFlow()
     val tt = new Tooltip()
     Tooltip.install(flow, tt)
+    onClick.foreach { cb =>
+      flow.setCursor(Cursor.HAND)
+      flow.setOnMouseClicked(_ => cb())
+    }
     def rebuild (segs :Seq[ModeLine.Segment]) :Unit = flow.getChildren.setAll(segs.map { seg =>
       val text = new Text(seg.text)
       if (!seg.style.isEmpty) text.getStyleClass.add(seg.style)

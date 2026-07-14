@@ -29,12 +29,17 @@ trait ModeLine {
     *
     * @param value the reactive sequence of segments to be displayed.
     * @param tooltip a tooltip to be displayed to the user when they hover over the datum.
+    * @param onClick if supplied, invoked when the user clicks the datum; a hand cursor is shown
+    * over the datum in that case, to signal that it's clickable.
     *
     * @return an [[Closeable]] which will remove the datum from the modeline when closed.
     * A mode is advised to `note()` this closeable so that it will automatically be removed if
     * the mode is deactivated. Fire and forget!
     */
-  def addStyledDatum (value :ValueV[Seq[ModeLine.Segment]], tooltip :ValueV[String]) :Closeable
+  def addStyledDatum (
+    value :ValueV[Seq[ModeLine.Segment]], tooltip :ValueV[String],
+    onClick :Option[() => Unit] = None
+  ) :Closeable
 }
 
 object ModeLine {
@@ -49,6 +54,8 @@ object ModeLine {
     */
   val Noop = new ModeLine() {
     override def addDatum (value :ValueV[String], tooltip :ValueV[String]) = Closeable.Noop
-    override def addStyledDatum (value :ValueV[Seq[Segment]], tooltip :ValueV[String]) = Closeable.Noop
+    override def addStyledDatum (
+      value :ValueV[Seq[Segment]], tooltip :ValueV[String], onClick :Option[() => Unit]
+    ) = Closeable.Noop
   }
 }

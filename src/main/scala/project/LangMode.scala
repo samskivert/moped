@@ -190,7 +190,8 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   // colors as in-buffer diagnostic styling; either half (or the separator) disappears when its
   // count is zero, and the whole datum disappears when there are none of either
   private val diagCounts = Value(Seq[ModeLine.Segment]())
-  note(env.mline.addStyledDatum(diagCounts, Value("Project warnings / errors")))
+  note(env.mline.addStyledDatum(
+    diagCounts, Value("Project warnings / errors"), Some(() => viewDiagnostics())))
   note(client.diagnosticsChanged.onEmit(refreshDiagCounts()))
   refreshDiagCounts()
 

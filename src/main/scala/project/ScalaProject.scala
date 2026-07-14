@@ -34,6 +34,18 @@ class ScalaLangClient (proj :Project, serverCmd :Seq[String])
 
   private val gson = new Gson()
 
+  // Metals-specific initialization option (see docs/integrations/new-editor.md): by default
+  // (false) any file affected by a rename that isn't already open as a buffer is excluded from
+  // the returned WorkspaceEdit entirely and instead rewritten *directly on disk* by Metals itself
+  // (RenameProvider.scala's changeClosedFiles/awaitingSave), bypassing our client - and thus
+  // renameElement's multi-file confirm/save logic - completely. Opting in makes Metals include
+  // every affected file in the response instead, regardless of whether it's already open.
+  override def initializationOptions :Object = {
+    val opts = new java.util.HashMap[String, Object]()
+    opts.put("openFilesOnRenameProvider", java.lang.Boolean.TRUE)
+    opts
+  }
+
   // Metals protocol extension (no LSP-standard equivalent): rather than returning a location as
   // the result of workspace/executeCommand, commands like goto-super-method (used by
   // LangMode.visitSuper) resolve asynchronously and then push the navigation back at us via this

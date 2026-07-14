@@ -61,6 +61,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     bind("visit-type",           "C-c C-k").
     bind("visit-func",           "C-c C-j").
     bind("visit-value",          "C-c C-h").
+    bind("visit-super",          "C-c C-s").
     bind("rename-element",       "C-c C-r").
     bind("code-action",          "C-c C-a").
     bind("find-uses",            "C-c C-f").
@@ -280,6 +281,23 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     val dparams = new TypeDefinitionParams(LSP.docId(view.buffer), LSP.toPos(view.point()))
     LSP.adapt(textSvc.typeDefinition(dparams), window.exec).
       onSuccess(visitLocations("typeDefinition"))
+  }
+
+  @Fn("""If the point is in a method that overrides a method in a supertype, visits that
+         supertype's implementation. There's no LSP-standard request for this, so it only works
+         against servers that expose it as a custom command (currently: Metals).""")
+  def visitSuper () :Unit = {
+    val cmd = "goto-super-method"
+    if (!client.execCommands(cmd)) window.popStatus("This language server does not support visit-super.")
+    else {
+      val tdpp = LSP.toTDPP(view.buffer, view.point())
+      client.execCommand(cmd, java.util.Collections.singletonList[Object](tdpp)).
+        onFailure(window.exec.handleError)
+      // Metals doesn't return the target location as this request's result; instead it navigates
+      // by pushing a metals/executeClientCommand("metals-goto-location") notification back at us
+      // (see ScalaLangClient.executeClientCommand) once it's resolved the super method, or simply
+      // sends nothing at all if the point isn't on/in a method that overrides anything
+    }
   }
 
   import java.util.{List => JList}

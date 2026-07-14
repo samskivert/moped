@@ -288,6 +288,15 @@ abstract class LangClient (
       caps.setDocumentHighlight(new DocumentHighlightCapabilities())
       caps.setCodeLens(new CodeLensCapabilities())
       caps.setTypeHierarchy(new TypeHierarchyCapabilities())
+      // we already handle LocationLink responses (see visitLocations's Right branch), not just
+      // plain Location, for all four of these
+      caps.setDeclaration(new DeclarationCapabilities(true))
+      caps.setDefinition(new DefinitionCapabilities(true))
+      caps.setImplementation(new ImplementationCapabilities(true))
+      caps.setTypeDefinition(new TypeDefinitionCapabilities(true))
+      // deliberately not prepareSupport: we don't send textDocument/prepareRename (that's still a
+      // TODO), so claiming it would be a lie
+      caps.setRename(new RenameCapabilities())
       caps.setSignatureHelp(init(new SignatureHelpCapabilities()) { caps =>
         caps.setSignatureInformation(init(new SignatureInformationCapabilities()) { caps =>
           caps.setDocumentationFormat(Arrays.asList("markdown", "plaintext"))
@@ -324,6 +333,9 @@ abstract class LangClient (
       // gone stale for a reason we couldn't have seen locally (e.g. a reference added/removed in
       // a different file); see `refreshCodeLenses` below and `codeLensesRefreshed`
       caps.setCodeLens(new CodeLensWorkspaceCapabilities(true))
+      // we send workspace/executeCommand (execCommand) and workspace/symbol (symbolCompleter)
+      caps.setExecuteCommand(new ExecuteCommandCapabilities())
+      caps.setSymbol(new SymbolCapabilities())
       // we implement workspace/configuration (see `configuration` below)
       caps.setConfiguration(true)
     })

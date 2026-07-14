@@ -109,11 +109,20 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     refreshHighlights()
     updateLensText()
   }))
+  // a buffer edit can shift or invalidate previously-tagged occurrence highlights without the
+  // point necessarily moving in a way the listener above would catch (e.g. a rename or code
+  // action applying a multi-location WorkspaceEdit reuses this buffer's edit machinery directly,
+  // not a simulated keystroke), so also refresh once edits settle
+  note(buffer.edited.debounce(250L, window.exec.ui).onValue(_ => refreshHighlights()))
 
   private def refreshHighlights () :Unit = {
     clearHighlights()
     val loc = view.point()
     client.serverCaps.onSuccess(caps => if (caps.getDocumentHighlightProvider != null) {
+      // this fires reactively (off point-moved/buffer-edited listeners, not a single synchronous
+      // keystroke), so it can otherwise race a full-sync server's (up to 1000ms) didChange
+      // debounce and get answered against stale, pre-edit content - see LangClient.flushEdits
+      client.flushEdits(view.buffer)
       val hparams = new DocumentHighlightParams(LSP.docId(view.buffer), LSP.toPos(loc))
       LSP.adapt(textSvc.documentHighlight(hparams), window.exec).onSuccess(hs => {
         // the point may have moved on to its next resting spot (kicking off another request)
@@ -127,7 +136,11 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   }
 
   private def clearHighlights () :Unit = {
-    highlighted.foreach(buffer.removeStyle(EditorConfig.occurrenceStyle, _))
+    // rather than trust our own bookkeeping of exactly which regions we last tagged (which can go
+    // stale the instant a rename/code-action edit shifts text out from under those coordinates,
+    // per the confusingly-misplaced-highlight bug this comment is fixing), just sweep the whole
+    // buffer for the dedicated occurrence style and remove it, however it's currently positioned
+    buffer.removeTags(classOf[String], (_ :String) == EditorConfig.occurrenceStyle, buffer.start, buffer.end)
     highlighted = Seq()
   }
 
@@ -179,6 +192,9 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
 
   private def refreshCodeLensCache () :Unit = client.serverCaps.onSuccess(caps => {
     if (caps.getCodeLensProvider != null) {
+      // same reasoning as refreshHighlights: this fires reactively off buffer edits, so it can
+      // otherwise race a full-sync server's own (slower) didChange debounce
+      client.flushEdits(view.buffer)
       val cparams = new CodeLensParams(LSP.docId(view.buffer))
       LSP.adapt(textSvc.codeLens(cparams), window.exec).onSuccess(lenses => {
         codeLenses = Option(lenses).map(_.asScala.toSeq) getOrElse Seq()

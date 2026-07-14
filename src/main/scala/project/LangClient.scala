@@ -585,6 +585,19 @@ abstract class LangClient (
     // about that too
   }
 
+  /** Forces any pending (debounced) buffer content changes to be sent to the server right away,
+    * instead of waiting for the usual sync debounce to elapse (up to a full second, for
+    * full-sync servers - see `Syncer`'s `TextDocumentSyncKind.Full` case).
+    *
+    * Call this before any request whose answer depends on the server's view of `buffer` being up
+    * to date, if that request is fired reactively (e.g. off a point-moved or buffer-edited
+    * listener) rather than in synchronous response to a single keystroke. Otherwise the request
+    * can race the sync debounce and be answered against stale, pre-edit content - e.g. a
+    * documentHighlight request sent 250ms after an edit, while a full-sync server hasn't been
+    * told about that edit for up to 1000ms, will happily return highlight positions for the *old*
+    * document. `CodeCompleter.completeAt` above already does this for completion requests. */
+  def flushEdits (buffer :Buffer) :Unit = buffer.state.get[Syncer].foreach(_.flushEdits())
+
   class Syncer (caps :ServerCapabilities, buffer :RBuffer, uri :String) {
     var vers = 1
     def incDocId = { vers += 1 ; new VersionedTextDocumentIdentifier(uri, vers) }

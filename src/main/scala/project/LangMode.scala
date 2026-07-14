@@ -388,10 +388,35 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
       LSP.adapt(textSvc.rename(rparams), view.window.exec)
     })
 
+  // resolves to the placeholder text renameElement should pre-fill its prompt with, or fails (via
+  // abort) if the server tells us the point isn't a renameable position at all - in which case
+  // renameElement never shows a prompt in the first place, rather than only discovering the
+  // position was invalid after the user has already typed a new name and confirmed it
+  private def prepareRename (loc :Loc) :Future[String] = client.serverCaps.flatMap(caps => {
+    val prepareSupported = Option(caps.getRenameProvider).map(LSP.toScala).exists {
+      case Left(_) => false
+      case Right(opts) => Option(opts.getPrepareProvider).exists(_.booleanValue)
+    }
+    // servers that don't advertise prepareRename get the old behavior: no validation round trip,
+    // just moped's own local word-at-point guess
+    if (!prepareSupported) Future.success(wordAt(loc))
+    else {
+      val pparams = new PrepareRenameParams(LSP.docId(view.buffer), LSP.toPos(loc))
+      LSP.adapt(textSvc.prepareRename(pparams), view.window.exec).map {
+        case null => abort("Cannot rename this element.")
+        case result if result.isFirst => Line.toText(buffer.region(LSP.fromRange(result.getFirst)))
+        case result if result.isSecond => result.getSecond.getPlaceholder
+        // PrepareRenameDefaultBehavior: server says "renameable" but leaves range detection to us
+        case _ => wordAt(loc)
+      }
+    }
+  })
+
   @Fn("Renames all occurrences of the element at the point.")
   def renameElement () :Unit = {
     val loc = view.point()
-    window.mini.read("New name:", wordAt(loc), renameHistory, Completer.none).
+    prepareRename(loc).flatMap(placeholder =>
+      window.mini.read("New name:", placeholder, renameHistory, Completer.none)).
       flatMap(name => renameElementAt(loc, name)).
       onSuccess(edit => {
         val stores = Lang.editedStores(edit)

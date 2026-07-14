@@ -294,9 +294,11 @@ abstract class LangClient (
       caps.setDefinition(new DefinitionCapabilities(true))
       caps.setImplementation(new ImplementationCapabilities(true))
       caps.setTypeDefinition(new TypeDefinitionCapabilities(true))
-      // deliberately not prepareSupport: we don't send textDocument/prepareRename (that's still a
-      // TODO), so claiming it would be a lie
-      caps.setRename(new RenameCapabilities())
+      // we send textDocument/prepareRename before renameElement opens its prompt, when the server
+      // advertises support for it (see LangMode.prepareRename)
+      caps.setRename(init(new RenameCapabilities()) { caps =>
+        caps.setPrepareSupport(true)
+      })
       caps.setSignatureHelp(init(new SignatureHelpCapabilities()) { caps =>
         caps.setSignatureInformation(init(new SignatureInformationCapabilities()) { caps =>
           caps.setDocumentationFormat(Arrays.asList("markdown", "plaintext"))

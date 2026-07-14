@@ -63,7 +63,7 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     bind("code-action",          "C-c C-a").
     bind("find-uses",            "C-c C-f").
     bind("show-signature-help",  "C-c C-p").
-    bind("lang-exec-command",    "C-c C-l x")
+    bind("lang-exec-command",    "C-c C-x")
 
   //   bind("describe-codex", "C-h c").
 
@@ -130,9 +130,13 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
   def showSignatureHelp () :Unit = client.showSignatureHelp(view).onFailure(window.exec.handleError)
 
   // once the point rests in one spot for a bit, highlight all other occurrences of the symbol
-  // under it; debounced so we don't hit the server on every intermediate cursor position while
-  // the point is moving around, e.g. during a multi-keystroke motion or while typing
-  note(view.point.asSignal.debounce(250L, window.exec.ui).onValue(_ => refreshHighlights()))
+  // under it and refresh the code lens (if any) shown in the modeline for the current line;
+  // debounced so we don't hit the server on every intermediate cursor position while the point is
+  // moving around, e.g. during a multi-keystroke motion or while typing
+  note(view.point.asSignal.debounce(250L, window.exec.ui).onValue(_ => {
+    refreshHighlights()
+    updateLensText()
+  }))
 
   private def refreshHighlights () :Unit = {
     clearHighlights()
@@ -154,6 +158,55 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     highlighted.foreach(buffer.removeStyle(EditorConfig.occurrenceStyle, _))
     highlighted = Seq()
   }
+
+  // the (unresolved) code lenses last fetched for the whole buffer; refreshed wholesale (rather
+  // than incrementally, since the protocol has no range-scoped codeLens request) whenever the
+  // buffer is edited or the server tells us (via workspace/codeLens/refresh) that lenses anywhere
+  // may have gone stale, e.g. because a reference was added/removed in a file we don't have open
+  private var codeLenses :Seq[CodeLens] = Seq()
+  // the text displayed in the modeline for whichever lens(es) apply to the current line
+  private val lensText = Value("")
+
+  note(env.mline.addDatum(lensText, Value("Code lens for the current line")))
+  note(buffer.edited.debounce(1000L, window.exec.ui).onValue(_ => refreshCodeLensCache()))
+  note(client.codeLensesRefreshed.onEmit(refreshCodeLensCache()))
+  // the buffer's TextDocumentIdentifier (and thus LSP.docId) isn't available until the server has
+  // connected, initialized, *and* this buffer's didOpen/Syncer setup has run, all of which happen
+  // asynchronously; firing our first fetch eagerly here (instead of waiting for this) would race
+  // that setup and throw "No TextDocumentIdentifier" if we lost. onValueNotify covers both cases:
+  // it fires right away if the id is already set (e.g. a second buffer opened against an
+  // already-initialized server) and otherwise fires the moment it becomes set.
+  note(buffer.state[TextDocumentIdentifier].onValueNotify(_.foreach(_ => refreshCodeLensCache())))
+
+  private def refreshCodeLensCache () :Unit = client.serverCaps.onSuccess(caps => {
+    if (caps.getCodeLensProvider != null) {
+      val cparams = new CodeLensParams(LSP.docId(view.buffer))
+      LSP.adapt(textSvc.codeLens(cparams), window.exec).onSuccess(lenses => {
+        codeLenses = Option(lenses).map(_.asScala.toSeq) getOrElse Seq()
+        updateLensText()
+      }).onFailure(err => env.log.log("codeLens request failed", err))
+    }
+  })
+
+  // resolves whichever (possibly bare, per resolveCodeLens) lenses apply to the current line and
+  // shows their titles in the modeline; a no-op network-wise for lines with no lens
+  private def updateLensText () :Unit = {
+    val row = view.point().row
+    val onLine = codeLenses.filter(l => LSP.fromRange(l.getRange).start.row == row)
+    if (onLine.isEmpty) lensText() = ""
+    else Future.sequence(onLine.map(resolveLens)).onSuccess(ls => {
+      // the point may have moved to a new line by the time resolution completes; only apply
+      // results that are still relevant
+      if (view.point().row == row) lensText() = ls.flatMap(l => Option(l.getCommand).map(_.getTitle)).mkString("  ")
+    }).onFailure(err => env.log.log("codeLens resolve failed", err))
+  }
+
+  // resolves a lens's command/title if the server didn't already include it (servers that declare
+  // codeLensProvider.resolveProvider commonly return bare ranges up front and fill in the title
+  // lazily, to keep the initial per-document request cheap)
+  private def resolveLens (lens :CodeLens) :Future[CodeLens] =
+    if (lens.getCommand != null) Future.success(lens)
+    else LSP.adapt(textSvc.resolveCodeLens(lens), window.exec)
 
   override def deactivate () :Unit = {
     super.deactivate()

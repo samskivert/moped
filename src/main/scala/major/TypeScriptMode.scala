@@ -298,4 +298,19 @@ class TypeScriptLangClient (proj :Project, serverCmd :Seq[String])
     opts.put("preferences", prefs)
     opts
   }
+
+  // typescript-language-server's reference/implementation code lenses default to disabled (as
+  // they do in vscode's own typescript extension) and, unlike most other settings, are only ever
+  // read from a client-pushed workspace/didChangeConfiguration notification; the server never
+  // pulls them via workspace/configuration, so we have to opt in proactively or textDocument/
+  // codeLens will just silently return an empty list forever.
+  override def initialConfiguration :Object = {
+    val lensPrefs = new java.util.HashMap[String, Object]()
+    lensPrefs.put("referencesCodeLens", java.util.Collections.singletonMap("enabled", java.lang.Boolean.TRUE))
+    lensPrefs.put("implementationsCodeLens", java.util.Collections.singletonMap("enabled", java.lang.Boolean.TRUE))
+    val cfg = new java.util.HashMap[String, Object]()
+    cfg.put("typescript", lensPrefs)
+    cfg.put("javascript", lensPrefs)
+    cfg
+  }
 }

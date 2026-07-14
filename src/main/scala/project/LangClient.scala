@@ -98,6 +98,12 @@ abstract class LangClient (
   /** Emitted when the server sends messages. */
   val messages = Signal[String]()
 
+  /** Emitted when the server sends `workspace/codeLens/refresh`, meaning previously fetched code
+    * lenses (in any open buffer) may now be stale and should be re-requested. Servers send this
+    * when something outside a client's view could change lens results, e.g. a reference added or
+    * removed in a file that isn't even open. */
+  val codeLensesRefreshed = Signal[Unit]()
+
   /** A user friendly name for this language server (i.e. 'Dotty', 'Eclpse', etc.). */
   def name :String
 
@@ -109,6 +115,16 @@ abstract class LangClient (
     * The value must be JSON-serializable (a `java.util.Map`/`List`/primitive, per lsp4j's Gson
     * (de)serialization), since it's sent to the server as an arbitrary JSON blob. */
   protected def initializationOptions :Object = null
+
+  /** The `settings` payload sent in a `workspace/didChangeConfiguration` notification immediately
+    * after the server reports itself initialized, or `null` (the default) to skip sending one.
+    * Most servers pull whatever per-file settings they need via a `workspace/configuration`
+    * request instead (a request we currently answer with an empty stub, see `configuration`
+    * below); others (again, like typescript-language-server) never pull configuration themselves
+    * and instead expect the client to proactively push it via this notification, e.g. to opt into
+    * optional features like reference/implementation code lenses which default to off. The value
+    * must be JSON-serializable, same constraints as [[initializationOptions]]. */
+  protected def initialConfiguration :Object = null
 
   /** The execute commands supported by the server. */
   def execCommands :Set[String] = execCmds
@@ -152,6 +168,8 @@ abstract class LangClient (
     messages.emit(s"$name langserver initializing...")
     server.initialize(initParams).thenAccept(rsp => {
       server.initialized(new InitializedParams())
+      Option(initialConfiguration).foreach(
+        cfg => wspaceSvc.didChangeConfiguration(new DidChangeConfigurationParams(cfg)))
       serverCaps.succeed(rsp.getCapabilities)
       messages.emit(s"$name langserver ready.")
     }).exceptionally(err => {
@@ -256,6 +274,7 @@ abstract class LangClient (
         caps.setContentFormat(Arrays.asList("markdown", "plaintext"))
       })
       caps.setDocumentHighlight(new DocumentHighlightCapabilities())
+      caps.setCodeLens(new CodeLensCapabilities())
       caps.setSignatureHelp(init(new SignatureHelpCapabilities()) { caps =>
         caps.setSignatureInformation(init(new SignatureInformationCapabilities()) { caps =>
           caps.setDocumentationFormat(Arrays.asList("markdown", "plaintext"))
@@ -288,6 +307,10 @@ abstract class LangClient (
         caps.setDocumentChanges(true)
         caps.setResourceOperations(Arrays.asList("create", "rename", "delete"))
       })
+      // lets the server push workspace/codeLens/refresh when lenses we already fetched may have
+      // gone stale for a reason we couldn't have seen locally (e.g. a reference added/removed in
+      // a different file); see `refreshCodeLenses` below and `codeLensesRefreshed`
+      caps.setCodeLens(new CodeLensWorkspaceCapabilities(true))
     })
   }
 
@@ -537,12 +560,15 @@ abstract class LangClient (
     var vers = 1
     def incDocId = { vers += 1 ; new VersionedTextDocumentIdentifier(uri, vers) }
     val docId = new TextDocumentIdentifier(uri)
-    buffer.state[TextDocumentIdentifier]() = docId
 
+    // tell the server about the file *before* publishing docId to buffer state; anything reacting
+    // to that state (e.g. LangMode's code lens cache) uses docId's availability as its signal that
+    // it's safe to make requests about this document, which isn't true until didOpen has gone out
     textSvc.didOpen({
       val item = new TextDocumentItem(uri, LSP.langId(uri), vers, Line.toText(buffer.lines))
       new DidOpenTextDocumentParams(item)
     })
+    buffer.state[TextDocumentIdentifier]() = docId
 
     def decodeSave (save :Either[JBoolean, SaveOptions]) :(Boolean, Boolean) =
       if (save == null) (false, false)
@@ -764,8 +790,10 @@ abstract class LangClient (
   override def refreshSemanticTokens () :CompletableFuture[Void] =
     CompletableFuture.completedFuture(null)
 
-  override def refreshCodeLenses () :CompletableFuture[Void] =
+  override def refreshCodeLenses () :CompletableFuture[Void] = {
+    exec.ui.execute(() => codeLensesRefreshed.emit(()))
     CompletableFuture.completedFuture(null)
+  }
 
   override def refreshInlayHints () :CompletableFuture[Void] =
     CompletableFuture.completedFuture(null)

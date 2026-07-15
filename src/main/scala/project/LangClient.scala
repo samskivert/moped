@@ -104,6 +104,14 @@ abstract class LangClient (
     * removed in a file that isn't even open. */
   val codeLensesRefreshed = Signal[Unit]()
 
+  /** History for `showMessageRequest`'s minibuffer prompt. */
+  private val messageActionRing = new Ring(8)
+
+  /** Chains successive `showMessageRequest` prompts so they queue for Moped's single shared
+    * minibuffer instead of racing one another (see `showMessageRequest`). Only ever
+    * read/written on the UI thread. */
+  private var pendingMessage :Future[Unit] = Future.success(())
+
   /** A user friendly name for this language server (i.e. 'Dotty', 'Eclpse', etc.). */
   def name :String
 
@@ -788,10 +796,51 @@ abstract class LangClient (
    */
   def showMessageRequest (params :ShowMessageRequestParams) :CompletableFuture[MessageActionItem] = {
     trace(s"showMessageRequest ${params.getMessage} (${params.getType})")
-    for (action <- params.getActions.asScala) {
-      trace(s"action ${action.getTitle}")
+    val cf = new CompletableFuture[MessageActionItem]()
+    // this request arrives on lsp4j's JSON-RPC message-processing thread, not the FX application
+    // thread, so any window/minibuffer interaction (which touches live JavaFX nodes) must be
+    // redispatched; project.exec.runOnUI takes care of that (see ScalaProject.executeClientCommand
+    // for the same pattern applied to a Metals-specific notification)
+    project.exec.runOnUI {
+      // Moped has one shared minibuffer, and it rejects a second concurrent use outright (see
+      // checkMiniShow in WindowImpl) - and it's routine for a server to fire off several
+      // showMessageRequests back to back right at startup (Metals alone does this for its HTTP
+      // doctor server and for an outdated sbt version, in the same breath, on every launch) - so
+      // we chain each prompt onto the last rather than opening it immediately; otherwise every
+      // request after the first would race the still-unanswered first one for the minibuffer and
+      // get silently declined
+      pendingMessage = pendingMessage.flatMap(_ => promptForAction(params, cf))
     }
-    CompletableFuture.completedFuture(null)
+    cf
+  }
+
+  // shows (or, if no actions/no window, just announces) a single showMessageRequest, completing
+  // `cf` with the chosen action (or null, per spec, if none was chosen); the returned future
+  // resolves once that's settled, regardless of outcome, so `showMessageRequest` can chain the
+  // next queued prompt onto it
+  private def promptForAction (
+    params :ShowMessageRequestParams, cf :CompletableFuture[MessageActionItem]
+  ) :Future[Unit] = {
+    val actions = Option(params.getActions).map(_.asScala.toSeq) getOrElse Seq()
+    // per spec, responding with a null result means "no action was selected"; we do that both for
+    // a message with no actions to choose from (nothing to prompt for) and for one we have no
+    // window to prompt in (this is a project-wide request, not tied to any particular buffer, so
+    // there's no guarantee one of this project's buffers is currently visible anywhere)
+    def decline () = { messages.emit(s"${params.getType}: ${params.getMessage}") ; cf.complete(null) ; Future.success(()) }
+    if (actions.isEmpty) decline()
+    else project.anyWindow match {
+      case None => decline()
+      case Some(window) =>
+        val done = Promise[Unit]()
+        window.mini.read(params.getMessage, "", messageActionRing,
+                          Completer.from(actions, singleCol = true)(_.getTitle)).
+          onSuccess(action => { cf.complete(action) ; done.succeed(()) }).
+          // aborted (C-g) or otherwise failed to obtain an answer; treat like "no action
+          // selected" rather than surfacing a protocol-level error to the server over what is
+          // purely a UI-side concern
+          onFailure(_ => { cf.complete(null) ; done.succeed(()) })
+        done
+    }
   }
 
   // we just log progress messages, so we don't care about the id token

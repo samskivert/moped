@@ -192,6 +192,13 @@ class Project (val pspace :ProjectSpace, val root :Project.Root) {
     * The message will also be appended to the `*messages*` buffer. */
   def emitError (err :Throwable) :Unit = feedback.emit(Right(err))
 
+  /** Returns some window currently displaying a buffer attached to this project, if any. Used to
+    * find somewhere to show UI (e.g. an interactive minibuffer prompt) in response to a
+    * project-wide server request (like `window/showMessageRequest`) that isn't tied to any
+    * particular buffer. */
+  def anyWindow :Option[Window] =
+    activeBuffers.iterator.flatMap(pspace.wspace.windowForBuffer).nextOption()
+
   /** Returns of the stores for which notes have been provided, naturally ordered. */
   def noteStores :Seq[Store] =
     Seq() ++ bufferNotes.entrySet.asScala.filterNot(_.getValue.get.isEmpty).map(_.getKey)

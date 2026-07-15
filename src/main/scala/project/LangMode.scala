@@ -13,6 +13,7 @@ import com.google.gson.{Gson, JsonElement}
 import org.eclipse.lsp4j._
 
 import moped._
+import moped.code.CodeConfig
 import moped.grammar.GrammarService
 import moped.major.ReadingMode
 import moped.util.{BufferBuilder, Chars, Errors}
@@ -52,6 +53,8 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     bind("visit-super",          "C-c C-s").
     bind("rename-element",       "C-c C-r").
     bind("code-action",          "C-c C-a").
+    bind("format-buffer",        "C-c C-i").
+    bind("format-region",        "S-C-c S-C-i").
     bind("find-uses",            "C-c C-f").
     bind("view-diagnostics",     "C-c C-w").
     bind("show-signature-help",  "C-c C-p").
@@ -516,6 +519,43 @@ class LangMode (env :Env, major :ReadingMode) extends MinorMode(env) {
     Option(action.getCommand).foreach(runCommand)
   } catch {
     case err :Throwable => window.exec.handleError(err)
+  }
+
+  // tabSize is mainly moot (scalafmt et al. read their own config file rather than deferring to
+  // whatever the client sends), but FormattingOptions is a required param, so send something
+  // sensible; insertSpaces is unconditionally true since Moped has no notion of tab-indentation
+  private def formattingOptions = new FormattingOptions(major.config(CodeConfig.indentWidth), true)
+
+  private def applyFormatEdits (edits :JList[? <: TextEdit]) :Unit =
+    if (edits != null) Lang.applyTextEdits(view.buffer, edits.asScala.toSeq)
+
+  @Fn("Reformats the entire buffer via the language server.")
+  def formatBuffer () :Unit = client.serverCaps.flatMap(caps => {
+    if (caps.getDocumentFormattingProvider == null)
+      abort("Language server does not support document formatting.")
+    client.flushEdits(view.buffer)
+    val fparams = new DocumentFormattingParams(LSP.docId(view.buffer), formattingOptions)
+    LSP.adapt(textSvc.formatting(fparams), window.exec)
+  }).onSuccess(applyFormatEdits).onFailure(window.exec.handleError)
+
+  @Fn("""Reformats the current region via the language server. The mark must be set (i.e. a region
+         must be active); unlike most region-oriented fns, this does not fall back to operating on
+         the current line, since reformatting a single arbitrary line in isolation rarely makes
+         sense.""")
+  def formatRegion () :Unit = buffer.mark match {
+    case None => window.popStatus("The mark is not set now, so there is no region.")
+    case Some(mp) =>
+      val p = view.point() ; val (start, end) = if (mp < p) (mp, p) else (p, mp)
+      client.serverCaps.flatMap(caps => {
+        if (caps.getDocumentRangeFormattingProvider == null)
+          abort("Language server does not support range formatting.")
+        client.flushEdits(view.buffer)
+        val fparams = new DocumentRangeFormattingParams()
+        fparams.setRange(LSP.toRange(Region(start, end)))
+        fparams.setTextDocument(LSP.docId(view.buffer))
+        fparams.setOptions(formattingOptions)
+        LSP.adapt(textSvc.rangeFormatting(fparams), window.exec)
+      }).onSuccess(applyFormatEdits).onFailure(window.exec.handleError)
   }
 
   @Fn("Describes the status and capabilities of the current language client.")

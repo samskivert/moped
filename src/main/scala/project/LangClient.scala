@@ -288,6 +288,10 @@ abstract class LangClient (
       caps.setDocumentHighlight(new DocumentHighlightCapabilities())
       caps.setCodeLens(new CodeLensCapabilities())
       caps.setTypeHierarchy(new TypeHierarchyCapabilities())
+      // we send textDocument/formatting (formatBuffer) and textDocument/rangeFormatting
+      // (formatRegion), see LangMode
+      caps.setFormatting(new FormattingCapabilities())
+      caps.setRangeFormatting(new RangeFormattingCapabilities())
       // we already handle LocationLink responses (see visitLocations's Right branch), not just
       // plain Location, for all four of these
       caps.setDeclaration(new DeclarationCapabilities(true))

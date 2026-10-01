@@ -22,6 +22,10 @@ abstract class SitterCodeMode (env :Env) extends CodeMode(env) {
   /** Used to map tree-sitter node types to Moped buffer styles. */
   def styles :Map[String, Styler] = Map()
 
+  /** Used to style node types that have no entry in [[styles]], e.g. by matching a common prefix
+    * shared by a large family of node types. */
+  def fallbackStyles :PartialFunction[String, Styler] = PartialFunction.empty
+
   /** Used to map tree-sitter node types to Moped syntaxes. */
   def syntaxes :Map[String, Syntaxer] = Map()
 
@@ -31,7 +35,7 @@ abstract class SitterCodeMode (env :Env) extends CodeMode(env) {
   def docStylers :Map[String, (String, String, String)] = Map()
 
   /** Handles parsing the buffer and applying styles and syntaxes. */
-  val sitter = Sitter(langId, buffer, styles, syntaxes, docStylers).connect(buffer, disp.didInvoke)
+  val sitter = Sitter(langId, buffer, styles, syntaxes, docStylers, fallbackStyles).connect(buffer, disp.didInvoke)
 
   protected def always (style :String) = (scopes :List[String]) => style
 

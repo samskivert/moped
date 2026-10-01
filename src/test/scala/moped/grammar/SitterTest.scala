@@ -35,6 +35,25 @@ class SitterTest {
     assertFalse(buffer.stylesAt(Loc(1, 11)).contains("var")) // space just after "after"
   }
 
+  @Test def testFallbackStylers () :Unit = {
+    val buffer = moped.impl.BufferImpl.scratch("test.sql")
+    buffer.append(Seq(Line("SELECT id FROM users;")))
+
+    val stylers = Map[String, Styler]("keyword_from" -> (_ => "from"))
+    val fallbacks :PartialFunction[String, Styler] = {
+      case tpe if tpe.startsWith("keyword_") => _ => "kw"
+    }
+    val sitter = new Sitter(
+      new org.treesitter.TreeSitterSql(), buffer, stylers, Map(), Map(), fallbacks)
+    sitter.connect(buffer, Signal[String]())
+
+    assertTrue(buffer.stylesAt(Loc(0, 0)).contains("kw")) // SELECT: via fallback
+    assertFalse(buffer.stylesAt(Loc(0, 7)).contains("kw")) // id: not a keyword
+    // FROM: explicit styler takes precedence over fallback
+    assertTrue(buffer.stylesAt(Loc(0, 10)).contains("from"))
+    assertFalse(buffer.stylesAt(Loc(0, 10)).contains("kw"))
+  }
+
   @Test def testDocCommentMarkup () :Unit = {
     val buffer = moped.impl.BufferImpl.scratch("test.ts")
     buffer.append(Seq(

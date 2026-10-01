@@ -44,6 +44,9 @@ lazy val root = project.in(file(".")).settings(
   libraryDependencies += "io.github.bonede" % "tree-sitter-python" % "0.25.0",
   libraryDependencies += "io.github.bonede" % "tree-sitter-typescript" % "0.23.2",
   libraryDependencies += "io.github.bonede" % "tree-sitter-tsx" % "0.23.2",
+  // DerekStride/tree-sitter-sql; versioned after the upstream gh-pages branch, where that project
+  // publishes its generated parser
+  libraryDependencies += "io.github.bonede" % "tree-sitter-sql" % "gh-pages-a",
 
   libraryDependencies ++= Seq("base", "controls", "swing").map(
     m => "org.openjfx" % s"javafx-$m" % "26" classifier osName),

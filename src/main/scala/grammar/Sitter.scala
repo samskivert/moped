@@ -124,7 +124,11 @@ class Sitter (
   // the (tagStyle, codeStyle, paramStyle) to use for `@tag` annotations, backtick-delimited code,
   // and `@param`/`@property` names within it; nodes whose type isn't a key here (the default: all
   // of them) get no such sub-styling
-  docStylers :Map[String, (String, String, String)] = Map()
+  docStylers :Map[String, (String, String, String)] = Map(),
+  // consulted for node types that have no entry in `stylers`; lets grammars with large families of
+  // similarly-named node types (e.g. tree-sitter-sql's `keyword_*`) style them without listing
+  // every one
+  fallbackStylers :PartialFunction[String, Styler] = PartialFunction.empty
 ) {
 
   /** Returns the scope names applied to `loc` in outer- to inner-most order. */
@@ -288,7 +292,8 @@ class Sitter (
       val sloc = buf.loc(cs)
       val eloc = buf.loc(ce)
       if (sloc.row < to && eloc.row >= from) {
-        stylers.get(node.getType).flatMap(styler => Option(styler(scopes))).
+        stylers.get(node.getType).orElse(fallbackStylers.lift(node.getType)).
+          flatMap(styler => Option(styler(scopes))).
           foreach(style => buf.addStyle(style, sloc, eloc))
         syntaxers.get(node.getType).flatMap(taxer => Option(taxer(scopes))).
           foreach(tax => buf.setSyntax(tax, sloc, eloc))

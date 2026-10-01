@@ -10,9 +10,10 @@ A few orientation points:
 - Built with [SBT]; `sbt compile`/`sbt test`/`sbt run <file>` are the normal dev loop.
 - Buffer text lives in `Buffer`/`Line` (`src/main/scala/Buffer.scala`, `Line.scala`), addressed by
   `Loc(row, col)` where `col` is a UTF-16 character offset (matching JVM `String` indexing).
-- Major modes live in `src/main/scala/major/`. Most now use tree-sitter for syntax highlighting via
-  `SitterCodeMode`/`Sitter` (`src/main/scala/grammar/Sitter.scala`); a few older modes still use the
-  TextMate-style `Grammar`/`Scoper` machinery (`src/main/scala/grammar/`).
+- Major modes live in `src/main/scala/major/`. A growing subset (Python, TypeScript, Swift, Prisma,
+  SQL) use tree-sitter for syntax highlighting via `SitterCodeMode`/`Sitter`
+  (`src/main/scala/grammar/Sitter.scala`), which is the preferred approach for new modes; the rest
+  still use the older TextMate-style `Grammar`/`Scoper` machinery (`src/main/scala/grammar/`).
 - LSP integration lives in `src/main/scala/project/` (`LangMode.scala`, `LangClient.scala`, etc.).
 - JavaFX rendering (buffer view, cursor, popups) lives in `src/main/scala/impl/` (`BufferArea.scala`,
   `LineViewImpl.scala`, `WindowImpl.scala`).

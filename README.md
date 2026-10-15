@@ -80,28 +80,34 @@ implementation of TextMate's grammars) for syntax highlighting, `Commenter` to h
 code comment manipulations, `Indenter` which provides a framework for handling code indentation,
 and a few other bits and bobs.
 
-Moped integrates with Language Servers, though it doesn't come with built-in integration for most
-project types at the moment. Instead you have to create a `.langserver` file in the root directory
-of your project and provide a command to execute to start the language server.
+Moped integrates with Language Servers. A few project types are detected automatically, and Moped
+starts the appropriate language server when you open a source file in such a project (the server
+command must be on your `PATH`):
 
-For Moped itself, you can install [Metals] and then configure it to use that as the language
-server for its own source code. Run:
+| Language   | Detected by                  | Server                                    |
+|------------|------------------------------|-------------------------------------------|
+| Scala      | `.bloop` directory           | `metals`                                  |
+| TypeScript | `tsconfig.json`              | `typescript-language-server`              |
+| Swift      | `Package.swift`              | `sourcekit-lsp` (via `xcrun`)             |
+| Dart       | `pubspec.yaml`               | the Dart SDK's analysis server            |
+| Java       | Eclipse `.project` file      | Eclipse JDT LS                            |
+
+For Moped itself, install [Metals] so that `metals` is on your `PATH` (e.g. `cs install metals`
+using [Coursier]), then run `sbt bloopInstall` in the root project directory to generate the
+`.bloop` directory. After that, opening any Scala file in the project starts Metals and all of the
+`lang-mode` fns should work.
+
+For other project types, you can create a `.langserver` file in the root directory of your project
+that says which file suffixes it applies to and how to start the language server, for example:
 
 ```
-coursier bootstrap org.scalameta:metals_2.13:0.11.10 -o metals -f
+suff: rs
+serverCmd: rust-analyzer
 ```
 
-in the root project directory, and then `sbt bloopInstall`, and create a `.langserver` file that
-contains the following:
-
-```
-suff: scala
-serverCmd: metals/metals
-serverArg: -Dmetals.http=true
-```
-
-That should cause Moped to start up a language server whenever any file in its project is opened,
-and all of the `lang-mode` fns should actually work.
+Additional `serverArg: ...` lines supply arguments to the server command, and `serverPort: ...`
+can be used for servers that Moped should connect to over a WebSocket on that port instead of
+via stdio.
 
 ## License
 
@@ -112,3 +118,5 @@ https://github.com/samskivert/moped
 [LSP]: https://langserver.org/
 [Emacs reference card]: http://www.gnu.org/software/emacs/refcards/pdf/refcard.pdf
 [SBT]: https://www.scala-sbt.org/
+[Metals]: https://scalameta.org/metals/
+[Coursier]: https://get-coursier.io/
